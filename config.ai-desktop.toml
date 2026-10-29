@@ -17,4 +17,3 @@ url = "https://static.ampcode.com/mac/Amp-1.0-994.dmg"
 sha256 = "1caabaa1be046205f416f0dd7ea0832436a35534d2e488e10aeb0ce6115f98c1"
 artifact = "Amp.app"
 os = "macos/arm64"
-adopt = true

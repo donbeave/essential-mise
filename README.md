@@ -2,6 +2,8 @@
 
 A plain, native [mise bootstrap](https://mise.jdx.dev/bootstrap.html) configuration for an Apple Silicon Mac. No Rust CLI, component framework, profile resolver, setup daemon, or custom orchestration.
 
+**Status: PRE-RELEASE.** Static and isolated validation is complete, but the disposable-Mac release gate has not passed. The mutable `main` branch is not an end-to-end-tested release source. Use a reviewed commit-pinned launcher for any real setup.
+
 ## Requirements
 
 - Native Apple Silicon, macOS **27.2 or newer**.
@@ -12,10 +14,11 @@ The repository targets **mise 2026.10.23**. `config.toml` is intentionally inert
 
 ## First Mac
 
-After the public repository is published, review `bootstrap.sh`, then run:
+After the public repository is published, review `bootstrap.sh` and select a reviewed commit. Replace `<reviewed-commit>` with its full SHA, then run the immutable launcher:
 
 ```bash
-essential_mise_script="$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
+reviewed_commit='<reviewed-commit>'
+essential_mise_script="$(/usr/bin/curl -fsSL "https://raw.githubusercontent.com/donbeave/essential-mise/$reviewed_commit/bootstrap.sh")" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
 ```
 
 This prepares only Command Line Tools/Git, official Homebrew, pinned mise, inert adoption, and `foundation` zsh activation. A failed/empty download, cancelled prerequisite, conflicting existing config, or unsupported OS fails closed. Rerunning skips adoption when a valid checkout exists and applies only `foundation`, never previously selected optional modules.
@@ -48,9 +51,14 @@ Examples:
 ```bash
 cd "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
 
+# On a fresh Mac, install only the Ruby prerequisite if preview reports Ruby 3+ is required.
+# This does not install the other AI packages and allows tap evaluation during preview.
+mise -E ai-tools,ai-cli bootstrap packages apply brew:ruby --yes
+
 # Shared CLI utilities and coding agents, with no AI desktop apps
 mise -E ai-tools,ai-cli bootstrap --dry-run
 mise -E ai-tools,ai-cli bootstrap
+mise -E ai-tools,ai-cli bootstrap status --missing
 
 # Java runtime and build tools
 mise -E development-java bootstrap --dry-run

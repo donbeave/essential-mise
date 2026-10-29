@@ -17,6 +17,7 @@ Native mise installs and configures only declared resources. The following remai
 - Browser/VPN/proxy profiles, Surge endpoints/secrets, WARP mode, Little Snitch extension/rules, and privileged network changes are manual.
 - `agent-browser install` and browser runtime initialization are manual after package installation.
 - Amp and OMP require native mise metadata/install verification. Their accounts and any provider opt-in are manual. Verify OMP loads `~/.omp/agent/AGENTS.md`, then use `omp config` and `omp models` to validate roles, enabled models, and route overrides; missing authentication is not success. Drop stale settings.
+- For an existing Homebrew-managed Amp Desktop installation, choose exactly one owner before applying `ai-desktop`. `macos-app` deliberately has no `adopt` declaration and must refuse to take over the existing app. Review and remove or leave the Homebrew-owned installation yourself; do not run both managers against `/Applications/Amp.app`. Release tests must cover both a clean install and this existing-app conflict.
 - FFF remains conditional until native mise evaluation and a disposable-host installation pass. If unsupported, install/configure it manually with the upstream method; no fallback hook is added.
 - Superwhisper configuration is fully manual. No mode JSON, recordings, or `~/superwhisper` directory is deployed.
 

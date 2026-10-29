@@ -58,7 +58,7 @@ Every MAS-owning module also declares `brew:mas` so it is independent. App Store
 | `ai-cli` | Claude Code, Codex, Cursor CLI, Antigravity CLI, Kimi Code, OpenCode, Grok Build, Amp CLI, OMP | No desktop packages or references to unselected RTK/FFF/Caveman. Amp/OMP taps are declared here. Includes self-contained agent instructions and Amp completions |
 | `ai-desktop` | Claude, ChatGPT, Cursor, Antigravity, Kimi, OpenCode Desktop, Grok Bot, ZCode, CodexBar, Amp Desktop via `macos-app:amp` | No CLI packages or settings. Amp Desktop uses the official versioned DMG and checksum because its cask DSL is incompatible with mise; it is NEW |
 
-Use `mise -E ai-tools,ai-cli bootstrap` for the complete terminal coding-agent setup. `ai-tools` is optional and is never implicitly selected by either application module.
+Use `mise -E ai-tools,ai-cli bootstrap` for the complete terminal coding-agent setup. `ai-tools` is optional and is never implicitly selected by either application module. If a first-time preview reports that Ruby 3+ is required, run `mise -E ai-tools,ai-cli bootstrap packages apply brew:ruby --yes` before the preview, then apply and run `mise -E ai-tools,ai-cli bootstrap status --missing`. This native package-only prerequisite is not a custom installer and does not install other AI packages.
 
 ## `system-preferences`
 

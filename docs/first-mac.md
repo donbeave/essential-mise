@@ -1,5 +1,7 @@
 # First Mac setup
 
+**PRE-RELEASE:** this workflow has passed isolated checks, not a complete fresh-Mac release test. Use a reviewed commit SHA for any real installation; `main` is mutable.
+
 ## Supported starting point
 
 Use a native Apple Silicon Terminal on macOS **27.2 or newer**. Intel and Rosetta are not supported. On an older factory image, update macOS in System Settings and rerun the command; no OS upgrade is automated.
@@ -11,10 +13,11 @@ You need internet access, an admin user, and interactive prompts for Apple Comma
 After publication, inspect `bootstrap.sh` in the browser or download it for review. Then use the fail-closed launcher:
 
 ```bash
-essential_mise_script="$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
+reviewed_commit='<reviewed-commit>'
+essential_mise_script="$(/usr/bin/curl -fsSL "https://raw.githubusercontent.com/donbeave/essential-mise/$reviewed_commit/bootstrap.sh")" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
 ```
 
-For a tested release, replace `main` with the reviewed commit SHA. `bash -c`, rather than `curl | bash`, preserves interactive installer input.
+Replace `<reviewed-commit>` with the full reviewed commit SHA. `bash -c`, rather than `curl | bash`, preserves interactive installer input. The `main` URL is mutable and is not the recommended release path.
 
 Stage 0 performs only:
 
@@ -56,9 +59,14 @@ Preview first, then apply. For example:
 
 ```bash
 cd "$config_dir"
+# If the preview reports that Ruby 3+ is required, install only that native prerequisite first:
+mise -E ai-tools,ai-cli bootstrap packages apply brew:ruby --yes
 mise -E ai-tools,ai-cli bootstrap --dry-run
 mise -E ai-tools,ai-cli bootstrap
+mise -E ai-tools,ai-cli bootstrap status --missing
 ```
+
+The package-only Ruby step installs no other AI package. It allows the preview to evaluate third-party taps before the full apply; `brew:ruby` is also declared first in those modules so the full package phase retains the prerequisite.
 
 A one-off `-E` replaces persistent selection for that command and does not uninstall other resources. Add an optional module to `miserc.local.toml` to persist it.
 

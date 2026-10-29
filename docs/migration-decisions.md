@@ -90,7 +90,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `ai-desktop` | `"brew-cask:grok-bot" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:zcode" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:codexbar" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
-| `ai-desktop` | `macos-app:amp` with `version = "1.0.994"`, official `Amp-1.0-994.dmg`, SHA-256 `1caabaa1be046205f416f0dd7ea0832436a35534d2e488e10aeb0ce6115f98c1`, `artifact = "Amp.app"`, `os = "macos/arm64"`, `adopt = true` | NEW + CHANGE | Cask Ruby DSL failed (`Array#second` unavailable); native macos-app dry-run passed with official versioned artifact/checksum |
+| `ai-desktop` | `macos-app:amp` with `version = "1.0.994"`, official `Amp-1.0-994.dmg`, SHA-256 `1caabaa1be046205f416f0dd7ea0832436a35534d2e488e10aeb0ce6115f98c1`, `artifact = "Amp.app"`, `os = "macos/arm64"`; no adoption | NEW + CHANGE | Cask Ruby DSL failed (`Array#second` unavailable); native macos-app dry-run passed. Existing Homebrew-managed Amp installs require manual migration, never automatic ownership transfer |
 | `ai-tools` | `"brew:ruby" = "latest"` | NATIVE + prerequisite | Declared first so fresh package application provides Ruby 3+ for tap evaluation; FFF dry-run with isolated Ruby 4.0.9 passed |
 | `ai-tools` | `"brew:ripgrep" = "latest"` | NEW | Formula API verified; native install/status |
 | `ai-tools` | `"brew:fd" = "latest"` | NEW | Formula API verified; native install/status |
