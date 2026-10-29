@@ -110,4 +110,5 @@ Actual fresh-Mac installation, third-party taps/casks, App Store flows, FFF, OMP
 - [Manual actions and preference reversals](docs/manual-actions.md)
 - [Exhaustive migration matrix](docs/migration-decisions.md)
 - [Validation evidence and unverified release gates](docs/validation.md)
+- [Replayable isolated stage-0 and XDG fixtures](docs/validation-fixtures.md)
 - [Isolated Tart/Cua VM verification](scripts/vm/README.md)

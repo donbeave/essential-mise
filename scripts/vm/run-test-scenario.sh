@@ -2,14 +2,14 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|full-dry-run|preferences>'
+[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|full-dry-run|preferences>'
 scenario="$1"
 case "$VM_NAME" in
   essential-mise-test-*) ;;
   *) fail 'Application scenarios require a registered disposable VM' ;;
 esac
 case "$scenario" in
-  stage0|standard|ai|ai-desktop|amp-conflict|full-dry-run|preferences) ;;
+  stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|full-dry-run|preferences) ;;
   *) fail "Unknown test scenario: $scenario" ;;
 esac
 vm_require_name
@@ -75,6 +75,17 @@ case "$scenario" in
     fi
     vm_ssh 'test "$(/bin/cat /Applications/Amp.app/Contents/essential-mise-test-marker)" = unmanaged && ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1'
     [[ "$outcome" == expected-refusal ]] || fail 'Amp hook accepted an unmanaged existing app'
+    ;;
+  claude-conflict)
+    run_logged install-existing "/opt/homebrew/bin/brew install --cask claude-code@latest"
+    if run_logged conflict-preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap --dry-run"; then
+      outcome=unexpected-success
+    else
+      outcome=expected-refusal
+    fi
+    [[ "$outcome" == expected-refusal ]] || fail 'Claude cask conflict did not fail closed as expected'
+    run_logged manual-migration "/opt/homebrew/bin/brew uninstall --cask claude-code@latest"
+    run_logged resolved-preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap --dry-run"
     ;;
   full-dry-run)
     run_logged all-environments "cd '$config_dir' && \$HOME/.local/bin/mise -C /tmp -E foundation,terminal,development,security,js,development-rust,development-java,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin,ai-tools,ai-cli,ai-desktop,system-preferences bootstrap --dry-run"

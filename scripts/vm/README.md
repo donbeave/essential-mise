@@ -98,11 +98,24 @@ VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh standard
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh ai
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh ai-desktop
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh amp-conflict
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh claude-conflict
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh full-dry-run
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh preferences
 ```
 
 The scenarios deliberately share one VM when they have dependencies. Use separate clones for independent clean-state tests. The stage-0 launcher uses a full reviewed commit, not mutable `main`; update that commit deliberately. Run `ai` before the full dry run to exercise the real-Homebrew hooks and eliminate package conflicts. Review every log before assigning a release result; a completed scenario command is not a blanket release approval. MAS/account, paid-license, personal-credential, and authenticated-provider tests remain blocked without synthetic or explicitly approved test accounts.
+
+Replay the isolated first-run, optional-selection rerun, wrong-origin, and XDG fixtures:
+
+```bash
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/isolated-validation.sh
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "REVIEWED_COMMIT=$(git rev-parse HEAD) /bin/bash /tmp/essential-mise-artifact/isolated-validation.sh"
+```
+
+The fixture clones the reviewed public commit inside the guest, substitutes its local repository path only in a temporary copy of `bootstrap.sh`, and records every invocation, exit code, and log under `/tmp/essential-mise-evidence/isolated-fixtures`. Temporary HOME/XDG directories are created explicitly. No real global configuration is used.
 
 Delete only a registered disposable VM after its test is complete:
 

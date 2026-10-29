@@ -26,6 +26,7 @@ The current runtime work uses Tart **2.41.1** on an Apple Silicon macOS **27.2 (
 | Full AI CLI/tools | PASS: preview, apply, status, second-run convergence, and CLI checks. Real Homebrew owns Amp CLI, OMP, and FFF; `amp --version`, `omp --version`, and `fff-mcp --healthcheck` passed |
 | Grok Bot official DMG fallback | PASS: native `macos-app:grok-bot` installed from the official `/grokbot/` URL with exact SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9`; signature/notarization verified. The outdated cask `/sand/` URL returned 403 through both mise and real Homebrew |
 | Complete unmodified dry run | PASS: all 27 environments ran in one unmodified `mise bootstrap --dry-run` on the final guest, with no package exclusions |
+| Existing `claude-code@latest` ownership conflict | PASS: real Homebrew installed the cask, unmodified `ai-cli` preview failed closed with `brew-cask:claude-code: conflicts with installed cask claude-code@latest`, and an explicit uninstall/preview migration then succeeded without automatic adoption |
 | macOS preferences | PASS: preview, apply, stored status, Dock values, and preservation of synthetic unrelated global/nested values, including `AppleFirstWeekday.syntheticKeep` and unrelated `AppleICUDateFormatStrings` members |
 | Ghostty application UI | PASS: a real guest window rendered Starship/Nerd Font correctly; Cua typed and verified `ESSENTIAL_MISE_UI_OK` in both the accessibility output and screenshot |
 | Amp Desktop UI startup | **BLOCKED**: the installed Amp process stalls at `_dyld_start` before application code, with no window, crash report, or useful log. The installed executable is byte-identical to the official DMG, so this is not a Homebrew copy issue. Package ownership/install succeeded, but Amp GUI behavior is unverified on macOS 27.2 |
@@ -108,9 +109,26 @@ The test used temporary HOME/config directories and local-path adoption of the c
 6. **Empty local adoption fixture:** the first stage-0 attempt cloned an empty Git repository, so `mise doctor` had no config or activation. Committing the reviewed repository before adoption was required; the rerun passed with full activation.
 7. **Optional tools broke stage-0 rerun:** selecting `ai-cli` made unscoped `mise doctor` fail because its optional runtime was intentionally not installed. Stage 0 now runs `mise -E foundation doctor`, matching its foundation-only apply scope. Commit `cc7f478` passed the real optional-selection rerun on the `admin`/`admin` guest.
 
+## Review follow-up evidence
+
+The review's obsolete native Ruby/tap prerequisite has been superseded by the documented real-Homebrew exceptions; no Ruby prerequisite remains. Actual Amp CLI, OMP, and FFF installation and health checks passed, including repeat hooks. The full clean dry run and true no-Homebrew/no-CLT first run also passed, so those are no longer open items.
+
+The separate existing-Homebrew cask test used these exact commands on `essential-mise-test-evidence`:
+
+```bash
+/opt/homebrew/bin/brew install --cask claude-code@latest
+mise -E ai-cli bootstrap --dry-run
+/opt/homebrew/bin/brew uninstall --cask claude-code@latest
+mise -E ai-cli bootstrap --dry-run
+```
+
+The first preview failed with `brew-cask:claude-code: conflicts with installed cask claude-code@latest`. The explicit uninstall removed only that alternate cask (without `--zap` or automatic ownership transfer), and the second unmodified preview succeeded. Use this migration only after deciding that `claude-code` should own the installation; otherwise retain `claude-code@latest` and do not apply the conflicting module.
+
+The earlier isolated first-run, optional-selection rerun, wrong-origin, and XDG claims now have exact fixture setup, replay commands, exit codes, and captured output in [Replayable isolated stage-0 and XDG fixtures](validation-fixtures.md). Local-path adoption is limited to a temporary copy of `bootstrap.sh`; origin metadata is explicitly restored to the expected public URL for rerun checks.
+
 ## Still unverified and requiring disposable-Mac release testing
 
-- Actual installation of remaining non-AI optional modules, including security/network/admin casks and MAS applications, plus existing Homebrew cask conflicts. Amp's unmanaged-app refusal passed.
+- Actual installation of remaining non-AI optional modules, including security/network/admin casks and MAS applications. The Claude and Amp unmanaged-app refusal/migration checks passed.
 - Interrupted CLT flows and final review of the immutable release commit. The true no-Homebrew/no-CLT first run passed at `0d57f58` with real Apple dialogs.
 - Amp Desktop UI startup on macOS 27.2, currently blocked at `_dyld_start`, plus application launch/relaunch and persistence checks. Ghostty UI, Starship/Nerd Font rendering, zsh/Fish activation, and unrelated-directory checks passed.
 - App Store signed-out/signed-in/rerun and `mas` availability. No personal Apple Account is permitted.
