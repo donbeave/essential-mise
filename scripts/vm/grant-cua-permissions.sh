@@ -10,4 +10,4 @@ if ! vm_is_running; then
 else
   vm_scan_host_key
 fi
-vm_ssh '/opt/homebrew/bin/cua-driver permissions grant'
+vm_ssh '"$ESSENTIAL_MISE_CUA_DRIVER" permissions grant'

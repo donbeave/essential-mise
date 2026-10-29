@@ -59,14 +59,12 @@ Preview first, then apply. For example:
 
 ```bash
 cd "$config_dir"
-# If the preview reports that Ruby 3+ is required, install only the native mise runtime first:
-mise -E ai-tools,ai-cli install ruby
 mise -E ai-tools,ai-cli bootstrap --dry-run
 mise -E ai-tools,ai-cli bootstrap
 mise -E ai-tools,ai-cli bootstrap status --missing
 ```
 
-The tool-only Ruby step installs no AI package. Both tap-owning AI modules declare `ruby = "4.0.9"` under `[tools]`, allowing mise to use its own activated runtime when evaluating source-only tap definitions. A Homebrew `brew:ruby` package does not provide that mise runtime and is not the prerequisite.
+Amp CLI, OMP, and FFF use documented real-Homebrew hooks because their native mise installations have concrete compatibility failures. No separate Ruby prerequisite or custom installer is needed. See [Homebrew exceptions](homebrew-exceptions.md).
 
 A one-off `-E` replaces persistent selection for that command and does not uninstall other resources. Add an optional module to `miserc.local.toml` to persist it.
 

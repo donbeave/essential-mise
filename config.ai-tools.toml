@@ -1,9 +1,3 @@
-[bootstrap.brew.taps]
-"dmtrKovalenko/fff" = "https://github.com/dmtrKovalenko/fff.git"
-
-[tools]
-ruby = "4.0.9"
-
 [bootstrap.packages]
 "brew:ripgrep" = "latest"
 "brew:fd" = "latest"
@@ -25,4 +19,7 @@ ruby = "4.0.9"
 "brew:universal-ctags" = "latest"
 "brew:rtk" = "latest"
 "brew:agent-browser" = "latest"
-"brew:dmtrKovalenko/fff/fff-mcp" = "latest"
+
+[bootstrap.hooks.post-packages]
+description = "Real Homebrew: FFF MCP (mise 2026.10.23 installs a non-executable raw binary)"
+run = "/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp"

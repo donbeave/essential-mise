@@ -5,9 +5,15 @@
 "brew-cask:antigravity" = "latest"
 "brew-cask:kimi" = "latest"
 "brew-cask:opencode-desktop" = "latest"
-"brew-cask:grok-bot" = "latest"
 "brew-cask:zcode" = "latest"
 "brew-cask:codexbar" = "latest"
+
+[bootstrap.packages."macos-app:grok-bot"]
+version = "0.78.1"
+url = "https://downloads.cursor.com/grokbot/stable/darwin-arm64/0.78.1/Grok_Bot_0.78.1.dmg"
+sha256 = "0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9"
+artifact = "Grok Bot.app"
+os = "macos/arm64"
 
 [bootstrap.hooks.post-packages]
 description = "Real Homebrew: Amp Desktop (mise 2026.10.23 cannot evaluate cask Array#second)"

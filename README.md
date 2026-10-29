@@ -51,10 +51,6 @@ Examples:
 ```bash
 cd "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
 
-# On a fresh Mac, install only the native mise Ruby runtime if preview reports Ruby 3+ is required.
-# This does not install the other AI packages and allows tap evaluation during preview.
-mise -E ai-tools,ai-cli install ruby
-
 # Shared CLI utilities and coding agents, with no AI desktop apps
 mise -E ai-tools,ai-cli bootstrap --dry-run
 mise -E ai-tools,ai-cli bootstrap
@@ -114,3 +110,4 @@ Actual fresh-Mac installation, third-party taps/casks, App Store flows, FFF, OMP
 - [Manual actions and preference reversals](docs/manual-actions.md)
 - [Exhaustive migration matrix](docs/migration-decisions.md)
 - [Validation evidence and unverified release gates](docs/validation.md)
+- [Isolated Tart/Cua VM verification](scripts/vm/README.md)

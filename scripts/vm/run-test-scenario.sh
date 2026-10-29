@@ -54,17 +54,11 @@ case "$scenario" in
     run_logged shell-verification "cd /tmp && /bin/zsh -lic 'command -v starship && command -v bat && command -v fish && test -x /Applications/Ghostty.app/Contents/MacOS/ghostty && test \"\$(git -C \"\$HOME/.oh-my-zsh\" rev-parse HEAD)\" = 0b50afdbfd8cbd0e03be68ecec4e1b5d3f55ef0a && test \"\$(git -C \"\$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" rev-parse HEAD)\" = 85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5 && mise doctor' && /opt/homebrew/bin/fish -lc 'mise --version'"
     ;;
   ai)
-    if run_logged initial-preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-tools,ai-cli bootstrap --dry-run"; then
-      printf 'Initial AI preview completed without a separate Ruby prerequisite.\n'
-    else
-      printf 'Initial AI preview failed; its output is preserved before the native prerequisite recovery.\n'
-    fi
-    run_logged ruby-prerequisite "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-tools,ai-cli install ruby"
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-tools,ai-cli bootstrap --dry-run"
     run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-tools,ai-cli bootstrap"
     run_logged status "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-tools,ai-cli bootstrap status --missing"
     run_logged second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-tools,ai-cli bootstrap"
-    run_logged cli-verification "/bin/zsh -lic 'cd /tmp && rg --version && fd --version && fff --version && rtk --version && agent-browser --version && amp --version && omp --version && command -v claude && command -v codex && command -v kimi && command -v opencode'"
+    run_logged cli-verification "/bin/zsh -lic 'cd /tmp && rg --version && fd --version && fff-mcp --healthcheck && rtk --version && agent-browser --version && amp --version && omp --version && command -v claude && command -v codex && command -v kimi && command -v opencode'"
     ;;
   ai-desktop)
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-desktop bootstrap --dry-run"

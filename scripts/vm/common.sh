@@ -6,6 +6,7 @@ VM_SSH_USER="${VM_SSH_USER:-admin}"
 VM_CONFIG_DIR="${VM_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/essential-mise/vm}"
 VM_SSH_KEY="${VM_SSH_KEY:-$VM_CONFIG_DIR/id_ed25519}"
 VM_KNOWN_HOSTS="${VM_KNOWN_HOSTS:-$VM_CONFIG_DIR/known_hosts}"
+VM_CUA_DRIVER="${VM_CUA_DRIVER:-/opt/homebrew/bin/cua-driver}"
 VM_IP=''
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -61,6 +62,7 @@ vm_scan_host_key() {
 }
 
 vm_ssh() {
+  [[ "$VM_CUA_DRIVER" == /* && "$VM_CUA_DRIVER" != *"'"* ]] || fail "Invalid guest Cua Driver path: $VM_CUA_DRIVER"
   vm_require_ip
   /usr/bin/ssh -T -i "$VM_SSH_KEY" \
     -o BatchMode=yes \
@@ -69,7 +71,7 @@ vm_ssh() {
     -o StrictHostKeyChecking=yes \
     -o UserKnownHostsFile="$VM_KNOWN_HOSTS" \
     -o LogLevel=ERROR \
-    "$VM_SSH_USER@$VM_IP" "$@"
+    "$VM_SSH_USER@$VM_IP" "export ESSENTIAL_MISE_CUA_DRIVER='$VM_CUA_DRIVER'; $*"
 }
 
 vm_scp() {

@@ -60,6 +60,10 @@ scripts/vm/finalize-automation-baseline.sh
 
 Finalization requires the exact guest OS, driver version/status, doctor, application listing, and a real guest desktop capture. It stops and preserves the verified baseline. A clone did not retain `authorized_keys` during initial setup; `ensure-guest-access.sh` restores only the dedicated public key using the synthetic owner password and verifies key login. Never weaken host-key checking to work around this.
 
+Homebrew is the default driver source at `/opt/homebrew/bin/cua-driver`. For a genuinely fresh guest without Homebrew, download and inspect the official Cua installer and helper, then use the absolute `VM_CUA_DRIVER` override, for example `VM_CUA_DRIVER=/Users/admin/.local/bin/cua-driver`. Verify the release SHA-256 and Developer ID/notarization. The override changes only the guest executable path and never permits a host-local driver or symlink into another package owner.
+
+Tart allows at most two running VMs. Stop one disposable VM before starting another; baselines remain stopped during cloning and ordinary tests.
+
 ## Disposable test VMs
 
 Create and start a workflow-owned clone:
@@ -98,7 +102,7 @@ VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh full-dry-run
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh preferences
 ```
 
-The scenarios deliberately share one VM when they have dependencies. Use separate clones for independent clean-state tests. The stage-0 launcher uses a full reviewed commit, not mutable `main`; update that commit deliberately. Run `ai` before the full dry run so the native Ruby prerequisite exists. Review every log before assigning a release result; a completed scenario command is not a blanket release approval. MAS/account, paid-license, personal-credential, and authenticated-provider tests remain blocked without synthetic or explicitly approved test accounts.
+The scenarios deliberately share one VM when they have dependencies. Use separate clones for independent clean-state tests. The stage-0 launcher uses a full reviewed commit, not mutable `main`; update that commit deliberately. Run `ai` before the full dry run to exercise the real-Homebrew hooks and eliminate package conflicts. Review every log before assigning a release result; a completed scenario command is not a blanket release approval. MAS/account, paid-license, personal-credential, and authenticated-provider tests remain blocked without synthetic or explicitly approved test accounts.
 
 Delete only a registered disposable VM after its test is complete:
 
@@ -115,9 +119,10 @@ For an already running, verified VM:
 ```bash
 VM_NAME=essential-mise-test-stage0 scripts/vm/connect-mcp.sh
 VM_NAME=essential-mise-test-stage0 scripts/vm/smoke-mcp.sh
+VM_NAME=essential-mise-test-stage0 scripts/vm/smoke-ui.py
 ```
 
-The launcher resolves the named Tart VM, requires its dedicated SSH key and verified host key, and executes only guest `/opt/homebrew/bin/cua-driver mcp`. It has no host-local fallback. The smoke test performs MCP initialization, lists tools and guest apps, and saves a guest-originated desktop image plus protocol evidence under `/tmp`.
+The launcher resolves the named Tart VM, requires its dedicated SSH key and verified host key, and executes only guest `/opt/homebrew/bin/cua-driver mcp`. It has no host-local fallback. The MCP smoke test performs initialization, lists tools and guest apps, and saves a guest-originated desktop image plus protocol evidence under `/tmp`. `smoke-ui.py` uses session-scoped accessibility tokens to calculate 6×7 in guest Calculator, asserts 42 in the window tree, and saves initial/final screenshots in the guest evidence directory.
 
 Register the launcher using the agent's documented MCP interface, for example:
 

@@ -19,7 +19,7 @@ The old generic components and sanitized legacy example have different provenanc
 |---|---|---|---|
 | `agents.claude-work` | DROP | No private account-specific structured-file state; no `~/.claude-work` writer | No private home is created or configured |
 | `apps.agent-browser` | NATIVE + MANUAL + DROP | `brew:agent-browser` in `ai-tools`; runtime initialization is manual; old Chrome cleanup/retention is dropped | CLI metadata/status; `agent-browser install` remains a manual runtime step |
-| `apps.amp` | NATIVE | `brew:ampcode/tap/ampcode` in `ai-cli`; sanitized shared instructions replace old RTK/Caveman policy | Amp tap metadata and disposable-host CLI install; `amp completions` tests |
+| `apps.amp` | REAL HOMEBREW + NATIVE CONFIG | Real-Homebrew `ampcode/tap/ampcode` hook in `ai-cli`; sanitized shared instructions replace old RTK/Caveman policy | Native mode-644 executable failed; real-Homebrew install and `amp --version` passed; `amp completions` tests |
 | `apps.antigravity` | NATIVE + MANUAL | `brew-cask:antigravity-cli` in `ai-cli`, `brew-cask:antigravity` in `ai-desktop`; authentication manual | Separate package assertions; no cross-group configuration |
 | `apps.chatgpt` | NATIVE + MANUAL | `brew-cask:chatgpt` in `ai-desktop`; authentication manual | Desktop-only package assertion |
 | `apps.claude-code` | NATIVE | `brew-cask:claude-code` in `ai-cli`; shared self-contained `~/.claude/CLAUDE.md` | No RTK/Caveman reference; copy-mode dotfile |
@@ -27,7 +27,7 @@ The old generic components and sanitized legacy example have different provenanc
 | `apps.codex` | NATIVE + DROP | `brew-cask:codex` in `ai-cli`, `brew-cask:codexbar` in `ai-desktop`; shared Codex instructions; generated config/update/hook graph dropped | Separate package assertions; `CODEX.md` copy-mode check |
 | `apps.cursor` | NATIVE + MANUAL | `brew-cask:cursor-cli` in `ai-cli`, `brew-cask:cursor` in `ai-desktop`; authentication manual | Separate package assertions |
 | `apps.ghostty` | NATIVE + CHANGE | Stable `brew-cask:ghostty` in `terminal`; historical tip channel not selected; current config/theme copied | Nerd Font and fresh-shell UI checks |
-| `apps.grok` | NATIVE + DROP | `brew-cask:grok-build` in `ai-cli`, `brew-cask:grok-bot` in `ai-desktop`; shared instructions; generated completions dropped | Separate package assertions; no stale completion snapshot |
+| `apps.grok` | NATIVE + DROP | `brew-cask:grok-build` in `ai-cli`, native `macos-app:grok-bot` in `ai-desktop` using the current official DMG because the cask URL is outdated; shared instructions; generated completions dropped | Separate package assertions; no stale completion snapshot; official Grok DMG hash/signature verified |
 | `apps.kimi` | NATIVE + CHANGE | `brew:kimi-code` in `ai-cli`, `brew-cask:kimi` in `ai-desktop`; shared instructions replace integration-only old text | Separate package assertions; no RTK/Caveman reference |
 | `apps.omp` | NEW + REAL HOMEBREW | `can1357/tap/omp` through the documented real-Homebrew hook in `ai-cli`; native global instructions and YAML model merges | mise cannot execute `with_env`; real-Homebrew install proof; `omp config`, `omp models`, and instruction-file loading |
 | `apps.opencode` | NATIVE + DROP | `brew:opencode` in `ai-cli`, `brew-cask:opencode-desktop` in `ai-desktop`; shared instructions; old JSONC/plugin integration dropped | Separate package assertions; no missing plugin paths |
@@ -71,7 +71,6 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `admin` | `"mas:1007358832" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `admin` | `"mas:1447778660" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `admin` | `"mas:1037126344" = "latest"` | NEW | Apple lookup confirms `com.apple.configurator.ui`; disposable-host MAS install |
-| `ai-cli` | `ruby = "4.0.9"` under `[tools]` | NATIVE + prerequisite | Native mise runtime for third-party tap evaluation; actual macOS 27.2 preview passed |
 | `ai-cli` | `"brew-cask:claude-code" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:codex" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:cursor-cli" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
@@ -79,7 +78,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `ai-cli` | `"brew:kimi-code" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew:opencode" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:grok-build" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
-| `ai-cli` | `"brew:ampcode/tap/ampcode" = "latest"` | NATIVE | Amp tap metadata and disposable-host install |
+| `ai-cli` | Real Homebrew `/opt/homebrew/bin/brew install ampcode/tap/ampcode` in `post-packages` | REAL HOMEBREW | Native installation left Amp CLI non-executable (mode 644); real Homebrew installed mode 555 and `amp --version` passed |
 | `ai-cli` | Real Homebrew `/opt/homebrew/bin/brew install can1357/tap/omp` in `post-packages` | NEW + REAL HOMEBREW | mise 2026.10.23 cannot execute the formula's `with_env` completion helper; see [Homebrew exceptions](homebrew-exceptions.md) |
 | `ai-desktop` | `"brew-cask:claude" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:chatgpt" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
@@ -87,11 +86,10 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `ai-desktop` | `"brew-cask:antigravity" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:kimi" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:opencode-desktop" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
-| `ai-desktop` | `"brew-cask:grok-bot" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
+| `ai-desktop` | `macos-app:grok-bot` version `0.78.1`, official `/grokbot/` DMG, SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9`, `Grok Bot.app` | NATIVE + OFFICIAL DIRECT | The cask's `/sand/` URL returned 403 through both package managers; the official page's current DMG passed hash, signature, notarization, and installation checks |
 | `ai-desktop` | `"brew-cask:zcode" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:codexbar" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | Real Homebrew `/opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta` in `post-packages`; existing unmanaged app refused | NEW + REAL HOMEBREW | mise 2026.10.23 cannot evaluate the cask's `Array#second` DSL; current cask `1.0,996` uses the official DMG/checksum. No automatic adoption or second owner |
-| `ai-tools` | `ruby = "4.0.9"` under `[tools]` | NATIVE + prerequisite | Native mise runtime for third-party tap evaluation; actual macOS 27.2 preview passed |
 | `ai-tools` | `"brew:ripgrep" = "latest"` | NEW | Formula API verified; native install/status |
 | `ai-tools` | `"brew:fd" = "latest"` | NEW | Formula API verified; native install/status |
 | `ai-tools` | `"brew:fzf" = "latest"` | NEW | Formula API verified; native install/status |
@@ -112,14 +110,14 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `ai-tools` | `"brew:universal-ctags" = "latest"` | NEW | Formula API verified; native install/status |
 | `ai-tools` | `"brew:rtk" = "latest"` | NATIVE | Formula API verified; native install/status |
 | `ai-tools` | `"brew:agent-browser" = "latest"` | NATIVE | Formula API verified; runtime initialization manual |
-| `ai-tools` | `"brew:dmtrKovalenko/fff/fff-mcp" = "latest"` | NEW + conditional | Native Ruby formula evaluation and disposable-host install required; otherwise MANUAL |
+| `ai-tools` | Real Homebrew `/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp` in `post-packages` | NEW + REAL HOMEBREW | Native installation left FFF non-executable (mode 644); real Homebrew installed mode 555 and `fff-mcp --healthcheck` passed |
 
 ### Third-party tap ownership
 
 | Owning config | Literal declaration | Status and validation |
 |---|---|---|
-| `config.ai-cli.toml` | `[bootstrap.brew.taps] "ampcode/tap" = "https://github.com/ampcode/homebrew-tap.git"`; real-Homebrew `can1357/tap/omp` hook | Amp CLI native source build passed; OMP requires real Homebrew because mise cannot execute `with_env` |
-| `config.ai-tools.toml` | `[bootstrap.brew.taps] "dmtrKovalenko/fff" = "https://github.com/dmtrKovalenko/fff.git"` | Conditional on real FFF installation; isolated dry-run evaluated source build |
+| `config.ai-cli.toml` | Real-Homebrew `ampcode/tap/ampcode` and `can1357/tap/omp` hooks | Amp CLI's native binary was non-executable; OMP requires real Homebrew because mise cannot execute `with_env`. No native tap or Ruby prerequisite remains |
+| `config.ai-tools.toml` | Real-Homebrew `dmtrKovalenko/fff/fff-mcp` hook | Native binary was non-executable; real Homebrew health check passed. No native tap or Ruby prerequisite remains |
 | `config.ai-desktop.toml` | Real-Homebrew `ampcode/tap/amp@beta` hook | Amp Desktop cask uses unsupported `Array#second`; no native tap or Ruby prerequisite remains |
 
 | `browsers` | `"brew-cask:google-chrome" = "latest"` | NATIVE | Native cask metadata/install |

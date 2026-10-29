@@ -1,9 +1,3 @@
-[bootstrap.brew.taps]
-"ampcode/tap" = "https://github.com/ampcode/homebrew-tap.git"
-
-[tools]
-ruby = "4.0.9"
-
 [bootstrap.packages]
 "brew-cask:claude-code" = "latest"
 "brew-cask:codex" = "latest"
@@ -12,11 +6,13 @@ ruby = "4.0.9"
 "brew:kimi-code" = "latest"
 "brew:opencode" = "latest"
 "brew-cask:grok-build" = "latest"
-"brew:ampcode/tap/ampcode" = "latest"
 
 [bootstrap.hooks.post-packages]
-description = "Real Homebrew: OMP (mise 2026.10.23 does not support with_env)"
-run = "/opt/homebrew/bin/brew install can1357/tap/omp"
+description = "Real Homebrew: Amp CLI (mode-644 binary) and OMP (unsupported with_env)"
+run = [
+  "/opt/homebrew/bin/brew install ampcode/tap/ampcode",
+  "/opt/homebrew/bin/brew install can1357/tap/omp",
+]
 
 [dotfiles]
 "~/.claude/CLAUDE.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }

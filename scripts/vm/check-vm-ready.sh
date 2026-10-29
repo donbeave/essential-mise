@@ -5,7 +5,8 @@ vm_require_name
 vm_require_running
 vm_scan_host_key
 vm_ssh 'set -e
-driver=/opt/homebrew/bin/cua-driver
+/usr/bin/caffeinate -u -t 1
+driver="$ESSENTIAL_MISE_CUA_DRIVER"
 printf "Guest macOS: %s (%s)\n" "$(sw_vers -productVersion)" "$(sw_vers -buildVersion)"
 test "$(sw_vers -productVersion)" = "27.2"
 test "$(sw_vers -buildVersion)" = "26B123"
