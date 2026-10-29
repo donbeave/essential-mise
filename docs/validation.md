@@ -43,7 +43,16 @@ The only intentional implementation-host configuration changes were the three ap
 
 ## Stage-0 isolated execution
 
-Pending final first-run and rerun results. The test uses a temporary HOME/config and local-path adoption of this repository; no real global config is touched. The rerun includes an optional environment selector to prove stage 0 applies only foundation.
+The test used temporary HOME/config directories and local-path adoption of the committed repository; no real global config was touched.
+
+- **First run:** PASS. CLT/Git and Homebrew checks completed, official mise installed into the isolated HOME, local config adopted, foundation wrote `~/.zshenv` and zsh activation, and fresh login+interactive zsh reported `activated: yes`, `shims_on_path: yes`, and `No problems found` in `mise doctor`.
+- **Rerun with `env = ["ai-cli", "system-preferences"]`:** PASS. Existing valid checkout skipped adoption and only foundation was reapplied. No optional package was poured. `mise doctor` still reports the selected-but-not-applied packages/defaults as missing, which is expected and not a stage-0 failure.
+- **Wrong-origin existing checkout:** PASS. It failed with exit 1 and the explicit refusal to overwrite or pull.
+- **Custom `XDG_CONFIG_HOME` workflow:** PASS. Stage 0 adopted into `/tmp/essential-mise-xdg-custom/mise`, activated correctly, persisted `foundation,terminal`, completed `git fetch`/full diff/`pull --ff-only`/dry-run, and completed preview-first `mise bootstrap unapply terminal --dry-run` after removing terminal from the selector. No optional apply was run.
+- **Failed launcher download:** PASS. A missing local download returned curl exit 37 and did not execute an empty script.
+- **Initial empty-repository test:** the first attempt correctly exposed that no commit existed, so adoption had no config. After the checkpoint commit, the complete flow passed. This was a test-fixture issue, not a bootstrap design change.
+
+6. **Empty local adoption fixture:** the first stage-0 attempt cloned an empty Git repository, so `mise doctor` had no config or activation. Committing the reviewed repository before adoption was required; the rerun passed with full activation.
 
 ## Still unverified and requiring disposable-Mac release testing
 
