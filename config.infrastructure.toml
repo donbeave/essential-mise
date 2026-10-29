@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"brew:opentofu" = "latest"
+"brew:ansible" = "latest"
+"brew:linode-cli" = "latest"
+"brew:gomplate" = "latest"

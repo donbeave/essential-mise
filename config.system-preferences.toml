@@ -1,0 +1,38 @@
+[bootstrap.macos.dock]
+autohide = true
+orientation = "bottom"
+tilesize = 58
+magnification = false
+show_recents = false
+mru_spaces = false
+
+[bootstrap.macos.keyboard]
+key_repeat = 1
+initial_key_repeat = 10
+press_and_hold = false
+
+[bootstrap.macos.defaults]
+"com.apple.finder" = { FXRemoveOldTrashItems = true, CreateDesktop = true }
+"com.apple.dock" = { mineffect = "genie", "minimize-to-application" = false, launchanim = true, "show-process-indicators" = true, "workspaces-auto-swoosh" = false, "expose-group-apps" = false, "enter-mission-control-by-top-window-drag" = false, "wvous-tl-corner" = 0, "wvous-tr-corner" = 2, "wvous-bl-corner" = 4, "wvous-br-corner" = 11, "wvous-tl-modifier" = 0, "wvous-tr-modifier" = 0, "wvous-bl-modifier" = 0, "wvous-br-modifier" = 0 }
+"com.apple.spaces" = { "spans-displays" = false }
+"com.apple.WindowManager" = { GloballyEnabled = false, EnableStandardClickToShowDesktop = true, EnableTilingByEdgeDrag = false, EnableTopTilingByEdgeDrag = false, EnableTilingOptionAccelerator = false }
+NSGlobalDomain = { AppleInterfaceStyleSwitchesAutomatically = true, AppleLocale = "en_US", AppleMetricUnits = true, AppleMeasurementUnits = "Centimeters", AppleTemperatureUnit = "Celsius", AppleICUForce24HourTime = true, AppleLiveTextEnabled = true, AppleActionOnDoubleClick = "Maximize", AppleMiniaturizeOnDoubleClick = false, AppleWindowTabbingMode = "fullscreen", NSCloseAlwaysConfirmsChanges = false, NSQuitAlwaysKeepsWindows = false, NSAutomaticSpellingCorrectionEnabled = false, NSAutomaticCapitalizationEnabled = false, NSAutomaticInlinePredictionEnabled = false, NSSmartReplyEnabled = true, NSAutomaticPeriodSubstitutionEnabled = false, NSAutomaticQuoteSubstitutionEnabled = false, NSAutomaticDashSubstitutionEnabled = false, "KB_DoubleQuoteOption" = "“abc”", "KB_SingleQuoteOption" = "‘abc’", NSTableViewDefaultSizeMode = 2, AppleReduceDesktopTinting = false, AppleShowScrollBars = "Automatic", AppleLanguages = ["en-US"] }
+"com.apple.assistant.support" = { "Assistant Enabled" = false }
+"com.apple.Siri" = { StatusMenuVisible = false, VoiceTriggerUserEnabled = false }
+"com.apple.screensaver" = { askForPassword = true, askForPasswordDelay = 300 }
+"com.apple.onetimepasscodes" = { DeleteVerificationCodes = true }
+"com.apple.TextInputMenu" = { visible = true }
+"com.apple.bird" = { "optimize-storage" = true }
+
+# Change only the intended member of each shared dictionary, not the whole value.
+[[bootstrap.macos.defaults_entries]]
+domain = "NSGlobalDomain"
+key = "AppleFirstWeekday"
+path = ["gregorian"]
+value = 2
+
+[[bootstrap.macos.defaults_entries]]
+domain = "NSGlobalDomain"
+key = "AppleICUDateFormatStrings"
+path = ["1"]
+value = "y-MM-dd"

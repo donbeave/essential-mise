@@ -1,0 +1,37 @@
+[bootstrap.brew.taps]
+"ampcode/tap" = "https://github.com/ampcode/homebrew-tap.git"
+"can1357/tap" = "https://github.com/can1357/homebrew-tap.git"
+
+[bootstrap.packages]
+# Ruby 3+ is required to evaluate third-party tap definitions; keep it first.
+"brew:ruby" = "latest"
+"brew-cask:claude-code" = "latest"
+"brew-cask:codex" = "latest"
+"brew-cask:cursor-cli" = "latest"
+"brew-cask:antigravity-cli" = "latest"
+"brew:kimi-code" = "latest"
+"brew:opencode" = "latest"
+"brew-cask:grok-build" = "latest"
+"brew:ampcode/tap/ampcode" = "latest"
+"brew:can1357/tap/omp" = "latest"
+
+[dotfiles]
+"~/.claude/CLAUDE.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
+"~/.config/opencode/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
+"~/.grok/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
+"~/.kimi-code/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
+"~/.config/amp/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
+"~/.omp/agent/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
+"~/.codex/AGENTS.md" = { source = "dotfiles/ai-cli/CODEX.md", mode = "copy" }
+"~/.omp/agent/config.yml/shared" = { source = "dotfiles/ai-cli/omp/config.yml", merge = true }
+"~/.omp/agent/models.yml/shared" = { source = "dotfiles/ai-cli/omp/models.yml", merge = true }
+"~/.zshrc/amp" = { block = '''
+autoload -Uz compinit
+(( $+functions[compdef] )) || compinit
+command -v amp >/dev/null 2>&1 && source <(amp completions zsh)
+''' }
+"~/.config/fish/config.fish/amp" = { block = '''
+if status is-interactive
+    command -q amp; and amp completions fish | source
+end
+''' }

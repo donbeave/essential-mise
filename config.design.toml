@@ -1,0 +1,4 @@
+[bootstrap.packages]
+"brew-cask:sketch" = "latest"
+"brew:mas" = "latest"
+"mas:1289583905" = "latest"

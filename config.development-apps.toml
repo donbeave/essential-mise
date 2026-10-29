@@ -1,0 +1,7 @@
+[bootstrap.packages]
+"brew-cask:jetbrains-toolbox" = "latest"
+"brew-cask:yaak" = "latest"
+"brew-cask:tableplus" = "latest"
+"brew:mas" = "latest"
+"mas:6476452351" = "latest"
+"mas:429449079" = "latest"

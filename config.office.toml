@@ -1,0 +1,7 @@
+[bootstrap.packages]
+"brew-cask:microsoft-word" = "latest"
+"brew-cask:microsoft-excel" = "latest"
+"brew:mas" = "latest"
+"mas:1055273043" = "latest"
+"mas:6740486871" = "latest"
+"mas:1350225911" = "latest"

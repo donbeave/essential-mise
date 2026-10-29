@@ -1,0 +1,7 @@
+[bootstrap.packages]
+"brew:mas" = "latest"
+"mas:747648890" = "latest"
+"mas:310633997" = "latest"
+"mas:803453959" = "latest"
+"mas:836500024" = "latest"
+"brew-cask:zoom" = "latest"

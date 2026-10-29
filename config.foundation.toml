@@ -1,0 +1,5 @@
+[dotfiles]
+"~/.zshenv/local-bin" = { line = 'export PATH="$HOME/.local/bin:$PATH"' }
+
+[bootstrap.mise_shell_activate]
+zsh = true

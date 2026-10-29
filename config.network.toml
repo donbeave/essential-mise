@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"brew-cask:surge" = "latest"
+"brew-cask:cloudflare-warp" = "latest"
+"brew-cask:tunnelblick" = "latest"
+"brew-cask:whyfi" = "latest"

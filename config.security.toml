@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"brew-cask:1password" = "latest"
+"brew-cask:1password-cli" = "latest"
+"brew:mas" = "latest"
+"mas:1569813296" = "latest"

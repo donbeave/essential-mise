@@ -1,0 +1,7 @@
+[bootstrap.packages]
+"brew-cask:transmit" = "latest"
+"brew:mas" = "latest"
+"mas:409907375" = "latest"
+"mas:1007358832" = "latest"
+"mas:1447778660" = "latest"
+"mas:1037126344" = "latest"

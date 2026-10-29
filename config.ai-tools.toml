@@ -1,0 +1,27 @@
+[bootstrap.brew.taps]
+"dmtrKovalenko/fff" = "https://github.com/dmtrKovalenko/fff.git"
+
+[bootstrap.packages]
+# Ruby 3+ is required to evaluate third-party tap definitions; keep it first.
+"brew:ruby" = "latest"
+"brew:ripgrep" = "latest"
+"brew:fd" = "latest"
+"brew:fzf" = "latest"
+"brew:ast-grep" = "latest"
+"brew:semgrep" = "latest"
+"brew:jq" = "latest"
+"brew:yq" = "latest"
+"brew:dasel" = "latest"
+"brew:sd" = "latest"
+"brew:git-delta" = "latest"
+"brew:eza" = "latest"
+"brew:zoxide" = "latest"
+"brew:tree" = "latest"
+"brew:tokei" = "latest"
+"brew:hyperfine" = "latest"
+"brew:shellcheck" = "latest"
+"brew:shfmt" = "latest"
+"brew:universal-ctags" = "latest"
+"brew:rtk" = "latest"
+"brew:agent-browser" = "latest"
+"brew:dmtrKovalenko/fff/fff-mcp" = "latest"

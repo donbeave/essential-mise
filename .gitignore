@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.*
+*.local.toml
+*.pem
+*.key
+*.p12
+*.mobileprovision
+config.*.local.toml
+miserc.local.toml
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+linode.env.op
+inventory.ini

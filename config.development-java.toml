@@ -1,0 +1,7 @@
+[tools]
+java = "oracle-graalvm-25.0.4.1.1"
+
+[bootstrap.packages]
+"brew:gradle" = "latest"
+"brew:maven" = "latest"
+"brew-cask:visualvm" = "latest"

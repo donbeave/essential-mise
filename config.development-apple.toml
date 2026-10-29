@@ -1,0 +1,3 @@
+[bootstrap.packages]
+"brew:mas" = "latest"
+"mas:497799835" = "latest"

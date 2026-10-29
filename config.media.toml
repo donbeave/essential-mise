@@ -1,0 +1,8 @@
+[bootstrap.packages]
+"brew-cask:vlc" = "latest"
+"brew-cask:transmission" = "latest"
+"brew-cask:handbrake-app" = "latest"
+"brew-cask:plex-media-server" = "latest"
+"brew:mas" = "latest"
+"mas:1466185689" = "latest"
+"mas:897118787" = "latest"

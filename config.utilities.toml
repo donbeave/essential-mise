@@ -1,0 +1,10 @@
+[bootstrap.packages]
+"brew-cask:cleanshot" = "latest"
+"brew-cask:bartender" = "latest"
+"brew-cask:homebrew-app" = "latest"
+"brew:mas" = "latest"
+"mas:470158793" = "latest"
+
+[bootstrap.macos.login_items]
+apps = ["/Applications/CleanShot X.app", "/Applications/Bartender 7.app"]
+exclusive = false

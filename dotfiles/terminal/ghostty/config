@@ -1,0 +1,35 @@
+font-family = "JetBrainsMono Nerd Font"
+font-size = 14
+
+mouse-hide-while-typing = true
+
+# Preserve right Option for macOS characters; use left Option as terminal Alt.
+macos-option-as-alt = left
+
+# Deterministic, readable agent panes; keep memory bounded per surface.
+background-opacity = 1
+background-blur = false
+scrollback-limit = 67108864
+unfocused-split-opacity = 1
+cursor-style-blink = false
+
+# Surface long-running command completion while this pane is unfocused.
+desktop-notifications = true
+notify-on-command-finish = unfocused
+notify-on-command-finish-action = no-bell,notify
+notify-on-command-finish-after = 15s
+
+window-padding-x = 12
+window-padding-y = 12
+
+auto-update = download
+
+theme = generic-terminal
+
+shell-integration-features = ssh-env,ssh-terminfo
+
+# Keep common macOS shortcuts on physical keys. This avoids layout/remapper
+# edge cases where the default codepoint bindings do not match Command+C/V/F.
+keybind = super+KeyC=copy_to_clipboard:mixed
+keybind = super+KeyV=paste_from_clipboard
+keybind = super+KeyF=start_search

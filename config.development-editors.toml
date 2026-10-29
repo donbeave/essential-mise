@@ -1,0 +1,8 @@
+[bootstrap.packages]
+"brew-cask:sublime-text" = "latest"
+"brew-cask:visual-studio-code" = "latest"
+"brew-cask:zed" = "latest"
+"brew-cask:font-jetbrains-mono-nerd-font" = "latest"
+
+[dotfiles]
+"~/.config/zed/settings.json/prefs" = { source = "dotfiles/development-editors/zed/settings.jsonc", merge = true, format = "jsonc" }

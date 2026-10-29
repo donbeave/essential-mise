@@ -1,0 +1,15 @@
+providers:
+  openrouter:
+    modelOverrides:
+      deepseek/deepseek-v4.1-flash:
+        compat:
+          openRouterRouting:
+            order: [morph, decart]
+      z-ai/glm-5.3-flash:
+        compat:
+          openRouterRouting:
+            order: [inference-net, decart, parasail]
+      xiaomi/mimo-v2.6-flash:
+        compat:
+          openRouterRouting:
+            order: [makora, deepinfra]

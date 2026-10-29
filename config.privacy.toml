@@ -1,0 +1,3 @@
+[bootstrap.packages]
+"brew-cask:tor-browser" = "latest"
+"brew-cask:little-snitch" = "latest"

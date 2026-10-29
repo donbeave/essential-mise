@@ -1,0 +1,20 @@
+[bootstrap.packages]
+"brew-cask:claude" = "latest"
+"brew-cask:chatgpt" = "latest"
+"brew-cask:cursor" = "latest"
+"brew-cask:antigravity" = "latest"
+"brew-cask:kimi" = "latest"
+"brew-cask:opencode-desktop" = "latest"
+"brew-cask:grok-bot" = "latest"
+"brew-cask:zcode" = "latest"
+"brew-cask:codexbar" = "latest"
+
+# The official Amp cask uses Ruby DSL mise cannot currently evaluate.
+# Keep the same official artifact through native macos-app instead.
+[bootstrap.packages."macos-app:amp"]
+version = "1.0.994"
+url = "https://static.ampcode.com/mac/Amp-1.0-994.dmg"
+sha256 = "1caabaa1be046205f416f0dd7ea0832436a35534d2e488e10aeb0ce6115f98c1"
+artifact = "Amp.app"
+os = "macos/arm64"
+adopt = true

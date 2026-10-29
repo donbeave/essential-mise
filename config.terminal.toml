@@ -1,0 +1,36 @@
+[bootstrap.packages]
+"brew-cask:ghostty" = "latest"
+"brew-cask:font-jetbrains-mono-nerd-font" = "latest"
+"brew:starship" = "latest"
+"brew:bat" = "latest"
+"brew:watch" = "latest"
+"brew:just" = "latest"
+"brew:xh" = "latest"
+"brew:wget" = "latest"
+"brew:bash" = "latest"
+"brew:nushell" = "latest"
+"brew:fish" = "latest"
+"brew:git-standup" = "latest"
+"brew:msedit" = "latest"
+"brew:buf" = "latest"
+"brew:gogcli" = "latest"
+
+[bootstrap.repos]
+"~/.oh-my-zsh" = { url = "https://github.com/ohmyzsh/ohmyzsh.git", ref = "0b50afdbfd8cbd0e03be68ecec4e1b5d3f55ef0a" }
+"~/.oh-my-zsh/custom/plugins/zsh-autosuggestions" = { url = "https://github.com/zsh-users/zsh-autosuggestions.git", ref = "85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5" }
+
+[dotfiles]
+"~/.config/ghostty/config" = { source = "dotfiles/terminal/ghostty/config", mode = "copy" }
+"~/.config/ghostty/themes/generic-terminal" = { source = "dotfiles/terminal/ghostty/generic-terminal", mode = "copy" }
+"~/.config/starship.toml" = { source = "dotfiles/terminal/starship.toml", mode = "copy" }
+"~/.zshrc/terminal" = { block = '''
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME=""
+zstyle ':omz:update' mode disabled
+plugins=(git zsh-autosuggestions)
+[[ -r "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+''' }
+
+[bootstrap.mise_shell_activate]
+fish = "auto"
