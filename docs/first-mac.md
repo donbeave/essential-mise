@@ -27,7 +27,7 @@ Stage 0 performs only:
 4. Official `mise.run` installation of `v2026.10.23`, with exact version verification and `~/.local/bin` added to the current PATH.
 5. First-run-only adoption into `$MISE_CONFIG_DIR` (default `~/.config/mise`) from an empty working directory. Existing valid checkouts skip adoption; wrong-origin/conflicting paths fail without modification.
 6. Only `mise -E foundation bootstrap`, which adds the native `~/.local/bin` line to `~/.zshenv` and native zsh activation.
-7. Fresh login+interactive zsh checks for Git, brew, mise version, and `mise doctor`.
+7. Fresh login+interactive zsh checks for Git, brew, mise version, and foundation-scoped `mise -E foundation doctor`, so selected-but-not-applied optional tools cannot fail a foundation-only rerun.
 
 A failed/empty installer download, cancelled CLT installation, invalid `shellenv`, wrong mise version, conflicting config, or failed shell check returns nonzero. No optional environment is selected permanently.
 

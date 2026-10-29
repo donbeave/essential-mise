@@ -112,7 +112,7 @@ cd "$MISE_CONFIG_DIR"
 "$MISE_BIN" -E foundation bootstrap
 
 say '6/6 - Verify a new login and interactive zsh'
-/bin/zsh -lic 'command -v git >/dev/null && command -v brew >/dev/null && command -v mise >/dev/null && mise --version && mise doctor' || \
+/bin/zsh -lic 'command -v git >/dev/null && command -v brew >/dev/null && command -v mise >/dev/null && mise --version && mise -E foundation doctor' || \
   fail 'New-shell verification failed. Open a fresh Terminal, inspect mise doctor, and rerun this command.'
 
 say 'Finished. Open a fresh Terminal window.'
