@@ -1,6 +1,7 @@
 # Agent rules
 
 - All application runtime and graphical verification must be performed inside the dedicated disposable Tart macOS VM using guest-side Cua Driver automation. Never launch or manipulate the application on the host Mac. Provide actual VM test evidence for every completed UI-affecting task and explicitly identify untested behavior.
+- Handle guest clicks, typing, prompts, and verification autonomously with Cua or verified guest-side automation. Do not ask the user to perform routine guest actions; use the synthetic `admin`/`admin` credential where authorized.
 - Use the latest stable macOS release supported by the project, currently macOS 27.2, on Apple Silicon. Never silently substitute an older guest OS. Install software through Homebrew first; when native mise cannot install a dependency, use real Homebrew and document its exact mise compatibility issue. Use an official installation link only when Homebrew is unavailable or outdated.
 - Prefer headless operation. Never mount the host home directory or the entire project directory into the guest. Transfer only reviewed build artifacts or release installers into the guest.
 - Keep application data, preferences, keychains, caches, logs, screenshots, and test files separate from the host. Use synthetic accounts and data only; every test guest uses username `admin` and password `admin`, never generated guest passwords. Never sign into personal Apple Accounts or transfer personal credentials.

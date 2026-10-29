@@ -133,3 +133,5 @@ codex mcp add essential-mise-vm -- \
 ```
 
 Discover tool arguments from the guest's installed MCP server. Use accessibility results to choose targets, verify visible state after actions, and save screenshots/logs through the guest evidence directory. Do not invent coordinates or treat a returned command as proof of a successful interaction.
+
+Cua's background `launch_app` can leave some macOS apps, including Ghostty and Amp, without an initial window. In that case, use `/usr/bin/open -a <AppName>` inside the guest (never on the host), then inspect the new window through Cua. Use `caffeinate -u -t 1` inside the guest to wake an idle display before UI verification; this does not bypass lock-screen security or TCC. Handle routine prompts autonomously with `admin`/`admin` and verify the resulting state rather than trusting click responses.

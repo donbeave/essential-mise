@@ -13,7 +13,12 @@ fi
 [[ -n "${VM_OWNER_PASSWORD_FILE:-}" ]] || \
   fail 'Dedicated key is not installed in this clone; provide VM_OWNER_PASSWORD_FILE to restore it'
 IFS= read -r public_key < "$VM_SSH_KEY.pub"
-"$script_dir/owner-auth-ssh.sh" \
-  "umask 077; mkdir -p ~/.ssh; printf '%s\n' '$public_key' >> ~/.ssh/authorized_keys"
-vm_ssh 'true'
-printf 'Guest SSH key access restored and verified for %s.\n' "$VM_NAME"
+for attempt in {1..12}; do
+  if "$script_dir/owner-auth-ssh.sh" \
+    "umask 077; mkdir -p ~/.ssh; printf '%s\n' '$public_key' >> ~/.ssh/authorized_keys" && vm_ssh 'true'; then
+    printf 'Guest SSH key access restored and verified for %s.\n' "$VM_NAME"
+    exit 0
+  fi
+  sleep 5
+done
+fail "Unable to establish guest SSH access after startup retries: $VM_NAME"

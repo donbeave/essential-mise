@@ -22,11 +22,14 @@ The current runtime work uses Tart **2.41.1** on an Apple Silicon macOS **27.2 (
 | Guest Homebrew/CLT | PASS on the new automation baseline: Homebrew 7.0.11 and Command Line Tools for Xcode 27.0 |
 | Disposable stage 0 | PASS at `cc7f478f19790482a8a3134384e55701788c9f68` on the recreated `admin`/`admin` clone: public commit-pinned launcher, optional `ai-cli` selection rerun, wrong-origin refusal, and foundation-scoped fresh-shell doctor |
 | Disposable standard modules | PASS on the final `admin`/`admin` clone: foundation, terminal, development packages/apps, pinned repositories, copied dotfiles, second-run convergence, and zsh/Fish activation. Ghostty 1.4.0 is verified through its app-bundle executable because the cask declares no binary link |
-| AI Desktop including real-Homebrew Amp | PASS: full `ai-desktop` preview, apply, second run, and cask ownership verification succeeded. Amp Desktop `1.0,996` is registered to real Homebrew. A separate existing-app refusal test remains |
+| AI Desktop including real-Homebrew Amp | PASS: full `ai-desktop` preview, apply, second run, and cask ownership verification succeeded. Amp Desktop `1.0,996` is registered to real Homebrew. The separate unmanaged-app hook refused without taking ownership, and the disposable conflict VM was removed |
 | Full AI CLI/tools | PASS: preview, apply, status, second-run convergence, and CLI checks. Real Homebrew owns Amp CLI, OMP, and FFF; `amp --version`, `omp --version`, and `fff-mcp --healthcheck` passed |
 | Grok Bot official DMG fallback | PASS: native `macos-app:grok-bot` installed from the official `/grokbot/` URL with exact SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9`; signature/notarization verified. The outdated cask `/sand/` URL returned 403 through both mise and real Homebrew |
 | Complete unmodified dry run | PASS: all 27 environments ran in one unmodified `mise bootstrap --dry-run` on the final guest, with no package exclusions |
 | macOS preferences | PASS: preview, apply, stored status, Dock values, and preservation of synthetic unrelated global/nested values, including `AppleFirstWeekday.syntheticKeep` and unrelated `AppleICUDateFormatStrings` members |
+| Ghostty application UI | PASS: a real guest window rendered Starship/Nerd Font correctly; Cua typed and verified `ESSENTIAL_MISE_UI_OK` in both the accessibility output and screenshot |
+| Amp Desktop UI startup | **BLOCKED**: the installed Amp process stalls at `_dyld_start` before application code, with no window, crash report, or useful log. The installed executable is byte-identical to the official DMG, so this is not a Homebrew copy issue. Package ownership/install succeeded, but Amp GUI behavior is unverified on macOS 27.2 |
+| True no-Homebrew/no-CLT first run | PASS at `0d57f580d0024088422c1e233fd6c527bfdd54f3`: a fresh guest with neither Homebrew nor CLT completed Apple's Install/license flow through Cua, Homebrew and pinned mise installation, public adoption, foundation activation, and a fresh-shell doctor with `No problems found`. Logs, final Terminal screenshot, and MCP evidence were collected before deleting only the disposable clone |
 | Guest Cua consent/UI/MCP | PASS: Accessibility, Screen Recording, and direct capture verified under CuaDriver's own identity; MCP initialization, 62 tools, guest app listing, and real desktop captures succeeded over SSH. Packaged `smoke-ui.py` used accessibility tokens to calculate 6×7 and verified 42 in both the tree and screenshot |
 | Disposable clone lifecycle | PASS: workflow-owned deletion, new clone from the stopped verified baseline, SSH restoration, Cua grants after cloning, and MCP evidence. Baselines and unrelated/unregistered targets were refused |
 
@@ -56,7 +59,7 @@ Earlier logs are preserved under `/tmp/essential-mise-evidence-pre-admin` on the
 | High-confidence secret scan | PASS: no matches for 1Password references, GitHub tokens, AWS keys, or private-key blocks |
 | AI instruction dependency scan | PASS: no RTK/FFF/Caveman/agent-browser/missing-plugin references in approved shared instructions |
 | Repeated package ownership audit | PASS: intentional Nerd Font and independent MAS duplicates, documented real-Homebrew exceptions, and one official direct Grok app; no second owner or Ruby prerequisite remains |
-| Amp Desktop ownership declaration | PASS: real-Homebrew `ampcode/tap/amp@beta` hook with an unmanaged-app refusal; no `macos-app` or adoption declaration. The clean install passed; separate conflict runtime test remains |
+| Amp Desktop ownership declaration and conflict handling | PASS: real-Homebrew `ampcode/tap/amp@beta` hook; clean install passed, and a separate synthetic unmanaged app triggered refusal without marker modification or cask registration. No adoption declaration exists |
 | FFF real-Homebrew installation | PASS: the native install's mode-644 binary failed with permission denied; real Homebrew installed mode 555 and `fff-mcp --healthcheck` reported `All checks passed` |
 | Amp CLI real-Homebrew installation | PASS on disposable macOS 27.2: the native install's mode-644 `amp` failed with permission denied; real Homebrew reinstalled it with mode 555 and `amp --version` succeeded |
 | Third-party tap prerequisites | No Ruby prerequisite remains. Native `[tools]` Ruby fixed preview but did not make Amp CLI's raw binary executable; all demonstrated incompatible formulae now use real Homebrew |
@@ -107,9 +110,9 @@ The test used temporary HOME/config directories and local-path adoption of the c
 
 ## Still unverified and requiring disposable-Mac release testing
 
-- Actual installation of remaining non-AI optional modules, including security/network/admin casks and MAS applications; existing Homebrew cask conflicts and the separate Amp unmanaged-app refusal.
-- True no-Homebrew/no-CLT first-run and interrupted CLT flows on `essential-mise-test-fresh`, plus final review of the immutable release commit.
-- Ghostty UI, Starship/Nerd Font rendering, application launch/relaunch, and persistence checks. Fresh zsh/Fish activation and unrelated-directory CLI checks already passed.
+- Actual installation of remaining non-AI optional modules, including security/network/admin casks and MAS applications, plus existing Homebrew cask conflicts. Amp's unmanaged-app refusal passed.
+- Interrupted CLT flows and final review of the immutable release commit. The true no-Homebrew/no-CLT first run passed at `0d57f58` with real Apple dialogs.
+- Amp Desktop UI startup on macOS 27.2, currently blocked at `_dyld_start`, plus application launch/relaunch and persistence checks. Ghostty UI, Starship/Nerd Font rendering, zsh/Fish activation, and unrelated-directory checks passed.
 - App Store signed-out/signed-in/rerun and `mas` availability. No personal Apple Account is permitted.
 - Java/Gradle/Maven active runtime selection and Homebrew OpenJDK coexistence; Rust native Cargo behavior.
 - Actual OMP model-role/provider-route loading and authentication, and OMP loading `~/.omp/agent/AGENTS.md`. Native files are applied, but authenticated provider behavior is unverified.
