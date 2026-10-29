@@ -26,7 +26,8 @@ The current runtime work uses Tart **2.41.1** on an Apple Silicon macOS **27.2 (
 | Full AI CLI/tools | PASS: preview, apply, status, second-run convergence, and CLI checks. Real Homebrew owns Amp CLI, OMP, and FFF; `amp --version`, `omp --version`, and `fff-mcp --healthcheck` passed |
 | Grok Bot official DMG fallback | PASS: native `macos-app:grok-bot` installed from the official `/grokbot/` URL with exact SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9`; signature/notarization verified. The outdated cask `/sand/` URL returned 403 through both mise and real Homebrew |
 | Complete unmodified dry run | PASS: all 27 environments ran in one unmodified `mise bootstrap --dry-run` on the final guest, with no package exclusions |
-| Existing `claude-code@latest` ownership conflict | PASS: real Homebrew installed the cask, unmodified `ai-cli` preview failed closed with `brew-cask:claude-code: conflicts with installed cask claude-code@latest`, and an explicit uninstall/preview migration then succeeded without automatic adoption |
+| Existing `claude-code@latest` ownership | PASS: real Homebrew reused the existing cask, and preview/apply/repeat converged without a second owner or automatic adoption. The previous conflicting `claude-code` declaration was replaced because its `bin/claude` target was missing |
+| Claude status line | PASS for exact sample output, subagent filtering, context colors, zsh wrapper definition, and `--settings` merge evidence. Claude Code 2.1.312 was used; post-login rendering was not tested without an account |
 | macOS preferences | PASS: preview, apply, stored status, Dock values, and preservation of synthetic unrelated global/nested values, including `AppleFirstWeekday.syntheticKeep` and unrelated `AppleICUDateFormatStrings` members |
 | Ghostty application UI | PASS: a real guest window rendered Starship/Nerd Font correctly; Cua typed and verified `ESSENTIAL_MISE_UI_OK` in both the accessibility output and screenshot |
 | Amp Desktop UI startup | **BLOCKED**: the installed Amp process stalls at `_dyld_start` before application code, with no window, crash report, or useful log. The installed executable is byte-identical to the official DMG, so this is not a Homebrew copy issue. Package ownership/install succeeded, but Amp GUI behavior is unverified on macOS 27.2 |
@@ -59,7 +60,7 @@ Earlier logs are preserved under `/tmp/essential-mise-evidence-pre-admin` on the
 | Migration inventory | PASS: all 41 components, 54 root dotfiles, and 33 legacy-example dotfiles are individually mapped |
 | High-confidence secret scan | PASS: no matches for 1Password references, GitHub tokens, AWS keys, or private-key blocks |
 | AI instruction dependency scan | PASS: no RTK/FFF/Caveman/agent-browser/missing-plugin references in approved shared instructions |
-| Repeated package ownership audit | PASS: intentional Nerd Font and independent MAS duplicates, documented real-Homebrew exceptions, and one official direct Grok app; no second owner or Ruby prerequisite remains |
+| Repeated package ownership audit | PASS: intentional Nerd Font, independent MAS, and shared jq declarations for independent AI modules, documented real-Homebrew exceptions, and one official direct Grok app; no second owner or Ruby prerequisite remains |
 | Amp Desktop ownership declaration and conflict handling | PASS: real-Homebrew `ampcode/tap/amp@beta` hook; clean install passed, and a separate synthetic unmanaged app triggered refusal without marker modification or cask registration. No adoption declaration exists |
 | FFF real-Homebrew installation | PASS: the native install's mode-644 binary failed with permission denied; real Homebrew installed mode 555 and `fff-mcp --healthcheck` reported `All checks passed` |
 | Amp CLI real-Homebrew installation | PASS on disposable macOS 27.2: the native install's mode-644 `amp` failed with permission denied; real Homebrew reinstalled it with mode 555 and `amp --version` succeeded |
@@ -113,16 +114,7 @@ The test used temporary HOME/config directories and local-path adoption of the c
 
 The review's obsolete native Ruby/tap prerequisite has been superseded by the documented real-Homebrew exceptions; no Ruby prerequisite remains. Actual Amp CLI, OMP, and FFF installation and health checks passed, including repeat hooks. The full clean dry run and true no-Homebrew/no-CLT first run also passed, so those are no longer open items.
 
-The separate existing-Homebrew cask test used these exact commands on `essential-mise-test-evidence`:
-
-```bash
-/opt/homebrew/bin/brew install --cask claude-code@latest
-mise -E ai-cli bootstrap --dry-run
-/opt/homebrew/bin/brew uninstall --cask claude-code@latest
-mise -E ai-cli bootstrap --dry-run
-```
-
-The first preview failed with `brew-cask:claude-code: conflicts with installed cask claude-code@latest`. The explicit uninstall removed only that alternate cask (without `--zap` or automatic ownership transfer), and the second unmodified preview succeeded. Use this migration only after deciding that `claude-code` should own the installation; otherwise retain `claude-code@latest` and do not apply the conflicting module.
+Claude Code now uses real-Homebrew `claude-code@latest`, so an existing installation of that same cask is reused rather than conflicted with a second native declaration. Preview, apply, and repeat runs converged. The older conflicting `claude-code` declaration was removed because its `bin/claude` target was missing. Its historical conflict and explicit uninstall migration are retained as evidence of the old path, not the current behavior. The supported status-line wrapper, exact sample output, and settings-merge evidence are documented in [Claude Code status line](claude-statusline.md).
 
 The earlier isolated first-run, optional-selection rerun, wrong-origin, and XDG claims now have exact fixture setup, replay commands, exit codes, and captured output in [Replayable isolated stage-0 and XDG fixtures](validation-fixtures.md). Local-path adoption is limited to a temporary copy of `bootstrap.sh`; origin metadata is explicitly restored to the expected public URL for rerun checks.
 

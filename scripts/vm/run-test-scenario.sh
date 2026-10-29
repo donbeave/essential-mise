@@ -78,14 +78,10 @@ case "$scenario" in
     ;;
   claude-conflict)
     run_logged install-existing "/opt/homebrew/bin/brew install --cask claude-code@latest"
-    if run_logged conflict-preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap --dry-run"; then
-      outcome=unexpected-success
-    else
-      outcome=expected-refusal
-    fi
-    [[ "$outcome" == expected-refusal ]] || fail 'Claude cask conflict did not fail closed as expected'
-    run_logged manual-migration "/opt/homebrew/bin/brew uninstall --cask claude-code@latest"
-    run_logged resolved-preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap --dry-run"
+    run_logged existing-preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap --dry-run"
+    run_logged existing-apply "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap"
+    run_logged second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap"
+    run_logged cli-verification "/bin/zsh -lic 'claude --version'"
     ;;
   full-dry-run)
     run_logged all-environments "cd '$config_dir' && \$HOME/.local/bin/mise -C /tmp -E foundation,terminal,development,security,js,development-rust,development-java,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin,ai-tools,ai-cli,ai-desktop,system-preferences bootstrap --dry-run"

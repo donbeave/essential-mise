@@ -67,6 +67,10 @@ mise -E system-preferences bootstrap
 
 Every module is documented in [docs/environments.md](docs/environments.md).
 
+### Claude Code status line
+
+`ai-cli` installs an executable status-line script and a zsh wrapper. Every `claude` launch from zsh passes it through `--settings`; the script shows the directory, model and effort, context usage, and currently running subagents. See [Claude Code status line](docs/claude-statusline.md) for the exact wrapper, output, and verification evidence.
+
 ### Install versus activate a runtime
 
 `mise -E js bootstrap` installs Node/Bun for that invocation; it does not persist `js`. Use `mise -E js exec -- node --version` for a one-off command. To keep a runtime selected for future shells and unrelated directories, add `js` to `miserc.local.toml` and rerun bootstrap. The same distinction applies to `development-rust` and `development-java`.

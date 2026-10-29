@@ -2,6 +2,18 @@
 
 The repository uses native mise package managers wherever they work. A dependency is moved to real Homebrew only after a concrete incompatibility in **mise 2026.10.23** is identified. Native `[bootstrap.hooks.post-packages]` commands invoke `/opt/homebrew/bin/brew` directly; they are idempotent, appear in dry runs, and do not create a second package owner.
 
+## Claude Code — `claude-code@latest`
+
+**Exact issue:** the `claude-code` cask is unusable in the current installation. Its `/opt/homebrew/bin/claude` link points to `/opt/homebrew/Caskroom/claude-code/2.1.308/bin/claude`, but that path does not exist; invoking `claude` fails with `command not found`. Real Homebrew reports a successful install without repairing the layout. The supported `claude-code@latest` cask provides a working executable and reports `2.1.312 (Claude Code)`.
+
+**Real-Homebrew command:**
+
+```bash
+/opt/homebrew/bin/brew install --cask claude-code@latest
+```
+
+The hook is declared in `config.ai-cli.toml`, and the broken `brew-cask:claude-code` declaration is removed. This is an upstream cask-variant/layout problem, not a mise-only defect. Existing broken `claude-code` installations were explicitly migrated in the disposable guest with `brew uninstall --cask claude-code` before installing `claude-code@latest`; no ownership transfer is hidden in the hook.
+
 ## Amp CLI — `ampcode/tap/ampcode`
 
 **Exact mise issue:** native mise reports a successful source build/install for Amp CLI `0.0.1793304039-g62d85d`, but leaves `/opt/homebrew/Cellar/ampcode/0.0.1793304039-g62d85d/bin/amp` with mode `644`. Running `amp --version` fails with `permission denied`.

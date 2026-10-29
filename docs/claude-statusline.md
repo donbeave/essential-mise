@@ -1,0 +1,35 @@
+# Claude Code status line
+
+`bin/claude-statusline.sh` is the unchanged status-line script, installed as an executable. It requires Bash, `jq`, and macOS `stat -f`.
+
+## zsh wrapper
+
+The `ai-cli` module adds this native block to `~/.zshrc`:
+
+```zsh
+claude() {
+  local statusline="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/claude-statusline.sh"
+  BASH_COMPAT=3.2 command claude --settings "{\"statusLine\":{\"type\":\"command\",\"command\":\"$statusline\",\"padding\":0}}" "$@"
+}
+```
+
+Every argument is forwarded through `command claude`, so existing flags and subcommands are not replaced. The absolute script path follows the adopted config directory, including custom `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` values. `BASH_COMPAT=3.2` is required because Homebrew Bash 5.3 otherwise expands the script's replacement tilde to the account's real home instead of leaving `~`; the script itself was not changed to work around that behavior.
+
+## Package owner
+
+Claude Code is installed through real Homebrew with `/opt/homebrew/bin/brew install --cask claude-code@latest`. The verified version is `2.1.312 (Claude Code)`. The older `claude-code` cask's missing `bin/claude` target is documented in [Homebrew exceptions](homebrew-exceptions.md).
+
+## Verification
+
+The sample payload exercised `workspace.current_dir`, `model.display_name`, `effort.level`, `context_window.used_percentage`, `context_window.context_window_size`, `context_window.current_usage`, and `transcript_path`. Synthetic subagents covered running, finished, interrupted, and idle states. Sanitized output was exactly:
+
+```text
+~/Projects/ChainArgos/redesign-review │ Opus 5.5 medium │ 35% (345k/1.0M)
+↳ explorer │ sonnet low │ 91k
+```
+
+The test passed with one running subagent, finished/interrupted/idle agents hidden, and green/yellow/red context thresholds at 35%, 50%, and 80%.
+
+Fresh login zsh checks from both `/tmp` and `/Users/admin` returned the wrapper above with the adopted absolute script path. An interactive launch of Claude Code 2.1.312 included that exact `--settings` JSON in its process title. Its debug log also reported `model=claude-sonnet-5-5` from the synthetic project settings, confirming that `--settings` merges with, rather than discards, project settings. No real account was used; post-login rendering was not claimed because the test stopped at the login screen.
+
+The existing `claude-code@latest` cask was reused safely, and repeated preview/apply runs converged with no second owner. The original conflicting `claude-code` declaration was removed.

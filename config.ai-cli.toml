@@ -1,5 +1,5 @@
 [bootstrap.packages]
-"brew-cask:claude-code" = "latest"
+"brew:jq" = "latest"
 "brew-cask:codex" = "latest"
 "brew-cask:cursor-cli" = "latest"
 "brew-cask:antigravity-cli" = "latest"
@@ -8,8 +8,9 @@
 "brew-cask:grok-build" = "latest"
 
 [bootstrap.hooks.post-packages]
-description = "Real Homebrew: Amp CLI (mode-644 binary) and OMP (unsupported with_env)"
+description = "Real Homebrew: Claude Code (broken stable-cask layout), Amp CLI (mode-644 binary), and OMP (unsupported with_env)"
 run = [
+  "/opt/homebrew/bin/brew install --cask claude-code@latest",
   "/opt/homebrew/bin/brew install ampcode/tap/ampcode",
   "/opt/homebrew/bin/brew install can1357/tap/omp",
 ]
@@ -28,6 +29,12 @@ run = [
 autoload -Uz compinit
 (( $+functions[compdef] )) || compinit
 command -v amp >/dev/null 2>&1 && source <(amp completions zsh)
+''' }
+"~/.zshrc/claude-statusline" = { block = '''
+claude() {
+  local statusline="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/claude-statusline.sh"
+  BASH_COMPAT=3.2 command claude --settings "{\"statusLine\":{\"type\":\"command\",\"command\":\"$statusline\",\"padding\":0}}" "$@"
+}
 ''' }
 "~/.config/fish/config.fish/amp" = { block = '''
 if status is-interactive

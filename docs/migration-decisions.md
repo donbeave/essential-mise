@@ -22,7 +22,7 @@ The old generic components and sanitized legacy example have different provenanc
 | `apps.amp` | REAL HOMEBREW + NATIVE CONFIG | Real-Homebrew `ampcode/tap/ampcode` hook in `ai-cli`; sanitized shared instructions replace old RTK/Caveman policy | Native mode-644 executable failed; real-Homebrew install and `amp --version` passed; `amp completions` tests |
 | `apps.antigravity` | NATIVE + MANUAL | `brew-cask:antigravity-cli` in `ai-cli`, `brew-cask:antigravity` in `ai-desktop`; authentication manual | Separate package assertions; no cross-group configuration |
 | `apps.chatgpt` | NATIVE + MANUAL | `brew-cask:chatgpt` in `ai-desktop`; authentication manual | Desktop-only package assertion |
-| `apps.claude-code` | NATIVE | `brew-cask:claude-code` in `ai-cli`; shared self-contained `~/.claude/CLAUDE.md` | No RTK/Caveman reference; copy-mode dotfile |
+| `apps.claude-code` | REAL HOMEBREW + NATIVE CONFIG | Real-Homebrew `claude-code@latest` in `ai-cli`; shared self-contained `~/.claude/CLAUDE.md`; native zsh status-line wrapper and executable script | Claude Code 2.1.312 and settings merge verified; exact status-line sample and subagent rules passed |
 | `apps.claude-desktop` | NATIVE + MANUAL | `brew-cask:claude` in `ai-desktop`; authentication manual | Desktop-only package assertion |
 | `apps.codex` | NATIVE + DROP | `brew-cask:codex` in `ai-cli`, `brew-cask:codexbar` in `ai-desktop`; shared Codex instructions; generated config/update/hook graph dropped | Separate package assertions; `CODEX.md` copy-mode check |
 | `apps.cursor` | NATIVE + MANUAL | `brew-cask:cursor-cli` in `ai-cli`, `brew-cask:cursor` in `ai-desktop`; authentication manual | Separate package assertions |
@@ -71,7 +71,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `admin` | `"mas:1007358832" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `admin` | `"mas:1447778660" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `admin` | `"mas:1037126344" = "latest"` | NEW | Apple lookup confirms `com.apple.configurator.ui`; disposable-host MAS install |
-| `ai-cli` | `"brew-cask:claude-code" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
+| `ai-cli` | Real Homebrew `/opt/homebrew/bin/brew install --cask claude-code@latest` in `post-packages` | REAL HOMEBREW + CHANGE | Stable cask's `bin/claude` target was missing; supported latest cask provides Claude Code 2.1.312 and a working CLI |
 | `ai-cli` | `"brew-cask:codex" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:cursor-cli" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:antigravity-cli" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
