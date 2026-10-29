@@ -9,11 +9,14 @@
 "brew-cask:zcode" = "latest"
 "brew-cask:codexbar" = "latest"
 
-# The official Amp cask uses Ruby DSL mise cannot currently evaluate.
-# Keep the same official artifact through native macos-app instead.
-[bootstrap.packages."macos-app:amp"]
-version = "1.0.994"
-url = "https://static.ampcode.com/mac/Amp-1.0-994.dmg"
-sha256 = "1caabaa1be046205f416f0dd7ea0832436a35534d2e488e10aeb0ce6115f98c1"
-artifact = "Amp.app"
-os = "macos/arm64"
+[bootstrap.hooks.post-packages]
+description = "Real Homebrew: Amp Desktop (mise 2026.10.23 cannot evaluate cask Array#second)"
+run = '''
+if ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1; then
+  if [ -d /Applications/Amp.app ]; then
+    printf 'Existing /Applications/Amp.app requires manual ownership migration before using Homebrew.\n' >&2
+    exit 1
+  fi
+fi
+/opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta
+'''

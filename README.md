@@ -51,9 +51,9 @@ Examples:
 ```bash
 cd "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
 
-# On a fresh Mac, install only the Ruby prerequisite if preview reports Ruby 3+ is required.
+# On a fresh Mac, install only the native mise Ruby runtime if preview reports Ruby 3+ is required.
 # This does not install the other AI packages and allows tap evaluation during preview.
-mise -E ai-tools,ai-cli bootstrap packages apply brew:ruby --yes
+mise -E ai-tools,ai-cli install ruby
 
 # Shared CLI utilities and coding agents, with no AI desktop apps
 mise -E ai-tools,ai-cli bootstrap --dry-run
@@ -107,9 +107,10 @@ Packages, repositories, and preferences require separate handling. Package pruni
 
 The development checkout is only for implementation/testing/publication. Once adopted, `$MISE_CONFIG_DIR` is the authoritative active config; edit and commit there.
 
-Actual fresh-Mac installation, third-party taps/casks, App Store flows, FFF, OMP model routing, shell behavior, login items, and macOS preference behavior require the disposable-Mac release tests in [docs/validation.md](docs/validation.md). Unsupported behavior is marked MANUAL or DROP, not replaced with custom scripts.
+Actual fresh-Mac installation, third-party taps/casks, App Store flows, FFF, OMP model routing, shell behavior, login items, and macOS preference behavior require the disposable-Mac release tests in [docs/validation.md](docs/validation.md). Proven native-package incompatibilities use documented real-Homebrew hooks; other unsupported behavior is marked MANUAL or DROP, not hidden in custom installers.
 
 - [Environments](docs/environments.md)
+- [Real Homebrew compatibility exceptions](docs/homebrew-exceptions.md)
 - [Manual actions and preference reversals](docs/manual-actions.md)
 - [Exhaustive migration matrix](docs/migration-decisions.md)
 - [Validation evidence and unverified release gates](docs/validation.md)

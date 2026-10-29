@@ -10,6 +10,25 @@ Checks use temporary HOME, XDG, cache, data, and state directories. During these
 
 The only intentional implementation-host configuration changes were the three approved global Git identity settings.
 
+## Tart and Cua Driver verification
+
+The current runtime work uses Tart **2.41.1** on an Apple Silicon macOS **27.2 (26B123)** host with 64 GB RAM. The host has Command Line Tools, not full Xcode. No application under test is launched on the host, no host directory is shared, clipboard sharing is disabled, and only synthetic guest accounts/data are used. The guest uses NAT networking, which is not complete security isolation.
+
+| Check | Result |
+|---|---|
+| Fresh Apple IPSW | PASS: Tart downloaded `UniversalMac_27.2_26B123_Restore.ipsw`; no older guest was substituted |
+| Fresh `admin`/`admin` baseline | PASS: `essential-mise-fresh-baseline` was recreated from the Apple IPSW, provisioned with username/password `admin`, verified as 27.2/26B123 arm64 with SIP and Gatekeeper enabled, synced, and stopped; 4 CPUs, 8192 MB RAM, 100 GB disk |
+| Cua Driver package | PENDING on the new `admin`/`admin` automation baseline. The previous candidate verified Homebrew `cuadriver` 0.38.0, Developer ID signature, notarization, and Gatekeeper acceptance; that does not prove the new baseline |
+| Guest Homebrew/CLT | IN PROGRESS on the new automation baseline: official Homebrew installer and Command Line Tools for Xcode 27.0 |
+| Disposable stage 0 | SUPERSEDED pre-admin evidence: the real commit-pinned launcher, fresh zsh/mise doctor, optional-selection rerun, and wrong-origin refusal passed. Rerun on the new `admin`/`admin` clone with the final configuration |
+| Disposable standard modules | SUPERSEDED pre-admin evidence: foundation, terminal, development packages/apps, pinned repositories, copied dotfiles, convergence, and zsh/Fish activation passed. Rerun on the final configuration |
+| Guest Cua consent/UI/MCP | **BLOCKED**: CuaDriver did not automatically appear in Accessibility. It must be added manually in the guest using `/Applications/CuaDriver.app` and `admin`/`admin`. No UI or MCP success is claimed |
+| Disposable clone deletion | The helper deleted a workflow-owned pre-admin VM and refused unrelated/baseline/unregistered targets. The new baseline/clone lifecycle still requires validation |
+
+The fresh and automation baselines are distinct. Clone startup includes explicit restoration and verification of the dedicated guest public key after `authorized_keys` was observed missing in a clone. The owner-auth helper uses normal SSH/sudo prompts; it does not disable security controls or edit TCC. The reviewed Homebrew installer SHA-256 is `5f333bbe53bc490e51e7ccb1df8779b3dd6ee73a1a7379efda216edb08ccb148`. Every test guest uses only the synthetic `admin`/`admin` credential; no unique generated guest passwords remain in the workflow.
+
+Earlier logs are preserved under `/tmp/essential-mise-evidence-pre-admin` on the implementation host. Reusable setup, clone, scenario, MCP, evidence, and cleanup commands are documented in `scripts/vm/README.md`.
+
 ## Completed checks
 
 | Check | Result |
@@ -29,17 +48,17 @@ The only intentional implementation-host configuration changes were the three ap
 | Migration inventory | PASS: all 41 components, 54 root dotfiles, and 33 legacy-example dotfiles are individually mapped |
 | High-confidence secret scan | PASS: no matches for 1Password references, GitHub tokens, AWS keys, or private-key blocks |
 | AI instruction dependency scan | PASS: no RTK/FFF/Caveman/agent-browser/missing-plugin references in approved shared instructions |
-| Repeated package ownership audit | PASS: only intentional Nerd Font (terminal/editors), MAS (independent MAS modules), and Ruby (AI tap modules) duplicates |
-| Amp Desktop native dry run | PASS after conversion to `macos-app:amp` and removal of `adopt = true`; official versioned DMG/checksum. Existing Homebrew-managed installations require manual ownership migration and clean/conflict release tests |
-| FFF native dry run | PASS with isolated Ruby 4.0.9: source build `fff-mcp/0.11.0` evaluated |
-| Amp CLI/OMP native dry run | PASS with isolated Ruby 4.0.9: both formulas evaluated as source-only builds |
-| First-time Ruby prerequisite dry run | PASS with no Ruby 3+ on PATH: `mise -E ai-tools,ai-cli bootstrap packages apply brew:ruby --dry-run` resolves only `ruby/4.0.9`, allowing a native two-stage preview without injecting a Ruby |
+| Repeated package ownership audit | PASS: intentional Nerd Font, independent MAS, and shared `[tools]` Ruby declarations; no `http:omp`, native `macos-app:amp`, or second owner remains |
+| Amp Desktop ownership declaration | PASS: real-Homebrew `ampcode/tap/amp@beta` hook with an unmanaged-app refusal; no `macos-app` or adoption declaration. Clean/conflict runtime tests remain |
+| FFF native dry run | PASS with isolated Ruby 4.0.9: source build `fff-mcp/0.11.0` evaluated; actual installation remains |
+| Amp CLI actual source build | PASS on disposable macOS 27.2: `ampcode` 0.0.1793304039-g62d85d built and installed natively. OMP's native build failed and is now a documented real-Homebrew exception |
+| Native Ruby prerequisite | PASS on disposable macOS 27.2: `[tools] ruby = "4.0.9"` enabled the actual third-party tap preview. The earlier `brew:ruby` approach installed `/opt/homebrew/bin/ruby` but did not fix mise's evaluation environment |
 | `claude-code` cask metadata | PASS: Homebrew API returned HTTP 200 |
 
 ## Issues found and fixed
 
-1. **Third-party Ruby requirement:** the original preview without an injected Ruby 3+ failed. `brew:ruby` was declared first in the two tap-owning formula modules, and a native recovery sequence was documented: package-only `bootstrap packages apply brew:ruby`, then preview, apply, and `bootstrap status --missing`. The actual fresh-Mac sequence still requires release testing. Isolated Ruby 4.0.9 was used only to prove formula evaluation after the prerequisite exists.
-2. **Amp Desktop Ruby DSL incompatibility:** `amp@beta` failed with `undefined method 'second' for an instance of Array`. It was moved to native `macos-app:amp` with version `1.0.994`, the official DMG, and exact SHA-256. Full `ai-desktop` dry run passes. No third-party tap remains in `ai-desktop`.
+1. **Third-party Ruby requirement:** the original preview without Ruby 3+ failed. Installing `brew:ruby` did not repair subsequent mise tap evaluation even though a fresh shell found Ruby 4.0.9. Both tap-owning AI modules now declare `[tools] ruby = "4.0.9"`; `mise -E ai-tools,ai-cli install ruby` is the native prerequisite, and the actual tap preview passed. A clean final apply/convergence run remains required.
+2. **Real-Homebrew compatibility exceptions:** Amp Desktop's cask failed with `undefined method 'second' for an instance of Array`; OMP's formula failed with `formula uses with_env (install-time helper), which mise's source-build shim does not support`. Their native declarations were removed. Documented real-Homebrew hooks now own Amp Desktop and OMP, with an existing-Amp guard and no automatic adoption. See [Homebrew exceptions](homebrew-exceptions.md). The revised hooks require clean `admin`/`admin` VM verification.
 3. **Existing-host cask conflict / partial combined preview:** the unmodified `ai-cli` dry run stopped at `brew-cask:claude-code: conflicts with installed cask claude-code@latest`. The host was not changed. The isolated test copy removed exactly `"brew-cask:claude-code" = "latest"`; that filtered copy and the remaining combined declarations passed. This is **PARTIAL**, not a complete preview. A complete unmodified dry run and an existing-Homebrew ownership test remain release requirements.
 
    The original failing check was:

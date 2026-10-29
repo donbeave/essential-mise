@@ -1,9 +1,10 @@
 [bootstrap.brew.taps]
 "dmtrKovalenko/fff" = "https://github.com/dmtrKovalenko/fff.git"
 
+[tools]
+ruby = "4.0.9"
+
 [bootstrap.packages]
-# Ruby 3+ is required to evaluate third-party tap definitions; keep it first.
-"brew:ruby" = "latest"
 "brew:ripgrep" = "latest"
 "brew:fd" = "latest"
 "brew:fzf" = "latest"

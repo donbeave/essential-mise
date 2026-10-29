@@ -29,7 +29,7 @@ The old generic components and sanitized legacy example have different provenanc
 | `apps.ghostty` | NATIVE + CHANGE | Stable `brew-cask:ghostty` in `terminal`; historical tip channel not selected; current config/theme copied | Nerd Font and fresh-shell UI checks |
 | `apps.grok` | NATIVE + DROP | `brew-cask:grok-build` in `ai-cli`, `brew-cask:grok-bot` in `ai-desktop`; shared instructions; generated completions dropped | Separate package assertions; no stale completion snapshot |
 | `apps.kimi` | NATIVE + CHANGE | `brew:kimi-code` in `ai-cli`, `brew-cask:kimi` in `ai-desktop`; shared instructions replace integration-only old text | Separate package assertions; no RTK/Caveman reference |
-| `apps.omp` | NEW + NATIVE | `brew:can1357/tap/omp` in `ai-cli`; native global instructions and YAML model merges | Tap/install proof; `omp config`, `omp models`, and instruction-file loading |
+| `apps.omp` | NEW + REAL HOMEBREW | `can1357/tap/omp` through the documented real-Homebrew hook in `ai-cli`; native global instructions and YAML model merges | mise cannot execute `with_env`; real-Homebrew install proof; `omp config`, `omp models`, and instruction-file loading |
 | `apps.opencode` | NATIVE + DROP | `brew:opencode` in `ai-cli`, `brew-cask:opencode-desktop` in `ai-desktop`; shared instructions; old JSONC/plugin integration dropped | Separate package assertions; no missing plugin paths |
 | `apps.sketch` | NATIVE + MANUAL | `brew-cask:sketch` in `design`; Library registration manual | Package metadata; manual Library onboarding |
 | `apps.surge` | NATIVE + MANUAL + DROP | `brew-cask:surge` in `network`; custom renderer, endpoint secrets, and privileged setup not ported | Native cask metadata/install; profile/proxy setup manual |
@@ -71,7 +71,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `admin` | `"mas:1007358832" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `admin` | `"mas:1447778660" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `admin` | `"mas:1037126344" = "latest"` | NEW | Apple lookup confirms `com.apple.configurator.ui`; disposable-host MAS install |
-| `ai-cli` | `"brew:ruby" = "latest"` | NATIVE + prerequisite | Declared first so fresh package application provides Ruby 3+ for tap evaluation; dry-run with isolated Ruby 4.0.9 passed |
+| `ai-cli` | `ruby = "4.0.9"` under `[tools]` | NATIVE + prerequisite | Native mise runtime for third-party tap evaluation; actual macOS 27.2 preview passed |
 | `ai-cli` | `"brew-cask:claude-code" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:codex" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:cursor-cli" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
@@ -80,7 +80,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `ai-cli` | `"brew:opencode" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:grok-build" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew:ampcode/tap/ampcode" = "latest"` | NATIVE | Amp tap metadata and disposable-host install |
-| `ai-cli` | `"brew:can1357/tap/omp" = "latest"` | NEW | OMP tap metadata and disposable-host install |
+| `ai-cli` | Real Homebrew `/opt/homebrew/bin/brew install can1357/tap/omp` in `post-packages` | NEW + REAL HOMEBREW | mise 2026.10.23 cannot execute the formula's `with_env` completion helper; see [Homebrew exceptions](homebrew-exceptions.md) |
 | `ai-desktop` | `"brew-cask:claude" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:chatgpt" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:cursor" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
@@ -90,8 +90,8 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `ai-desktop` | `"brew-cask:grok-bot" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:zcode" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:codexbar" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
-| `ai-desktop` | `macos-app:amp` with `version = "1.0.994"`, official `Amp-1.0-994.dmg`, SHA-256 `1caabaa1be046205f416f0dd7ea0832436a35534d2e488e10aeb0ce6115f98c1`, `artifact = "Amp.app"`, `os = "macos/arm64"`; no adoption | NEW + CHANGE | Cask Ruby DSL failed (`Array#second` unavailable); native macos-app dry-run passed. Existing Homebrew-managed Amp installs require manual migration, never automatic ownership transfer |
-| `ai-tools` | `"brew:ruby" = "latest"` | NATIVE + prerequisite | Declared first so fresh package application provides Ruby 3+ for tap evaluation; FFF dry-run with isolated Ruby 4.0.9 passed |
+| `ai-desktop` | Real Homebrew `/opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta` in `post-packages`; existing unmanaged app refused | NEW + REAL HOMEBREW | mise 2026.10.23 cannot evaluate the cask's `Array#second` DSL; current cask `1.0,996` uses the official DMG/checksum. No automatic adoption or second owner |
+| `ai-tools` | `ruby = "4.0.9"` under `[tools]` | NATIVE + prerequisite | Native mise runtime for third-party tap evaluation; actual macOS 27.2 preview passed |
 | `ai-tools` | `"brew:ripgrep" = "latest"` | NEW | Formula API verified; native install/status |
 | `ai-tools` | `"brew:fd" = "latest"` | NEW | Formula API verified; native install/status |
 | `ai-tools` | `"brew:fzf" = "latest"` | NEW | Formula API verified; native install/status |
@@ -118,9 +118,9 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 
 | Owning config | Literal declaration | Status and validation |
 |---|---|---|
-| `config.ai-cli.toml` | `[bootstrap.brew.taps] "ampcode/tap" = "https://github.com/ampcode/homebrew-tap.git"` and `"can1357/tap" = "https://github.com/can1357/homebrew-tap.git"` | NATIVE; Ruby 4.0.9 isolated dry-run evaluated both formulas |
+| `config.ai-cli.toml` | `[bootstrap.brew.taps] "ampcode/tap" = "https://github.com/ampcode/homebrew-tap.git"`; real-Homebrew `can1357/tap/omp` hook | Amp CLI native source build passed; OMP requires real Homebrew because mise cannot execute `with_env` |
 | `config.ai-tools.toml` | `[bootstrap.brew.taps] "dmtrKovalenko/fff" = "https://github.com/dmtrKovalenko/fff.git"` | Conditional on real FFF installation; isolated dry-run evaluated source build |
-| `config.ai-desktop.toml` | No third-party tap | Amp Desktop moved to `macos-app` because its cask DSL failed; no tap or Ruby prerequisite remains |
+| `config.ai-desktop.toml` | Real-Homebrew `ampcode/tap/amp@beta` hook | Amp Desktop cask uses unsupported `Array#second`; no native tap or Ruby prerequisite remains |
 
 | `browsers` | `"brew-cask:google-chrome" = "latest"` | NATIVE | Native cask metadata/install |
 | `browsers` | `"brew-cask:google-chrome@dev" = "latest"` | NEW | Cask page verified; native metadata/install |

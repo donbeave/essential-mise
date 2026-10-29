@@ -59,14 +59,14 @@ Preview first, then apply. For example:
 
 ```bash
 cd "$config_dir"
-# If the preview reports that Ruby 3+ is required, install only that native prerequisite first:
-mise -E ai-tools,ai-cli bootstrap packages apply brew:ruby --yes
+# If the preview reports that Ruby 3+ is required, install only the native mise runtime first:
+mise -E ai-tools,ai-cli install ruby
 mise -E ai-tools,ai-cli bootstrap --dry-run
 mise -E ai-tools,ai-cli bootstrap
 mise -E ai-tools,ai-cli bootstrap status --missing
 ```
 
-The package-only Ruby step installs no other AI package. It allows the preview to evaluate third-party taps before the full apply; `brew:ruby` is also declared first in those modules so the full package phase retains the prerequisite.
+The tool-only Ruby step installs no AI package. Both tap-owning AI modules declare `ruby = "4.0.9"` under `[tools]`, allowing mise to use its own activated runtime when evaluating source-only tap definitions. A Homebrew `brew:ruby` package does not provide that mise runtime and is not the prerequisite.
 
 A one-off `-E` replaces persistent selection for that command and does not uninstall other resources. Add an optional module to `miserc.local.toml` to persist it.
 

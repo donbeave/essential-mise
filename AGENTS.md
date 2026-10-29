@@ -1,0 +1,10 @@
+# Agent rules
+
+- All application runtime and graphical verification must be performed inside the dedicated disposable Tart macOS VM using guest-side Cua Driver automation. Never launch or manipulate the application on the host Mac. Provide actual VM test evidence for every completed UI-affecting task and explicitly identify untested behavior.
+- Use the latest stable macOS release supported by the project, currently macOS 27.2, on Apple Silicon. Never silently substitute an older guest OS. Install software through Homebrew first; only when a package is unavailable or outdated should an official installation link or another documented method be used.
+- Prefer headless operation. Never mount the host home directory or the entire project directory into the guest. Transfer only reviewed build artifacts or release installers into the guest.
+- Keep application data, preferences, keychains, caches, logs, screenshots, and test files separate from the host. Use synthetic accounts and data only; every test guest uses username `admin` and password `admin`, never generated guest passwords. Never sign into personal Apple Accounts or transfer personal credentials.
+- Do not change, upgrade, or reinstall the host macOS. Do not disable SIP, edit TCC databases, or bypass Gatekeeper. Request any required permission inside the guest only.
+- Preserve a clean Tart baseline before application installation. Create fresh working VMs from that baseline for independent clean-install tests. Never overwrite or delete an existing VM or baseline without identifying it and preserving user data.
+- Use Tart as the only VM manager and guest-side Cua Driver for desktop automation and MCP over SSH. Do not install testvm, Cua Lume, Cua Spaces, or another overlapping VM manager. Never fall back to host execution or host screenshots.
+- Record the guest version/build, VM and baseline names, resources, workflows, screenshots, accessibility interactions, logs, failures, and fixes. Compilation and dry runs alone do not establish runtime verification.
