@@ -159,6 +159,7 @@ case "$scenario" in
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust bootstrap --dry-run"
     run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust bootstrap"
     run_logged exec-check "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust exec -- cargo --version"
+    run_logged build-check "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust exec -- /bin/bash -c 'set -e; rm -rf /tmp/essential-mise-cargo-smoke; cargo new --quiet /tmp/essential-mise-cargo-smoke; cd /tmp/essential-mise-cargo-smoke; cargo check'"
     vm_ssh "printf 'env = [\"development-rust\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged tool-check "/bin/zsh -lic 'cargo --version && rustc --version && mbx --version'"
     run_logged persistent "/bin/zsh -lic 'cd /tmp && cargo --version && test \"\$(command -v cargo)\" = \"\$HOME/.local/share/mise/command-wrappers/bin/cargo\" && test \"\$(mise which cargo)\" = \"\$HOME/.cargo/bin/cargo\" && rustup show active-toolchain'"
