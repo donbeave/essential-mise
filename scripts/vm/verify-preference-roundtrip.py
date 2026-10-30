@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import os
 import pathlib
+import plistlib
 import re
 import shutil
 import subprocess
@@ -190,7 +191,7 @@ for state_file in sorted(real_capture_dir.glob('*.before.state')):
         after = evidence / f'{domain}.after.plist'
         run(f'export-after-{domain}', ['defaults', 'export', domain, after], real_env)
         before = real_capture_dir / f'{domain}.before.plist'
-        assert before.read_bytes() == after.read_bytes(), f'Round-trip differs for {domain}'
+        assert plistlib.loads(before.read_bytes()) == plistlib.loads(after.read_bytes()), f'Round-trip differs for {domain}'
     elif state == 'absent':
         run(f'absent-after-{domain}', ['defaults', 'read', domain], real_env, expected=1)
         error_text = (evidence / f'absent-after-{domain}.stderr').read_text()
