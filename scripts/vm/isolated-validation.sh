@@ -64,7 +64,7 @@ first_config="$first_home/.config/mise"
 run_and_record first-adopted-revision 0 git -C "$first_config" diff --quiet "$REVIEWED_COMMIT"
 run_and_record set-expected-origin 0 git -C "$first_config" remote set-url origin "$expected_origin"
 initialized_path="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
-run_and_record existing-homebrew-empty-shellenv 0 /bin/bash -c 'test -z "$(/opt/homebrew/bin/brew shellenv)"'
+run_and_record existing-homebrew-empty-shellenv 0 env HOME="$first_home" PATH="$initialized_path" /bin/bash -c 'test -z "$(/opt/homebrew/bin/brew shellenv)"'
 run_and_record existing-homebrew-rerun 0 env HOME="$first_home" PATH="$initialized_path" /bin/bash "$source_script"
 printf 'env = ["ai-cli", "system-preferences"]\n' > "$first_config/miserc.local.toml"
 run_and_record optional-selection-rerun 0 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script"
