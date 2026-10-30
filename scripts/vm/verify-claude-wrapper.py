@@ -73,8 +73,8 @@ assert alias_capture.read_text().strip() == 'claude --permission-mode plan'
 (evidence / 'existing-alias.txt').write_text(alias_capture.read_text())
 arguments = json.loads(capture.read_text())
 (evidence / 'arguments.json').write_text(json.dumps(arguments, indent=2) + '\n')
-assert arguments[-2:] == ['--version', 'argument with spaces']
-assert arguments[0] == '--settings' and len(arguments) == 4
+assert arguments[-4:] == ['--permission-mode', 'plan', '--version', 'argument with spaces']
+assert arguments[0] == '--settings' and len(arguments) == 6
 settings = json.loads(arguments[1])
 assert settings['statusLine']['type'] == 'command'
 assert settings['statusLine']['padding'] == 0

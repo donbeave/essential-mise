@@ -7,6 +7,10 @@ These fixtures make the earlier isolated first-run, rerun, wrong-origin, and alt
 Use a registered disposable VM and a full reviewed commit SHA:
 
 ```bash
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/opt/homebrew/bin/brew list --formula fish >/dev/null 2>&1 || /opt/homebrew/bin/brew install fish"
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/isolated-validation.sh
 VM_AUTO_CONFIRM=1 VM_NAME=essential-mise-test-evidence \
 VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \

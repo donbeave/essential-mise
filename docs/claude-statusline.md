@@ -18,7 +18,7 @@ function claude {
 }
 ```
 
-Every argument is forwarded through `command claude`, so existing flags and subcommands are not replaced. The `function claude` declaration is alias-safe: an existing `claude` alias is preserved, sourcing reaches later startup commands, and the function still takes precedence for interactive launches. The absolute script path follows the adopted config directory, including custom `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` values. Zsh `%q` shell-quotes the executable path and `jq --arg` JSON-encodes the complete command, so whitespace and shell/JSON metacharacters are preserved. `BASH_COMPAT=3.2` is required because Homebrew Bash 5.3 otherwise expands the script's replacement tilde to the account's real home instead of leaving `~`; the script itself was not changed to work around that behavior.
+Every argument is forwarded through `command claude`, so existing flags and subcommands are not replaced. The `function claude` declaration is alias-safe: an existing `claude` alias is preserved, sourcing reaches later startup commands, and the function still takes precedence for interactive launches. Zsh still expands that alias at call sites, so its arguments are forwarded too; the fixture verifies this deliberately. The absolute script path follows the adopted config directory, including custom `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` values. Zsh `%q` shell-quotes the executable path and `jq --arg` JSON-encodes the complete command, so whitespace and shell/JSON metacharacters are preserved. `BASH_COMPAT=3.2` is required because Homebrew Bash 5.3 otherwise expands the script's replacement tilde to the account's real home instead of leaving `~`; the script itself was not changed to work around that behavior.
 
 ## Package owner
 
