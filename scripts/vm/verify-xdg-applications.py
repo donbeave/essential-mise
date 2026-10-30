@@ -118,19 +118,30 @@ def verify_gh(prefix, env):
     assert 'useralias:' in aliases and 'gist list' in aliases
 
 
+def opencode_instruction_log(name, env):
+    run(
+        name,
+        [opencode, 'debug', 'agents', '--standalone', '--print-logs', '--log-level', 'debug'],
+        env,
+        timeout=30,
+        cwd=opencode_work,
+    )
+    return (evidence / f'{name}.stderr').read_text()
+
+
 def verify_opencode(prefix, env, target):
     assert target.is_file(), target
     assert target.read_bytes() == (config_dir / 'dotfiles/ai-cli/GLOBAL_AGENTS.md').read_bytes()
     paths = run(f'{prefix}-paths', [opencode, 'debug', 'paths'], env, timeout=30, cwd=opencode_work)
     assert str(target.parent) in paths, paths
     run(f'{prefix}-config', [opencode, 'debug', 'config'], env, timeout=30, cwd=opencode_work)
-    agent = run(f'{prefix}-agent', [opencode, 'debug', 'agent', 'build'], env, timeout=30, cwd=opencode_work)
-    assert '# Engineering policy' in agent, agent
+    log = opencode_instruction_log(f'{prefix}-instruction-discovery', env)
+    assert 'watcher subscribe' in log and f'path="{target.resolve()}"' in log, log
 
 
-def verify_opencode_absent(prefix, env):
-    agent = run(f'{prefix}-agent', [opencode, 'debug', 'agent', 'build'], env, timeout=30, cwd=opencode_work)
-    assert '# Engineering policy' not in agent, agent
+def verify_opencode_absent(prefix, env, target):
+    log = opencode_instruction_log(f'{prefix}-instruction-discovery', env)
+    assert f'path="{target.resolve()}"' not in log, log
 
 
 apply('initial-apply', 'terminal,development,ai-cli', 'packages,dotfiles')
@@ -249,10 +260,10 @@ assert 'custom_key: preserve' in (xdg / 'gh/config.yml').read_text()
 
 run('native-ai-cli-unapply', [mise, '-C', config_dir, 'bootstrap', 'unapply', 'ai-cli', '--yes'])
 assert not custom_opencode.exists()
-verify_opencode_absent('opencode-custom-absent', base_env)
+verify_opencode_absent('opencode-custom-absent', base_env, custom_opencode)
 run('native-default-ai-cli-unapply', [mise, '-C', config_dir, 'bootstrap', 'unapply', 'ai-cli', '--yes'], default_env)
 assert not default_opencode.exists()
-verify_opencode_absent('opencode-default-absent', default_env)
+verify_opencode_absent('opencode-default-absent', default_env, default_opencode)
 
 report = (
     'custom_xdg_gh_consumption=PASS\nall_gh_scalars_alias_schema=PASS\n'
