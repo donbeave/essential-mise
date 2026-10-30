@@ -155,7 +155,7 @@ case "$scenario" in
     run_logged build-tools "/bin/zsh -lic 'mvn -version && gradle -version'"
     vm_ssh "printf 'env = [\"development-java\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged persistent "/bin/zsh -lic 'cd /tmp && java -version && case \"\$(mise which java)\" in *\".local/share/mise/installs/\"*) ;; *) exit 1;; esac && { /opt/homebrew/bin/brew list --versions openjdk || true; }'"
-    run_logged persistent-build-tools "/bin/zsh -lic 'cd /tmp && gradle --stop && mvn -version && gradle -version && mvn -version | /usr/bin/grep -F \"Oracle GraalVM\" && mvn -version | /usr/bin/grep -F \".local/share/mise/installs/java/\" && gradle -version | /usr/bin/grep -F \"Oracle GraalVM\" && gradle -version | /usr/bin/grep -F \".local/share/mise/installs/java/\"'"
+    run_logged persistent-build-tools "/bin/zsh -lic 'cd /tmp && gradle --stop && mvn -version && gradle -version && mvn -version | /usr/bin/grep -F \"vendor: Oracle Corporation\" && mvn -version | /usr/bin/grep -F \".local/share/mise/installs/java/oracle-graalvm-\" && gradle -version | /usr/bin/grep -F \"(Oracle Corporation 25.0.4.1.1\" && gradle -version | /usr/bin/grep -F \".local/share/mise/installs/java/oracle-graalvm-\"'"
     ;;
   rust)
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust bootstrap --dry-run"
