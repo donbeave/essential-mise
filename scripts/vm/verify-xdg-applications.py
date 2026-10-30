@@ -193,6 +193,34 @@ synthetic_thread = threading.Thread(target=synthetic_server.serve_forever, daemo
 synthetic_thread.start()
 
 
+def message_texts(message):
+    content = message.get('content')
+    if isinstance(content, str):
+        return [content]
+    if isinstance(content, list):
+        return [
+            part['text'] for part in content
+            if isinstance(part, dict) and part.get('type') == 'text' and isinstance(part.get('text'), str)
+        ]
+    return []
+
+
+def main_requests(entries, probe):
+    expected = {probe, json.dumps(probe)}
+    matches = []
+    for entry in entries:
+        messages = entry['payload'].get('messages')
+        if not isinstance(messages, list):
+            continue
+        for message in messages:
+            if not isinstance(message, dict) or message.get('role') != 'user':
+                continue
+            if expected.intersection(message_texts(message)):
+                matches.append(entry)
+                break
+    return matches
+
+
 def run_synthetic_prompt(name, env):
     provider = {
         'model': 'synthetic/synthetic-model',
@@ -210,22 +238,28 @@ def run_synthetic_prompt(name, env):
         },
     }
     prompt_env = {**env, 'OPENCODE_CONFIG_CONTENT': json.dumps(provider)}
+    probe = f'synthetic instruction probe: {name}'
     before = len(synthetic_requests)
     run(
         name,
-        [opencode, 'run', 'synthetic instruction probe', '--model', 'synthetic/synthetic-model', '--standalone'],
+        [
+            opencode,
+            'run',
+            probe,
+            '--model',
+            'synthetic/synthetic-model',
+            '--title',
+            f'essential-mise-{name}',
+            '--standalone',
+        ],
         prompt_env,
         timeout=180,
         cwd=opencode_work,
     )
-    matches = [
-        entry for entry in synthetic_requests[before:]
-        if 'synthetic instruction probe' in json.dumps(entry['payload'])
-    ]
+    matches = main_requests(synthetic_requests[before:], probe)
     assert matches, synthetic_requests[before:]
-    request = matches[0]
-    (evidence / f'{name}-request.json').write_text(json.dumps(request, indent=2) + '\n')
-    return json.dumps(request['payload'])
+    (evidence / f'{name}-main-requests.json').write_text(json.dumps(matches, indent=2) + '\n')
+    return [json.dumps(entry['payload']) for entry in matches]
 
 
 def verify_opencode(prefix, env, target):
@@ -234,14 +268,14 @@ def verify_opencode(prefix, env, target):
     paths = run(f'{prefix}-paths', [opencode, 'debug', 'paths'], env, timeout=30, cwd=opencode_work)
     assert str(target.parent) in paths, paths
     run(f'{prefix}-config', [opencode, 'debug', 'config', '--standalone'], env, timeout=30, cwd=opencode_work)
-    request = run_synthetic_prompt(f'{prefix}-instruction-consumption', env)
-    assert '# Engineering policy' in request, request
+    requests = run_synthetic_prompt(f'{prefix}-instruction-consumption', env)
+    assert all('# Engineering policy' in request for request in requests), requests
 
 
 def verify_opencode_absent(prefix, env, target):
     assert not target.exists(), target
-    request = run_synthetic_prompt(f'{prefix}-instruction-consumption', env)
-    assert '# Engineering policy' not in request, request
+    requests = run_synthetic_prompt(f'{prefix}-instruction-consumption', env)
+    assert all('# Engineering policy' not in request for request in requests), requests
 
 
 apply('initial-apply', 'terminal,development,ai-cli', 'packages,dotfiles')

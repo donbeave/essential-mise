@@ -3,6 +3,7 @@ import collections
 import hashlib
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -335,19 +336,88 @@ def hook_commands(value, label, errors):
     return []
 
 
+def shell_tokens(command):
+    lexer = shlex.shlex(command, posix=True, punctuation_chars='();<>|&\n')
+    lexer.whitespace_split = True
+    lexer.whitespace = ' \t\r'
+    tokens = []
+    for token in lexer:
+        if '\n' in token and all(character in '();<>|&\n' for character in token):
+            tokens.extend(part for part in re.split(r'(\n)', token) if part)
+        else:
+            tokens.append(token)
+    return tokens
+
+
+def parse_shell(command):
+    tokens = shell_tokens(command)
+
+    def parse_list(index, stops):
+        commands = []
+        while index < len(tokens):
+            token = tokens[index]
+            if token in {';', '\n'}:
+                index += 1
+                continue
+            if token in stops:
+                break
+            if token == 'if':
+                branches, index = parse_if(index)
+                commands.append(('if', branches))
+                continue
+            start = index
+            while index < len(tokens) and tokens[index] not in {';', '\n'}:
+                index += 1
+            commands.append(('command', tokens[start:index]))
+        return commands, index
+
+    def parse_if(index):
+        branches = []
+        while True:
+            condition, index = parse_list(index + 1, {'then'})
+            if index == len(tokens):
+                raise ValueError('missing then')
+            body, index = parse_list(index + 1, {'elif', 'else', 'fi'})
+            if index == len(tokens):
+                raise ValueError('missing fi')
+            branches.append((condition, body))
+            if tokens[index] == 'elif':
+                continue
+            if tokens[index] == 'else':
+                body, index = parse_list(index + 1, {'fi'})
+                if index == len(tokens):
+                    raise ValueError('missing fi')
+                branches.append((None, body))
+            return branches, index + 1
+
+    commands, index = parse_list(0, {'then', 'elif', 'else', 'fi'})
+    if index != len(tokens):
+        raise ValueError('unbalanced shell conditional')
+    return commands
+
+
+def contains_guarded_install(commands, condition, install):
+    for kind, value in commands:
+        if kind != 'if':
+            continue
+        for branch_condition, body in value:
+            if branch_condition == [('command', condition)] and ('command', install) in body:
+                return True
+            if contains_guarded_install(body, condition, install):
+                return True
+    return False
+
+
 def has_presence_guard(commands, install, guard):
-    guard_text = f'if ! {guard} >/dev/null 2>&1; then'
+    condition = shell_tokens(f'! {guard} >/dev/null 2>&1')
+    install = shell_tokens(install)
     for command in commands:
-        start = command.find(guard_text)
-        while start >= 0:
-            line_start = command.rfind('\n', 0, start) + 1
-            if not command[line_start:start].strip():
-                install_at = command.find(install, start + len(guard_text))
-                if install_at >= 0:
-                    remainder = command[install_at + len(install):]
-                    if re.search(r'(?m)^\s*fi\s*$|;\s*fi\s*(?:\n|$)', remainder):
-                        return True
-            start = command.find(guard_text, start + 1)
+        try:
+            parsed = parse_shell(command)
+        except ValueError:
+            continue
+        if contains_guarded_install(parsed, condition, install):
+            return True
     return False
 
 
@@ -631,6 +701,13 @@ def self_test(root):
             'config.ai-tools.toml',
             'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi',
             '/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp',
+            'ai-tools: /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp: missing active presence guard',
+        ),
+        (
+            'install_after_presence_guard',
+            'config.ai-tools.toml',
+            'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi',
+            'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then\\n  :\\nfi\\n/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp\\nif true; then\\n  :\\nfi',
             'ai-tools: /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp: missing active presence guard',
         ),
     ]

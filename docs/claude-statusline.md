@@ -1,24 +1,32 @@
 # Claude Code status line
 
-`ai-cli` installs `bin/claude-statusline.sh` as an executable and adds an alias-safe zsh function. The script requires Bash, `jq`, and macOS `stat -f`.
+`ai-cli` installs an executable status-line script and an alias-safe zsh wrapper. Claude reruns the script every five seconds to show the current directory, model and effort, input-token context usage, and running subagents. Finished, interrupted, and idle subagents are hidden. Output tokens are not included in the absolute token figure.
 
-Claude reruns the command every five seconds. The display includes the current directory, model and effort, input-token context usage, and running subagents. Finished, interrupted, and idle subagents are hidden. The absolute token figure includes input plus cache creation/read tokens; output tokens are intentionally excluded.
+## Enable it
 
-## zsh wrapper
+Apply `ai-cli`, then open a fresh zsh session:
 
-```zsh
-function claude {
-  local statusline="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/claude-statusline.sh"
-  local statusline_command settings
-  printf -v statusline_command '%q' "$statusline"
-  settings="$(/opt/homebrew/bin/jq -cn --arg command "$statusline_command" '{statusLine:{type:"command",command:$command,padding:0,refreshInterval:5}}')" || return
-  BASH_COMPAT=3.2 command claude --settings "$settings" "$@"
-}
+```bash
+config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli bootstrap
+/bin/zsh -lic 'typeset -f claude'
 ```
 
-The function preserves an existing alias and forwards alias-supplied and explicit arguments. Zsh `%q` shell-quotes the adopted script path and `jq --arg` JSON-encodes it, so custom XDG paths containing whitespace or shell/JSON metacharacters remain intact. `BASH_COMPAT=3.2` preserves the script's literal `~` display with Homebrew Bash 5.3.
+The wrapper preserves an existing alias and forwards alias-supplied and explicit arguments. It locates the script through `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME`, including paths containing whitespace and shell/JSON metacharacters. `BASH_COMPAT=3.2` is set for Homebrew Bash compatibility.
 
-Claude Code itself is installed through the real-Homebrew `claude-code@latest` exception; see [Homebrew exceptions](homebrew-exceptions.md). Package installation and synthetic rendering do not establish authenticated interactive behavior. Complete account setup and verify the live status line manually.
+Claude Code is installed through the real-Homebrew `claude-code@latest` exception; see [Homebrew exceptions](homebrew-exceptions.md).
+
+## Bypass it temporarily
+
+Prefix a launch with `command` to bypass the zsh function and its status-line `--settings` without changing any files:
+
+```bash
+command claude
+```
+
+This affects only that invocation. The wrapper remains active for later launches.
+
+## Display and troubleshooting
 
 A sanitized sample is:
 
@@ -26,5 +34,12 @@ A sanitized sample is:
 ~/Projects/ChainArgos/redesign-review │ Opus 5.5 medium │ 35% (345k/1.0M)
 ↳ explorer │ sonnet low │ 91k
 ```
+
+If the status line is missing:
+
+1. Confirm you are using zsh; the wrapper is not installed for Fish. Run `typeset -f claude` to inspect the active function.
+2. Check the script and its dependencies with `test -x "$config_dir/bin/claude-statusline.sh"`, `command -v jq`, and `command -v bash`.
+3. Reapply `ai-cli` if the function or script is missing. If you intentionally used `command claude`, launch plain `claude` instead.
+4. Complete Claude authentication and check whether the problem persists in a new zsh session. Package installation and synthetic rendering do not establish authenticated interactive display.
 
 Reusable synthetic rendering and wrapper checks are documented in [Disposable Tart/Cua verification](../scripts/vm/README.md). Guest output is collected outside the repository.

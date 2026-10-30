@@ -204,9 +204,9 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
 
 The hook lifecycle fixture records structured outdated/formula metadata and proves the linked Amp CLI is behind before asserting that ordinary apply leaves its formula and link unchanged. If that cannot be established, it is BLOCKED, not PASS. Configuration-safety output is under `/tmp/essential-mise-evidence/configuration-safety`, and hook output is under `/tmp/essential-mise-evidence/hook-lifecycle`.
 
-XDG application output is under `/tmp/essential-mise-evidence/xdg-applications`. It covers every GitHub CLI scalar, alias, and schema readback; `GH_CONFIG_DIR`; Ghostty effective configuration and theme validation; default/custom-XDG OpenCode instruction consumption, `OPENCODE_CONFIG_DIR` precedence and user-owned override preservation, and native unapply. OpenCode sends prompts to a synthetic loopback-only provider; captured request bodies must contain the shared policy before removal and omit it afterward, with no external model or account. Also covers repeat convergence and unrelated-content preservation. Fish must resolve a preinstalled pinned Bun that was absent from its initial PATH. Neutralizing the activation body while preserving its markers and mise executable must remove that resolution. Amp completion has an equivalent external-completion exclusion and negative control.
+XDG application output is under `/tmp/essential-mise-evidence/xdg-applications`. It covers every GitHub CLI scalar, alias, and schema readback; `GH_CONFIG_DIR`; Ghostty effective configuration and theme validation; default/custom-XDG OpenCode instruction consumption, `OPENCODE_CONFIG_DIR` precedence and user-owned override preservation, and native unapply. OpenCode sends uniquely titled probes to a synthetic loopback-only provider. Exact user-message matching identifies every main request, whose bodies must contain the shared policy before removal and omit it afterward, with no external model or account. Also covers repeat convergence and unrelated-content preservation. Fish must resolve a preinstalled pinned Bun that was absent from its initial PATH. Neutralizing the activation body while preserving its markers and mise executable must remove that resolution. Amp completion has an equivalent external-completion exclusion and negative control.
 
-The inventory checker validates source invariants without reading documentation; `--self-test` proves representative temporary mutations fail. The native-cask fixture checks Homebrew-owned Ghostty through ordinary native apply/reapply. Project-boundary output covers selector precedence, project resource/environment isolation, synthetic workspace activation, and all emitted stage-0 next-step commands run from a trusted project through a linked configuration worktree whose path contains spaces.
+The inventory checker validates source invariants without reading documentation; `--self-test` proves representative temporary mutations fail, including an installation outside its presence guard. The native-cask fixture checks Homebrew-owned Ghostty through ordinary native apply/reapply. Project-boundary output covers selector precedence, project resource/environment isolation, synthetic workspace activation, and all emitted stage-0 next-step commands run from a trusted project through a linked configuration worktree whose path contains spaces. Nested first adoption and foundation rerun must exclude a trusted parent project's repository and hook; an unbounded control must see both.
 
 Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
 
@@ -232,6 +232,18 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
 ```
 
 The fixture clones the reviewed public commit inside the guest, substitutes its local repository path only in a temporary copy of `bootstrap.sh`, and records every invocation, exit code, and log under `/tmp/essential-mise-evidence/isolated-fixtures`. Temporary HOME/XDG directories are created explicitly under `/private/tmp`; no real global configuration is used. It covers existing-Homebrew empty `shellenv`, path aliases, symlinked ancestors, bare repositories, repository subdirectories, linked worktrees, wrong origins, exact adopted revisions, and a custom-XDG update/apply/unapply lifecycle. Its Fish check installs the pinned JS tools, starts with Bun absent from PATH, and requires interactive activation to resolve the exact mise-managed Bun. Evidence is cleared on every run and failed runs overwrite the summary with FAIL.
+
+Replay the documented preference capture/apply/restore workflow:
+
+```bash
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-preference-roundtrip.py
+VM_AUTO_CONFIRM=1 VM_NAME=essential-mise-test-evidence \
+  VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-preference-roundtrip.py"
+```
+
+The fixture extracts the exact shell functions from `docs/manual-actions.md`. Stubbed checks cover existing and absent domains plus read/export/import failures. The real guest check captures all affected domains, applies `system-preferences`, checks stored status, restores immediately, compares every present domain with its snapshot, confirms original absence, and verifies unrelated nested and top-level values. Restoration is attempted even when an earlier assertion fails. Output is under `/tmp/essential-mise-evidence/preference-roundtrip` and is collected externally.
 
 Delete only a registered disposable VM after its test is complete:
 

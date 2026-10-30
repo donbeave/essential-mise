@@ -12,7 +12,7 @@ Review the current `bootstrap.sh`, then run:
 essential_mise_script="$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
 ```
 
-This always uses the latest launcher and configuration from the default `main` branch; no commit selection is supported. `bash -c` preserves interactive installer input and the nonempty-download check fails closed.
+This command always downloads the latest launcher from `main`. First adoption also uses the latest configuration from `main`; an existing-checkout rerun skips adoption and does not pull. The workflow has no commit parameter. `bash -c` preserves interactive installer input and the nonempty-download check fails closed.
 
 Stage 0:
 
@@ -25,7 +25,7 @@ Stage 0:
 
 The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and applies only `foundation`, even if optional modules are selected.
 
-Open a fresh Terminal after success. Its printed next-step commands include the concrete `mise -C` configuration path, so they are safe to run from another project directory.
+Open a fresh Terminal after success. Its printed next-step commands include the concrete `mise -C` path and a matching `MISE_CEILING_PATHS` boundary, so projects in the caller's directory or above the adopted checkout cannot contribute resources.
 
 ## 2. Apply the standard workstation
 
@@ -38,8 +38,8 @@ config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
 Preview and apply:
 
 ```bash
-mise -C "$config_dir" -E foundation,terminal,development,security bootstrap --dry-run
-mise -C "$config_dir" -E foundation,terminal,development,security bootstrap
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,development,security bootstrap --dry-run
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,development,security bootstrap
 ```
 
 If App Store sign-in is unavailable, first apply `foundation,terminal,development`, sign in, then rerun the complete standard set. `security` includes a Mac App Store declaration and requires an available `mas` executable. Purchases and claims are not automated.
@@ -59,9 +59,9 @@ Apply the nonidentity Git settings and XDG-safe ignore override with the exact `
 Find the module and its prerequisites in [Environments](environments.md). For terminal coding agents and their shared utilities:
 
 ```bash
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap --dry-run
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap status --missing
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap --dry-run
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap status --missing
 ```
 
 Use `ai-cli` without `ai-tools` when only the agents and their own declarations are wanted. Use `ai-desktop` separately for desktop applications. Amp CLI, OMP, FFF, Amp Desktop, Claude Code, and Surge have the ownership rules documented in [Homebrew exceptions](homebrew-exceptions.md).
@@ -69,8 +69,8 @@ Use `ai-cli` without `ai-tools` when only the agents and their own declarations 
 For a runtime stack, distinguish three actions:
 
 ```bash
-mise -C "$config_dir" -E development-java bootstrap
-mise -C "$config_dir" -E development-java exec -- java -version
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E development-java bootstrap
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E development-java exec -- java -version
 ```
 
 - The first command installs the declared Java stack without persistently selecting it.
@@ -92,17 +92,17 @@ git -C "$config_dir" fetch origin
 git -C "$config_dir" diff --stat HEAD..origin/main
 git -C "$config_dir" diff HEAD..origin/main
 git -C "$config_dir" pull --ff-only
-mise -C "$config_dir" bootstrap --dry-run
-mise -C "$config_dir" bootstrap
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap --dry-run
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap
 ```
 
-Stop for a dirty or conflicting checkout. The final command applies the persistent selection; use explicit `-E` to limit it. Plain `mise -C "$config_dir" bootstrap --update` refreshes package/repository metadata rather than updating this Git checkout.
+Stop for a dirty or conflicting checkout. The final command applies the persistent selection; use explicit `-E` to limit it. Plain `MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap --update` refreshes package/repository metadata rather than updating this Git checkout.
 
 Preview and apply native upgrades deliberately:
 
 ```bash
-mise -C "$config_dir" bootstrap --upgrade --dry-run
-mise -C "$config_dir" bootstrap --upgrade
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap --upgrade --dry-run
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap --upgrade
 ```
 
 Exact Node, Bun, Rust, mr-boxington, and GraalVM pins remain fixed until their declarations change. The Grok Bot DMG URL/checksum is pinned too. To change a pin, edit the relevant `config.*.toml`, review the diff, and run the preview/apply cycle for that module. Native upgrade does not upgrade mise itself, pull the configuration, update declared repositories, or restart services.
@@ -114,8 +114,8 @@ Upgrade the six real-Homebrew exceptions only with their separate commands in [H
 Deselection alone does not uninstall anything. Remove the module from `miserc.local.toml`, keep its declaration available for cleanup, and preview native removal explicitly. For `ai-cli`:
 
 ```bash
-mise -C "$config_dir" bootstrap unapply ai-cli --dry-run
-mise -C "$config_dir" bootstrap unapply ai-cli --yes
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap unapply ai-cli --dry-run
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap unapply ai-cli --yes
 /usr/bin/python3 "$config_dir/bin/fish-config.py" unapply amp
 ```
 
@@ -129,15 +129,21 @@ Native unapply does not execute hooks. Remove only the Fish blocks owned by the 
 
 Each helper operation preserves unrelated Fish startup content. Removing `ai-cli` must not remove terminal-owned activation when `terminal` remains selected.
 
-GitHub CLI settings and aliases are application-owned and are not reversed by native unapply; change them through `gh config` and `gh alias` rather than deleting the whole configuration or `hosts.yml`. Packages, cloned repositories, login items, and macOS preferences need separate review. See [Manual actions](manual-actions.md) for preference snapshots and selective reversal.
+GitHub CLI settings and aliases are application-owned and are not reversed by native unapply; change them through `gh config` and `gh alias` rather than deleting the whole configuration or `hosts.yml`. Cloned repositories, login items, and macOS preferences need separate review. See [Manual actions](manual-actions.md) for preference snapshots and selective reversal.
 
-Do not apply a broad native formula prune while hook-owned Amp CLI, FFF, or OMP must remain. Native status, upgrade, and prune do not own those packages. Use the explicit Homebrew removal commands in [Homebrew exceptions](homebrew-exceptions.md), and review every other prune candidate individually.
+For native package cleanup, preview candidates explicitly and consult the [mise package lifecycle documentation](https://mise.jdx.dev/bootstrap/packages/) before removing anything:
+
+```bash
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli bootstrap packages prune --dry-run
+```
+
+Do not apply a broad prune automatically. Keep the Nerd Font while either `terminal` or `development-editors` remains, jq while either AI module remains, and `mas` while any App Store module remains. Hook-owned Amp CLI, FFF, and OMP are not owned by native status, upgrade, or prune and can appear as incorrect prune candidates. Remove the six Homebrew exceptions only with their explicit owner-specific commands in [Homebrew exceptions](homebrew-exceptions.md), and review every native candidate individually.
 
 ## 6. Troubleshooting
 
 - **Interrupted Command Line Tools or Homebrew prompt:** finish the installer, open a fresh Terminal, and rerun the same stage-0 command. A cancelled prerequisite or empty installer download fails rather than continuing partially.
 - **Existing configuration refused:** inspect `git -C "$config_dir" status`, `git -C "$config_dir" rev-parse --show-toplevel`, and its `origin`. Do not delete or overwrite an unrelated checkout; migrate it deliberately.
-- **Unexpected project resources:** always use `mise -C "$config_dir"` for machine setup. `-E` selects environments but does not exclude resources from a trusted project in the current directory.
+- **Unexpected project resources:** use `MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir"` for machine setup. `-E` selects environments but does not exclude projects in the caller's directory or above the adopted checkout.
 - **Custom XDG paths:** Ghostty and OpenCode use their effective XDG configuration roots; GitHub CLI also honors `GH_CONFIG_DIR`; Fish uses the XDG Fish file. Starship intentionally retains its normal `$HOME/.config/starship.toml` fallback.
 - **App Store applications missing:** sign in, claim or purchase the app where required, verify `command -v mas`, and rerun the owning module. Signed-out success does not establish signed-in installation.
 - **Amp Desktop does not open:** its package is retained despite a known macOS 27.2 startup failure. Do not bypass signing or security controls; use another supported client until upstream provides a working build.

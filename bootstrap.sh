@@ -123,7 +123,7 @@ if [[ ! -e "$MISE_CONFIG_DIR" ]] || { [[ -d "$MISE_CONFIG_DIR" ]] && [[ -z "$(/b
   say '4/6 - First-run adoption of public configuration'
   work_dir="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/essential-mise-adopt.XXXXXX")"
   cd "$work_dir"
-  "$MISE_BIN" bootstrap --adopt "$REPO"
+  MISE_CEILING_PATHS="$work_dir:$MISE_CONFIG_DIR" "$MISE_BIN" bootstrap --adopt "$REPO"
   first_adoption=1
 else
   say '4/6 - Existing configuration detected; skipping adoption'
@@ -139,6 +139,7 @@ if [[ "$first_adoption" -eq 0 ]]; then
 fi
 
 say '5/6 - Foundation only (zsh activation)'
+export MISE_CEILING_PATHS="$MISE_CONFIG_DIR"
 cd "$MISE_CONFIG_DIR"
 "$MISE_BIN" -E foundation bootstrap
 
@@ -150,9 +151,9 @@ say 'Finished. Open a fresh Terminal window.'
 printf -v quoted_config_dir '%q' "$MISE_CONFIG_DIR"
 printf '%s\n' \
   'Preview the standard workstation:' \
-  "  mise -C $quoted_config_dir -E foundation,terminal,development,security bootstrap --dry-run" \
+  "  MISE_CEILING_PATHS=$quoted_config_dir mise -C $quoted_config_dir -E foundation,terminal,development,security bootstrap --dry-run" \
   'Apply it after review:' \
-  "  mise -C $quoted_config_dir -E foundation,terminal,development,security bootstrap" \
+  "  MISE_CEILING_PATHS=$quoted_config_dir mise -C $quoted_config_dir -E foundation,terminal,development,security bootstrap" \
   'Preview coding agents and shared tools:' \
-  "  mise -C $quoted_config_dir -E ai-tools,ai-cli bootstrap --dry-run" \
+  "  MISE_CEILING_PATHS=$quoted_config_dir mise -C $quoted_config_dir -E ai-tools,ai-cli bootstrap --dry-run" \
   'This script did NOT permanently select an optional environment.'

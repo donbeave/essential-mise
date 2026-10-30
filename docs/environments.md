@@ -1,6 +1,6 @@
 # Environments
 
-Each `config.NAME.toml` is selected explicitly with `-E NAME` or persisted in ignored `miserc.local.toml`. No module selects another module implicitly. Set `config_dir` as shown in the README, then preview with `mise -C "$config_dir" -E NAME bootstrap --dry-run` before applying.
+Each `config.NAME.toml` is selected explicitly with `-E NAME` or persisted in ignored `miserc.local.toml`. No module selects another module implicitly. Set `config_dir` as shown in the README, then preview with `MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E NAME bootstrap --dry-run` before applying.
 
 The TOML files are the package and setting source of truth.
 
@@ -62,9 +62,9 @@ Use these commands for the complete terminal coding-agent setup:
 
 ```bash
 config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap --dry-run
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap status --missing
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap --dry-run
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap status --missing
 ```
 
 `ai-tools` is optional and is never implicitly selected by either application module. OpenCode global instructions follow `XDG_CONFIG_HOME`. `OPENCODE_CONFIG_DIR` is a user-owned override: when set, OpenCode uses it instead and essential-mise does not duplicate instructions there.

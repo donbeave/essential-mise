@@ -48,27 +48,100 @@ No fixed Dock icon list or Downloads stack is managed. Symbolic hotkeys are manu
 
 ## `system-preferences` review and reversal
 
-This module is optional. Review its dry run before applying. Stored-value matching (`mise -C "$config_dir" bootstrap macos defaults status --missing`) is not proof of UI behavior; restart Dock, Finder, SystemUIServer, or the affected application and verify the result on disposable macOS.
+This module is optional. Review its dry run before applying. Stored-value matching (`MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E system-preferences bootstrap macos defaults status --missing`) is not proof of UI behavior; restart Dock, Finder, SystemUIServer, or the affected application and verify the result on disposable macOS.
 
 Deselecting the module does not undo preferences. Before applying, capture current values with `defaults read DOMAIN KEY` where available. Reversal below uses `defaults delete DOMAIN KEY` to return to macOS defaults or restore the captured previous value. Do not delete an entire dictionary when only one member is managed.
 
-For an exact full-domain rollback, capture every affected domain before applying:
+For an exact full-domain rollback, capture every affected domain before applying. These functions work in zsh or Bash and return nonzero on the first unexpected failure. Do not apply preferences unless capture succeeds and prints `capture_dir`:
 
 ```bash
-capture_dir="$(mktemp -d /tmp/essential-mise-preferences.XXXXXX)"
-preference_domains=(NSGlobalDomain com.apple.dock com.apple.finder com.apple.spaces com.apple.WindowManager com.apple.assistant.support com.apple.Siri com.apple.screensaver com.apple.onetimepasscodes com.apple.TextInputMenu com.apple.bird)
-for domain in "${preference_domains[@]}"; do
-  defaults export "$domain" "$capture_dir/$domain.before.plist"
-done
+capture_preferences() {
+  preference_domains=(NSGlobalDomain com.apple.dock com.apple.finder com.apple.spaces com.apple.WindowManager com.apple.assistant.support com.apple.Siri com.apple.screensaver com.apple.onetimepasscodes com.apple.TextInputMenu com.apple.bird)
+  capture_dir="$(mktemp -d /tmp/essential-mise-preferences.XXXXXX)"
+  local domain state state_file error_file
+  for domain in "${preference_domains[@]}"; do
+    state_file="$capture_dir/$domain.before.state"
+    error_file="$capture_dir/$domain.before.error"
+    if defaults read "$domain" >/dev/null 2>&1; then
+      if ! defaults export "$domain" "$capture_dir/$domain.before.plist"; then
+        printf 'Could not export existing domain %s\n' "$domain" >&2
+        return 1
+      fi
+      printf 'present\n' > "$state_file"
+    else
+      defaults read "$domain" >/dev/null 2>"$error_file"
+      if /usr/bin/grep -F "Domain ($domain) not found." "$error_file" >/dev/null 2>&1; then
+        printf 'absent\n' > "$state_file"
+      else
+        printf 'Could not determine whether domain %s exists:\n' "$domain" >&2
+        /bin/cat "$error_file" >&2
+        return 1
+      fi
+    fi
+  done
+  for domain in "${preference_domains[@]}"; do
+    state_file="$capture_dir/$domain.before.state"
+    [[ -f "$state_file" ]] || return 1
+    IFS= read -r state < "$state_file"
+    if [[ "$state" == 'present' && ! -s "$capture_dir/$domain.before.plist" ]]; then
+      printf 'Missing snapshot for present domain %s\n' "$domain" >&2
+      return 1
+    elif [[ "$state" != 'present' && "$state" != 'absent' ]]; then
+      printf 'Invalid snapshot state for %s\n' "$domain" >&2
+      return 1
+    fi
+  done
+  printf 'capture_dir=%s\n' "$capture_dir"
+}
+capture_preferences
 ```
 
-This requires zsh or Bash and captures complete dictionaries, including `AppleFirstWeekday` and `AppleICUDateFormatStrings`. For an **immediate** rollback, before making any other preference changes, restore the snapshots:
+Each present domain has a nonempty plist snapshot. An absent domain is recorded only when macOS explicitly reports it as not found; other read/export errors stop the capture. For an **immediate** rollback, before making any other preference changes, restore the snapshots in the same shell or set `capture_dir` to the printed path:
 
 ```bash
-for domain in "${preference_domains[@]}"; do
-  defaults import "$domain" "$capture_dir/$domain.before.plist"
-done
+restore_preferences() {
+  preference_domains=(NSGlobalDomain com.apple.dock com.apple.finder com.apple.spaces com.apple.WindowManager com.apple.assistant.support com.apple.Siri com.apple.screensaver com.apple.onetimepasscodes com.apple.TextInputMenu com.apple.bird)
+  local domain state state_file error_file
+  [[ -n "${capture_dir:-}" ]] || return 1
+  for domain in "${preference_domains[@]}"; do
+    state_file="$capture_dir/$domain.before.state"
+    [[ -f "$state_file" ]] || return 1
+    IFS= read -r state < "$state_file"
+    case "$state" in
+      present)
+        [[ -s "$capture_dir/$domain.before.plist" ]] || return 1
+        if ! defaults import "$domain" "$capture_dir/$domain.before.plist"; then
+          printf 'Could not restore domain %s\n' "$domain" >&2
+          return 1
+        fi
+        ;;
+      absent)
+        if defaults read "$domain" >/dev/null 2>&1; then
+          if ! defaults delete "$domain"; then
+            printf 'Could not remove newly created domain %s\n' "$domain" >&2
+            return 1
+          fi
+        else
+          error_file="$capture_dir/$domain.restore.error"
+          defaults read "$domain" >/dev/null 2>"$error_file"
+          if ! /usr/bin/grep -F "Domain ($domain) not found." "$error_file" >/dev/null 2>&1; then
+            printf 'Could not confirm that domain %s is absent:\n' "$domain" >&2
+            /bin/cat "$error_file" >&2
+            return 1
+          fi
+        fi
+        ;;
+      *)
+        printf 'Invalid snapshot state for %s\n' "$domain" >&2
+        return 1
+        ;;
+    esac
+  done
+}
+restore_preferences
 ```
+
+Restore also returns nonzero on the first unexpected failure; fix the reported problem and rerun it rather than assuming every domain was restored.
 
 Full-domain import also replaces changes made after capture; never use it as a delayed or routine cleanup operation. For later selective reversal, use the per-key commands below. For the two nested values, use `plutil -extract AppleFirstWeekday.gregorian raw -o - "$capture_dir/NSGlobalDomain.before.plist"` and `plutil -extract AppleICUDateFormatStrings.1 raw -o - "$capture_dir/NSGlobalDomain.before.plist"` to inspect the original members, then restore only those members with `defaults write NSGlobalDomain AppleFirstWeekday -dict-add gregorian -int ORIGINAL_INTEGER` or `defaults write NSGlobalDomain AppleICUDateFormatStrings -dict-add 1 -string ORIGINAL_STRING`. If the original member was absent, use the immediate snapshot rollback instead of deleting the whole dictionary.
 

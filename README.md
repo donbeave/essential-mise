@@ -26,11 +26,11 @@ Set the configuration path in each new shell, then preview and apply the standar
 
 ```bash
 config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
-mise -C "$config_dir" -E foundation,terminal,development,security bootstrap --dry-run
-mise -C "$config_dir" -E foundation,terminal,development,security bootstrap
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,development,security bootstrap --dry-run
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,development,security bootstrap
 ```
 
-Every example uses `mise -C` so a trusted project in the caller's current directory cannot contribute unrelated bootstrap resources. To persist this selection for future shells, create `miserc.local.toml` in the adopted checkout:
+Every machine-setup example uses `mise -C` with `MISE_CEILING_PATHS`, preventing trusted projects in the caller's directory or above the adopted checkout from contributing resources. To persist this selection for future shells, create `miserc.local.toml` in the adopted checkout:
 
 ```toml
 env = ["foundation", "terminal", "development", "security"]
@@ -44,9 +44,9 @@ The [environment guide](docs/environments.md) lists every module, its purpose, p
 
 ```bash
 config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap --dry-run
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap
-mise -C "$config_dir" -E ai-tools,ai-cli bootstrap status --missing
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap --dry-run
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap status --missing
 ```
 
 `ai-tools` contains shared search and development utilities, `ai-cli` contains terminal coding agents, and `ai-desktop` contains desktop applications. They are independent selections.
@@ -57,8 +57,8 @@ These are separate operations:
 
 ```bash
 config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
-mise -C "$config_dir" -E js bootstrap
-mise -C "$config_dir" -E js exec -- node --version
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E js bootstrap
+MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E js exec -- node --version
 ```
 
 The first installs the declared Node/Bun stack; the second uses it for one command. Neither permanently selects `js`. Add `js` to the existing `env` list in `miserc.local.toml` for future shells and unrelated directories. The same rule applies to `development-rust` and `development-java`.
