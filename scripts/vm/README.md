@@ -11,7 +11,7 @@ brew install openai/tools/tart
 tart --version
 ```
 
-The scripts require macOS `expect` and Python 3; a full Xcode installation is not required. The isolated lifecycle also invokes `/opt/homebrew/bin/fish`, which can be installed with `brew install fish`. Test guests use 4 CPUs, 8192 MB RAM, a 100 GB disk, NAT networking, no host directory shares, and no clipboard sharing. NAT provides connectivity, not complete network isolation.
+The scripts require macOS `expect` and Python 3; a full Xcode installation is not required. Most fixtures use macOS's `/usr/bin/python3`. The inventory checker additionally requires Python 3.11 or newer for `tomllib`; macOS 27.2's system Python is 3.9, so install the contributor-only dependency with `brew install python@3.14` and invoke `/opt/homebrew/bin/python3`. The isolated lifecycle also invokes `/opt/homebrew/bin/fish`, which can be installed with `brew install fish`. Test guests use 4 CPUs, 8192 MB RAM, a 100 GB disk, NAT networking, no host directory shares, and no clipboard sharing. NAT provides connectivity, not complete network isolation.
 
 Create a dedicated SSH identity and the shared synthetic guest-owner credential file. Every test guest uses username `admin` and password `admin`; never use personal credentials or generate unique guest passwords. The credential file is not part of the repository, must have mode 600, and is never printed by the scripts:
 

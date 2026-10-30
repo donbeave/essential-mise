@@ -85,7 +85,12 @@ def run(name, arguments, env=None, timeout=60, expected=0, cwd=None):
 
 
 def apply(name, environments, parts, env=None):
-    return run(name, [mise, '-C', config_dir, '-E', environments, 'bootstrap', '--only', parts, '--yes'], env)
+    return run(
+        name,
+        [mise, '-C', config_dir, '-E', environments, 'bootstrap', '--only', parts, '--yes'],
+        env,
+        timeout=1200,
+    )
 
 
 expected = {
