@@ -17,19 +17,32 @@ vm_require_running
 vm_scan_host_key
 evidence_dir="/tmp/essential-mise-evidence/$scenario"
 vm_ssh "mkdir -p '$evidence_dir'"
-reviewed_commit="${VM_REVIEWED_COMMIT:-}"
+reviewed_commit="${VM_REVIEWED_COMMIT:-$(git rev-parse HEAD)}"
+[[ "$reviewed_commit" =~ ^[0-9a-f]{40}$ ]] || fail 'A full reviewed commit SHA is required'
 config_dir="/Users/$VM_SSH_USER/.config/mise"
-vm_ssh "printf 'scenario=%s\nreviewed_commit=%s\n' '$scenario' '$reviewed_commit' > '$evidence_dir/scenario.env'"
+fixture_sha256="$(shasum -a 256 "$0" | cut -d' ' -f1)"
+vm_ssh "printf 'scenario=%s\nreviewed_commit=%s\nvm_name=%s\nfixture_sha256=%s\ntart_version=%s\n' '$scenario' '$reviewed_commit' '$VM_NAME' '$fixture_sha256' '$(tart --version)' > '$evidence_dir/scenario.env'"
+vm_ssh "printf 'product_version=%s\nbuild_version=%s\n' \"\$(sw_vers -productVersion)\" \"\$(sw_vers -buildVersion)\" > '$evidence_dir/guest-os.txt'"
+vm_scp "$0" "$VM_SSH_USER@$VM_IP:$evidence_dir/run-test-scenario.sh"
 if vm_ssh 'test -x "$HOME/.local/bin/mise"'; then
   vm_ssh "\$HOME/.local/bin/mise --version > '$evidence_dir/mise-version.txt'"
 fi
 if vm_ssh "test -d '$config_dir/.git'"; then
+  actual_commit="$(vm_ssh "git -C '$config_dir' rev-parse HEAD")"
+  [[ "$actual_commit" == "$reviewed_commit" ]] || fail "Guest config $actual_commit does not match reviewed commit $reviewed_commit"
+  vm_ssh "git -C '$config_dir' status --porcelain > '$evidence_dir/config-status.txt'"
+  vm_ssh "test -z \"\$(git -C '$config_dir' status --porcelain)\"" || fail 'Guest config has uncommitted changes'
   vm_ssh "git -C '$config_dir' rev-parse HEAD > '$evidence_dir/config-revision.txt'"
 fi
 
 run_logged() {
-  local name="$1" command="$2"
+  local name="$1" command="$2" result
+  set +e
   vm_ssh "set -o pipefail; { $command; } 2>&1 | tee '$evidence_dir/$name.log'"
+  result=$?
+  set -e
+  vm_ssh "printf '%s\n' '$result' > '$evidence_dir/$name.exit'"
+  return "$result"
 }
 
 stage0_command="set -e
