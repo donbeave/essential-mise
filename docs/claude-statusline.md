@@ -33,7 +33,7 @@ The sample payload exercised `workspace.current_dir`, `model.display_name`, `eff
 ↳ explorer │ sonnet low │ 91k
 ```
 
-The test passed with one running subagent, finished/interrupted/idle agents hidden, and green/yellow/red context thresholds at 35%, 50%, and 80%. Replay it inside a registered guest and collect `/tmp/essential-mise-evidence/claude-statusline` before restarting that guest:
+The test passed with one running subagent, finished/interrupted/idle agents hidden, and green/yellow/red context thresholds at 35%, 50%, and 80%. After applying the current `ai-cli` module, replay it inside a registered guest and collect `/tmp/essential-mise-evidence/claude-statusline` before restarting that guest:
 
 ```bash
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-statusline.py
@@ -43,6 +43,16 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-statusline.py"
 ```
 
-Fresh login zsh checks from both `/tmp` and `/Users/admin` returned the wrapper above with the adopted absolute script path. An interactive launch of Claude Code 2.1.312 included that exact `--settings` JSON in its process title. Its debug log also reported `model=claude-sonnet-5-5` from the synthetic project settings, confirming that `--settings` merges with, rather than discards, project settings. No real account was used; post-login rendering was not claimed because the test stopped at the login screen.
+Replay the wrapper test separately. It extracts the actual function from `~/.zshrc`, uses an XDG path containing spaces, quotes, a dollar sign, and a backslash, captures a mock `claude` invocation, and executes the decoded status-line command through `/bin/sh`:
 
-The existing `claude-code@latest` cask was reused safely, and repeated preview/apply runs converged with no second owner. The original conflicting `claude-code` declaration was removed.
+```bash
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-wrapper.py
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-wrapper.py"
+```
+
+The current wrapper passed special-path shell quoting, JSON encoding, argument forwarding, and synthetic rendering. An earlier interactive launch of Claude Code 2.1.312 established that `--settings` merges with observed project model settings rather than discarding them. No real account was used; authenticated interactive rendering remains unverified because that test stopped at the login screen.
+
+The existing `claude-code@latest` cask was reused safely, and repeated preview/apply runs converged with no second owner. The original conflicting `claude-code` declaration was removed. Exact logs, fixture sources, exit codes, and hashes are preserved under `validation-evidence/e81fe5902edf6f04e3925cae8f128ab50e0216da/release/`.

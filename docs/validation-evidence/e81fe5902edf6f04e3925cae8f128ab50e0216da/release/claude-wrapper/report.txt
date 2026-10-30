@@ -1,0 +1,6 @@
+script_sha256=e0268e5e61bb07456bdbbcda5975c7189f5e89168b8cd3df6821cadc2c05917d
+special_character_xdg_path=PASS
+json_encoding=PASS
+shell_command_quoting=PASS
+argument_forwarding=PASS
+rendered_command=PASS

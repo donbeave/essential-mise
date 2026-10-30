@@ -1,0 +1,6 @@
+[
+  "--settings",
+  "{\"statusLine\":{\"type\":\"command\",\"command\":\"/tmp/essential-mise-claude-wrapper/xdg\\\\ space\\\\ \\\\\\\"double\\\\\\\"\\\\ \\\\'single\\\\'\\\\ \\\\$dollar\\\\ \\\\\\\\slash/mise/bin/claude-statusline.sh\",\"padding\":0,\"refreshInterval\":5}}",
+  "--version",
+  "argument with spaces"
+]

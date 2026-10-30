@@ -114,7 +114,7 @@ VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh preferences
 
 The scenarios deliberately share one VM when they have dependencies. Use separate clones for independent clean-state tests. The stage-0 launcher uses a full reviewed commit, not mutable `main`; update that commit deliberately. Run `ai` before the full dry run to exercise the real-Homebrew hooks and eliminate package conflicts. The `optional-modules` scenario models a first, nonactivated shell, so MAS entries are skipped while non-MAS packages install; its login-shell status exposes the remaining App Store gap rather than reporting complete success. Review every log before assigning a release result; a completed scenario command is not a blanket release approval. MAS/account, paid-license, personal-credential, and authenticated-provider tests remain blocked without synthetic or explicitly approved test accounts.
 
-Replay the synthetic Claude status-line checks:
+After applying the current `ai-cli` module, replay the synthetic Claude status-line and wrapper checks separately. The wrapper fixture verifies JSON encoding, shell quoting with a special-character XDG path, argument forwarding, and execution of the emitted command:
 
 ```bash
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-statusline.py
@@ -122,6 +122,11 @@ VM_NAME=essential-mise-test-evidence \
 VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   scripts/vm/owner-auth-ssh.sh \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-statusline.py"
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-wrapper.py
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-wrapper.py"
 ```
 
 Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
