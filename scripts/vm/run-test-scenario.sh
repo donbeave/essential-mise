@@ -109,6 +109,7 @@ case "$scenario" in
       outcome=expected-refusal
     fi
     vm_ssh 'test "$(/bin/cat /Applications/Amp.app/Contents/essential-mise-test-marker)" = unmanaged && ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1'
+    vm_ssh '/usr/bin/python3 -c '\''from pathlib import Path; assert "Existing /Applications/Amp.app requires manual ownership migration before using Homebrew." in Path("/tmp/essential-mise-evidence/amp-conflict/existing-app-refusal.log").read_text()'\'''
     [[ "$outcome" == expected-refusal ]] || fail 'Amp hook accepted an unmanaged existing app'
     ;;
   surge-conflict)
