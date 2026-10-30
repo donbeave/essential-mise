@@ -109,7 +109,7 @@ validate_config_checkout() {
   [[ -d "$MISE_CONFIG_DIR" ]] || fail "Configuration directory was not created: $MISE_CONFIG_DIR"
   inside="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --is-inside-work-tree 2>/dev/null)" || \
     fail 'Existing config is not a Git worktree.'
-  [[ "$inside" == 'true' ]] || fail 'Existing config is not inside a Git worktree.'
+  [[ "$inside" == 'true' ]] || fail 'Existing config is not a Git worktree.'
   bare="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --is-bare-repository)" || fail 'Cannot determine Git repository type.'
   [[ "$bare" == 'false' ]] || fail 'Existing config cannot be a bare repository.'
   top="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --show-toplevel)" || fail 'Cannot determine the configuration worktree root.'

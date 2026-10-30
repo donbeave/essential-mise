@@ -160,9 +160,14 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
 VM_NAME=essential-mise-test-evidence \
   scripts/vm/owner-auth-ssh.sh \
   "/opt/homebrew/bin/python3 \$HOME/.config/mise/scripts/vm/verify-current-inventory.py"
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-native-cask-coexistence.sh
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/bin/bash /tmp/essential-mise-artifact/verify-native-cask-coexistence.sh"
 ```
 
-The hook lifecycle fixture requires a previously installed alternate Amp CLI version in the guest Cellar; it switches to that outdated version, requires `brew outdated` to confirm the state, applies `ai-cli`, and asserts no package/link changes before restoring the original version. A missing alternate is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`.
+The hook lifecycle fixture requires a previously installed alternate Amp CLI version in the guest Cellar; it switches to that outdated version, requires `brew outdated` to confirm the state, applies `ai-cli`, and asserts no package/link changes before restoring the original version. A missing alternate is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges.
 
 Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
 
