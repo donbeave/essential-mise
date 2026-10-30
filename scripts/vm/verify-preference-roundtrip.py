@@ -70,7 +70,7 @@ case " ${STUB_READ_ERROR_DOMAINS:-} " in
   *" $domain "*) [[ "$action" == 'read' ]] && { printf 'synthetic read failure\n' >&2; exit 1; } ;;
 esac
 case " ${STUB_ABSENT_DOMAINS:-} " in
-  *" $domain "*) printf 'Domain (%s) not found.\n' "$domain" >&2; exit 1 ;;
+  *" $domain "*) printf "Error: Domain '%s' not found.\n" "$domain" >&2; exit 1 ;;
 esac
 case " ${STUB_FAIL_EXPORT_DOMAINS:-} " in
   *" $domain "*) [[ "$action" == 'export' ]] && { printf 'synthetic export failure\n' >&2; exit 1; } ;;
@@ -189,7 +189,7 @@ for state_file in sorted(real_capture_dir.glob('*.before.state')):
     elif state == 'absent':
         run(f'absent-after-{domain}', ['defaults', 'read', domain], real_env, expected=1)
         error_text = (evidence / f'absent-after-{domain}.stderr').read_text()
-        assert f'Domain ({domain}) not found.' in error_text, error_text
+        assert f"Domain '{domain}' not found." in error_text, error_text
     else:
         raise AssertionError(f'Invalid state for {domain}: {state}')
 for key in ('AppleFirstWeekday', 'AppleICUDateFormatStrings'):

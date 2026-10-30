@@ -70,7 +70,7 @@ capture_preferences() {
       printf 'present\n' > "$state_file"
     else
       defaults read "$domain" >/dev/null 2>"$error_file"
-      if /usr/bin/grep -F "Domain ($domain) not found." "$error_file" >/dev/null 2>&1; then
+      if /usr/bin/grep -F "Domain '$domain' not found." "$error_file" >/dev/null 2>&1; then
         printf 'absent\n' > "$state_file"
       else
         printf 'Could not determine whether domain %s exists:\n' "$domain" >&2
@@ -124,7 +124,7 @@ restore_preferences() {
         else
           error_file="$capture_dir/$domain.restore.error"
           defaults read "$domain" >/dev/null 2>"$error_file"
-          if ! /usr/bin/grep -F "Domain ($domain) not found." "$error_file" >/dev/null 2>&1; then
+          if ! /usr/bin/grep -F "Domain '$domain' not found." "$error_file" >/dev/null 2>&1; then
             printf 'Could not confirm that domain %s is absent:\n' "$domain" >&2
             /bin/cat "$error_file" >&2
             return 1
