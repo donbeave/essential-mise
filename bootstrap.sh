@@ -118,21 +118,25 @@ validate_config_checkout() {
   [[ "$physical_top" == "$physical_config" ]] || fail "Config path must be the actual worktree root, not $top"
 }
 
+first_adoption=0
 if [[ ! -e "$MISE_CONFIG_DIR" ]] || { [[ -d "$MISE_CONFIG_DIR" ]] && [[ -z "$(/bin/ls -A "$MISE_CONFIG_DIR")" ]]; }; then
   say '4/6 - First-run adoption of public configuration'
   work_dir="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/essential-mise-adopt.XXXXXX")"
   cd "$work_dir"
   "$MISE_BIN" bootstrap --adopt "$REPO"
+  first_adoption=1
 else
   say '4/6 - Existing configuration detected; skipping adoption'
 fi
 
 validate_config_checkout
-origin="$(/usr/bin/git -C "$MISE_CONFIG_DIR" remote get-url origin 2>/dev/null || true)"
-case "$origin" in
-  'https://github.com/donbeave/essential-mise'|'https://github.com/donbeave/essential-mise.git'|'git@github.com:donbeave/essential-mise'|'git@github.com:donbeave/essential-mise.git') ;;
-  *) fail "Existing config has an unexpected or missing origin ($origin); refusing to overwrite or pull." ;;
-esac
+if [[ "$first_adoption" -eq 0 ]]; then
+  origin="$(/usr/bin/git -C "$MISE_CONFIG_DIR" remote get-url origin 2>/dev/null || true)"
+  case "$origin" in
+    'https://github.com/donbeave/essential-mise'|'https://github.com/donbeave/essential-mise.git'|'git@github.com:donbeave/essential-mise'|'git@github.com:donbeave/essential-mise.git') ;;
+    *) fail "Existing config has an unexpected or missing origin ($origin); refusing to overwrite or pull." ;;
+  esac
+fi
 
 say '5/6 - Foundation only (zsh activation)'
 cd "$MISE_CONFIG_DIR"
