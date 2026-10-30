@@ -99,7 +99,7 @@ case "$scenario" in
   prune-review)
     run_logged install-unrelated "/opt/homebrew/bin/brew install sl"
     run_logged candidates "cd '$config_dir' && \$HOME/.local/bin/mise bootstrap packages prune --dry-run"
-    vm_ssh '/usr/bin/grep -E "(^|[[:space:]])sl([[:space:]]|$)" /tmp/essential-mise-evidence/prune-review/candidates.log'
+    vm_ssh '/usr/bin/grep -F "brew:sl@" /tmp/essential-mise-evidence/prune-review/candidates.log'
     run_logged manual-cleanup "/opt/homebrew/bin/brew uninstall sl"
     vm_ssh '! /opt/homebrew/bin/brew list --formula | /usr/bin/grep -Fx sl'
     ;;
