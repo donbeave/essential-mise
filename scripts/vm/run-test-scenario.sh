@@ -60,6 +60,7 @@ run_logged_interactive() {
 }
 
 stage0_command="set -e
+export MISE_YES=1
 reviewed_commit='$reviewed_commit'
 essential_mise_script=\"\$(/usr/bin/curl -fsSL \"https://raw.githubusercontent.com/donbeave/essential-mise/\$reviewed_commit/bootstrap.sh\")\" && test -n \"\$essential_mise_script\" && /bin/bash -c \"\$essential_mise_script\""
 
