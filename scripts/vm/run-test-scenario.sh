@@ -122,8 +122,8 @@ case "$scenario" in
   login-items)
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E utilities bootstrap --dry-run"
     run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E utilities bootstrap"
-    run_logged status "cd '$config_dir' && \$HOME/.local/bin/mise bootstrap macos login-items status --missing"
-    run_logged verify 'test -d "/Applications/CleanShot X.app" && test -d "/Applications/Bartender 7.app"'
+    run_logged status "cd '$config_dir' && /bin/zsh -lic 'mise -E utilities bootstrap status'"
+    run_logged verify 'test -d "/Applications/CleanShot X.app" && test -d "/Applications/Bartender 7.app" && /bin/zsh -lic '\''mise -E utilities bootstrap status --json'\'' | /usr/bin/python3 -c '\''import json, sys; entries = json.load(sys.stdin)["macos_login_items"]["entries"]; assert {entry["path"]: entry["state"] for entry in entries} == {"/Applications/CleanShot X.app": "set", "/Applications/Bartender 7.app": "set"}'\'''
     ;;
   omp-config)
     run_logged config "/opt/homebrew/bin/omp config"
