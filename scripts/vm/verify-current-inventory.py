@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/opt/homebrew/bin/python3
 import pathlib
 import re
 import sys
@@ -161,14 +161,15 @@ for section, subsection, header, rows in tables:
                 continue
             spans = code_spans(declaration)
             if spans and spans[0].startswith('macos-app:'):
-                if len(spans) != 5:
+                if len(spans) != 6:
                     matrix_errors.append(f'{owner}: invalid direct-package record {declaration}')
                     continue
                 add_record(direct_packages, (owner, spans[0]), {
                     'version': spans[1],
-                    'url_fragment': spans[2],
+                    'url': spans[2],
                     'sha256': spans[3],
                     'artifact': spans[4],
+                    'os': spans[5],
                 }, 'direct package')
                 continue
             if 'Homebrew' in declaration:
@@ -180,10 +181,6 @@ for section, subsection, header, rows in tables:
                     package = command.group('package')
                     cask = command.group('cask') is not None
                     exact_command = command.group(0)
-                elif len(spans) >= 2 and 'hook' in declaration:
-                    package = spans[0]
-                    cask = None
-                    exact_command = None
                 else:
                     matrix_errors.append(f'{owner}: invalid Homebrew hook record {declaration}')
                     continue
@@ -335,11 +332,9 @@ def require_declaration(owner, kind, name, value):
         if not isinstance(value, dict):
             mismatch(kind, owner, name, 'expected direct-package dictionary')
             return
-        for key in ('version', 'sha256', 'artifact'):
+        for key in ('version', 'url', 'sha256', 'artifact', 'os'):
             if not same_value(value.get(key), expected[key]):
                 mismatch(kind, owner, name, f'{key}={value.get(key)!r}, expected {expected[key]!r}')
-        if expected['url_fragment'] not in str(value.get('url', '')):
-            mismatch(kind, owner, name, f'URL does not contain {expected["url_fragment"]}')
         return
     record = declarations.get((owner, name))
     if record is None:
@@ -359,9 +354,9 @@ def require_hook(owner, hook_name, description, package, cask, command):
         return
     if record['hook'] != hook_name:
         mismatch('Homebrew hook', owner, package, f'owner={hook_name}, expected {record["hook"]}')
-    if record['cask'] is not None and record['cask'] != cask:
+    if record['cask'] != cask:
         mismatch('Homebrew hook', owner, package, 'formula/cask identity differs')
-    if record['command'] is not None and record['command'] != command:
+    if record['command'] != command:
         mismatch('Homebrew hook', owner, package, f'command={command!r}, expected {record["command"]!r}')
     lifecycle = description.lower()
     if 'presence-only' not in lifecycle or 'upgrades are separate' not in lifecycle:
@@ -382,6 +377,15 @@ def require_dotfile(owner, target, specification):
     if not isinstance(specification, dict):
         mismatch('dotfile', owner, target, 'expected a declaration dictionary')
         return
+    expected_variant = {
+        ('terminal', '~/.config/ghostty/config'): '{{ xdg_config_home }}/ghostty/config',
+        ('terminal', '~/.config/ghostty/themes/generic-terminal'): '{{ xdg_config_home }}/ghostty/themes/generic-terminal',
+    }.get((owner, target))
+    if expected_variant is not None or 'variants' in specification:
+        if expected_variant is None:
+            mismatch('dotfile variants', owner, target, 'unexpected target variants')
+        elif not same_value(specification.get('variants'), [{'default': True, 'target': expected_variant}]):
+            mismatch('dotfile variants', owner, target, f'value={specification.get("variants")!r}, expected one default target {expected_variant!r}')
     if 'source' in specification:
         source = str(specification['source'])
         if not source.startswith(f'dotfiles/{owner}/'):
@@ -419,9 +423,11 @@ def flatten_settings(owner, values, prefix='settings'):
         if record is None:
             mismatch('setting', owner, path, 'no exact owner/resource record')
             continue
-        for command in code_spans(record['detail']):
-            if command not in str(value):
-                mismatch('setting value', owner, path, f'missing documented command {command!r}')
+        commands = code_spans(record['detail'])
+        if len(commands) != 1:
+            mismatch('setting value', owner, path, 'matrix must contain exactly one complete command')
+        elif not same_value(value, commands[0]):
+            mismatch('setting value', owner, path, f'value={value!r}, expected exact command {commands[0]!r}')
 
 
 def require_preference(owner, domain, key, path, value):

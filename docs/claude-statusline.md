@@ -22,7 +22,7 @@ Every argument is forwarded through `command claude`, so existing flags and subc
 
 ## Package owner
 
-Claude Code is installed through real Homebrew with `/opt/homebrew/bin/brew install --cask claude-code@latest`. The verified version is `2.1.312 (Claude Code)`. The older `claude-code` cask's missing `bin/claude` target is documented in [Homebrew exceptions](homebrew-exceptions.md).
+Claude Code is installed through real Homebrew with `/opt/homebrew/bin/brew install --cask claude-code@latest`. The earlier focused evidence verified `2.1.312 (Claude Code)`; the `9e4e39b…` apply records `2.1.314 (Claude Code)`. The `@latest` cask can advance between evidence runs. The older `claude-code` cask's missing `bin/claude` target is documented in [Homebrew exceptions](homebrew-exceptions.md).
 
 ## Verification
 

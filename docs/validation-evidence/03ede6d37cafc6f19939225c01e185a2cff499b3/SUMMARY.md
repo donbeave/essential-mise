@@ -18,7 +18,7 @@
 | Interrupted CLT | `interrupted-clt/cold-first-run.exit` is 1. The guest refused to continue before CLT was ready. `commands/essential-mise-cold-clt.log` records the subsequent exact guest-only Software Update installation. |
 | Successful cold stage 0 | `cold-stage0/cold-preconditions.log` records no Homebrew/config. `cold-first-run.log` contains the real Homebrew installer and first public adoption, not a rerun. The clean adopted SHA is `94890d714202da5c3116a862264c6f421201f007`; `adopted-mise-version.txt` records 2026.10.23. Foundation and fresh-shell checks pass. |
 | Existing Homebrew and checkout guards | `isolated-fixtures/` records successful empty `shellenv` startup, wrong-origin/HOME/root/symlink/bare/subdirectory refusals, no adoption through the symlink, and a valid linked worktree. |
-| Complete XDG lifecycle | All 46 checks in `isolated-fixtures/report.txt` have expected outcomes, including exact adopted revisions, a real reset/nonempty diff/fast-forward update, dotfile apply, unrelated fresh shell, and actual unapply/removal. |
+| Complete XDG lifecycle | All 42 command-result rows in `isolated-fixtures/report.txt` have expected outcomes, including adopted revision checks, a real reset/nonempty diff/fast-forward update, dotfile apply, unrelated fresh shell, and actual unapply/removal. The legacy report retains its initial IN_PROGRESS status despite its successful completion message; the `9e4e39b…` fixture supersedes it with exact HEAD checks and an explicit 49-row PASS. |
 | Standard modules | `standard/` records initial installation, repeat convergence, zsh/Fish activation, GitHub CLI scalar/alias/schema readbacks, and absence of unsafe Git merge/copy targets. |
 | AI and independence | `ai/` records installation, status, repeat convergence, and health checks. `ai-cli-independent/` records `ai-cli` working without `ai-tools`, including jq/Claude/Amp/OMP and no FFF executable. |
 | Git and merge preservation | `configuration-safety/` proves repeated Git CLI setup preserves user SSH settings, helpers, includeIf, comments, and mixed indentation; custom-XDG ignore works; native Zed JSONC and GitHub CLI YAML preserve unrelated user content. |
@@ -36,7 +36,7 @@
 
 Cold preconditions are asserted before stage 0. Initial cold installation and optional reruns use separate log names and preserved collections. Post-adoption SHA, clean status, and mise version are required. Cask scenarios were rerun in one uninterrupted guest lifecycle after discovering that a restart had cleared temporary evidence; only the complete recollected set is included here.
 
-All current `.exit` files were checked against their expected success or intentional-refusal outcomes. Focused reports contain PASS rather than stale IN_PROGRESS/FAIL results, except for the deliberately preserved failure-lifecycle artifacts.
+All current `.exit` files were checked against their expected success or intentional-refusal outcomes. Focused reports contain PASS except for the legacy isolated report's retained IN_PROGRESS status described above and the deliberately preserved failure-lifecycle artifacts. The retained status is not rewritten after the fact; the newer fixture writes an explicit terminal PASS.
 
 ## Accepted boundaries
 

@@ -22,7 +22,7 @@ The old generic components and sanitized legacy example have different provenanc
 | `apps.amp` | REAL HOMEBREW + NATIVE CONFIG | Real-Homebrew `ampcode/tap/ampcode` hook in `ai-cli`; sanitized shared instructions replace old RTK/Caveman policy | Native mode-644 executable failed; real-Homebrew install and `amp --version` passed; `amp completions` tests |
 | `apps.antigravity` | NATIVE + MANUAL | `brew-cask:antigravity-cli` in `ai-cli`, `brew-cask:antigravity` in `ai-desktop`; authentication manual | Separate package assertions; no cross-group configuration |
 | `apps.chatgpt` | NATIVE + MANUAL | `brew-cask:chatgpt` in `ai-desktop`; authentication manual | Desktop-only package assertion |
-| `apps.claude-code` | REAL HOMEBREW + NATIVE CONFIG | Real-Homebrew `claude-code@latest` in `ai-cli`; shared self-contained `~/.claude/CLAUDE.md`; native zsh status-line wrapper and executable script | Claude Code 2.1.312 and settings merge verified; exact status-line sample and subagent rules passed |
+| `apps.claude-code` | REAL HOMEBREW + NATIVE CONFIG | Real-Homebrew `claude-code@latest` in `ai-cli`; shared self-contained `~/.claude/CLAUDE.md`; native zsh status-line wrapper and executable script | Earlier evidence verified Claude Code 2.1.312/settings merge; `9e4e39b…` records 2.1.314; exact status-line sample and subagent rules passed |
 | `apps.claude-desktop` | NATIVE + MANUAL | `brew-cask:claude` in `ai-desktop`; authentication manual | Desktop-only package assertion |
 | `apps.codex` | NATIVE + DROP | `brew-cask:codex` in `ai-cli`, `brew-cask:codexbar` in `ai-desktop`; shared Codex instructions; generated config/update/hook graph dropped | Separate package assertions; `CODEX.md` copy-mode check |
 | `apps.cursor` | NATIVE + MANUAL | `brew-cask:cursor-cli` in `ai-cli`, `brew-cask:cursor` in `ai-desktop`; authentication manual | Separate package assertions |
@@ -87,7 +87,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `ai-desktop` | `"brew-cask:antigravity" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:kimi" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:opencode-desktop" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
-| `ai-desktop` | `macos-app:grok-bot` version `0.78.1`, official `/grokbot/` DMG, SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9`, `Grok Bot.app` | NATIVE + OFFICIAL DIRECT | The cask's `/sand/` URL returned 403 through both package managers; the official page's current DMG passed hash, signature, notarization, and installation checks |
+| `ai-desktop` | `macos-app:grok-bot` version `0.78.1`, official `https://downloads.cursor.com/grokbot/stable/darwin-arm64/0.78.1/Grok_Bot_0.78.1.dmg`, SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9`, `Grok Bot.app`, os `macos/arm64` | NATIVE + OFFICIAL DIRECT | The cask's `/sand/` URL returned 403 through both package managers; the official page's current DMG passed hash, signature, notarization, and installation checks |
 | `ai-desktop` | `"brew-cask:zcode" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:codexbar" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | Real Homebrew `/opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta` in `post-packages`; existing unmanaged app refused | NEW + REAL HOMEBREW | mise 2026.10.23 cannot evaluate the cask's `Array#second` DSL; validated cask `1.0,998` uses the official DMG/checksum. No automatic adoption or second owner; GUI startup is MANUAL/DROP on macOS 27.2 |
@@ -170,7 +170,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `messengers` | `"mas:803453959" = "latest"` | NATIVE | MAS availability/sign-in |
 | `messengers` | `"mas:836500024" = "latest"` | NATIVE | MAS availability/sign-in |
 | `messengers` | `"brew-cask:zoom" = "latest"` | NATIVE | Native cask metadata/install |
-| `network` | Real-Homebrew `surge` hook in `[bootstrap.hooks.post-packages]` | APPROVED EXCEPTION | Native `$APPDIR` expansion failed; real Homebrew owns installation, upgrade, and removal; profile setup manual |
+| `network` | Real Homebrew `/opt/homebrew/bin/brew install --cask surge` in `[bootstrap.hooks.post-packages]`; existing applications refused | APPROVED EXCEPTION | Native `$APPDIR` expansion failed; real Homebrew owns installation, upgrade, and removal; profile setup manual |
 | `network` | `"brew-cask:cloudflare-warp" = "latest"` | NATIVE | Native cask metadata/install; mode manual |
 | `network` | `"brew-cask:tunnelblick" = "latest"` | NATIVE | Native cask metadata/install; VPN setup manual |
 | `network` | `"brew-cask:whyfi" = "latest"` | NATIVE | Native cask metadata/install |
@@ -234,7 +234,7 @@ These rows supplement the legacy inventory with current declarations whose exact
 | `~/.zshrc/terminal` | `terminal`; NATIVE | Oh My Zsh/Starship/native activation edits; actual unapply/reapply verified |
 | `bin/claude-statusline.sh` | Active Git checkout; APPROVED EXCEPTION | Executable source is owned and updated by the reviewed checkout, not deployed as a second dotfile copy; exact hash and synthetic fixtures verified; removed only with the checkout |
 | `bin/fish-config.py` | Active Git checkout; XDG COMPATIBILITY HELPER | Owns only `activate` and `amp` marker blocks in `${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish`; repeat apply/status and explicit unapply preserve unrelated startup content |
-| `settings.github.credential_command` | `development-rust`; NATIVE | Uses existing `gh auth token` for release lookup without storing a token; runtime/Cargo checks; deselecting removes it from mise resolution and removes no credentials |
+| `settings.github.credential_command` | `development-rust`; NATIVE | Exact command `if command -v gh >/dev/null 2>&1; then gh auth token --hostname "$MISE_CREDENTIAL_HOST"; elif [ -x /opt/homebrew/bin/gh ]; then /opt/homebrew/bin/gh auth token --hostname "$MISE_CREDENTIAL_HOST"; elif [ -x /usr/local/bin/gh ]; then /usr/local/bin/gh auth token --hostname "$MISE_CREDENTIAL_HOST"; else exit 1; fi`; runtime/Cargo checks; deselecting removes it from mise resolution and stores/removes no credentials |
 | `NSGlobalDomain AppleFirstWeekday.gregorian` | `system-preferences`; NATIVE nested entry | Changes only `gregorian`; unrelated dictionary members preserved; preferences require separate explicit reversal |
 | `NSGlobalDomain AppleICUDateFormatStrings.1` | `system-preferences`; NATIVE nested entry | Changes only short-date member `1`; unrelated dictionary members preserved; preferences require separate explicit reversal |
 

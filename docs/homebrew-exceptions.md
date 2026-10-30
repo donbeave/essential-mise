@@ -8,7 +8,7 @@ The user explicitly approved five AI compatibility exceptions, the Claude status
 
 Every formula and cask hook checks `brew list` first and invokes its install command only when that package is absent. A healthy installed-but-outdated package is left at its current version; routine applies do not invoke Homebrew installation, dependency upgrades, or cleanup for it. Initial installation can resolve and install dependencies normally. The required executable/signature health check always runs. Use the explicit upgrade command only after review; formula upgrades can change dependencies, and cask upgrades can replace application bundles and require fresh privacy consent or login-item review.
 
-The lifecycle fixture proved this with Amp CLI `0.0.1793352886-g7ad87b` while `livecheck` offered `0.0.1793363705-g5c9ae5`: ordinary `ai-cli` bootstrap left the link and complete formula inventory unchanged, and `amp --version` passed. The fixture compares formula state before/after and does not rely on a dry run.
+The `9e4e39b…` lifecycle fixture proved this with Amp CLI `0.0.1793352886-g7ad87b` while structured Homebrew metadata, livecheck, and the current formula established `0.0.1793376030-g45d45f` as available: ordinary `ai-cli` bootstrap left the link and complete formula inventory unchanged, and `amp --version` passed. The fixture compares formula state before/after and does not rely on a dry run or upstream discovery alone.
 
 | Package | Install owner when absent | Required health check | Explicit upgrade owner | Manual removal |
 |---|---|---|---|---|
@@ -25,7 +25,7 @@ The actual `mise bootstrap packages prune --dry-run` in the validation guest lis
 
 ## Claude Code — `claude-code@latest`
 
-**Exact issue:** the `claude-code` cask is unusable in the current installation. Its `/opt/homebrew/bin/claude` link points to `/opt/homebrew/Caskroom/claude-code/2.1.308/bin/claude`, but that path does not exist; invoking `claude` fails with `command not found`. Real Homebrew reports a successful install without repairing the layout. The supported `claude-code@latest` cask provides a working executable and reports `2.1.312 (Claude Code)`.
+**Exact issue:** the `claude-code` cask is unusable in the current installation. Its `/opt/homebrew/bin/claude` link points to `/opt/homebrew/Caskroom/claude-code/2.1.308/bin/claude`, but that path does not exist; invoking `claude` fails with `command not found`. Real Homebrew reports a successful install without repairing the layout. The supported `claude-code@latest` cask provides a working executable: the earlier focused evidence reports `2.1.312 (Claude Code)`, and the `9e4e39b…` apply reports `2.1.314 (Claude Code)`.
 
 **Real-Homebrew command:**
 
