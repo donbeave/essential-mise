@@ -104,7 +104,10 @@ launcher_output = run(
     project,
     launcher_env,
 )
-next_step_lines = [line.strip() for line in launcher_output.splitlines() if line.startswith('  MISE_CEILING_PATHS=')]
+next_step_lines = [
+    line.strip() for line in launcher_output.splitlines()
+    if line.startswith('  MISE_CEILING_PATHS=') and ' mise -C ' in line
+]
 assert len(next_step_lines) == 3, next_step_lines
 for index, line in enumerate(next_step_lines):
     command = shlex.split(line)
