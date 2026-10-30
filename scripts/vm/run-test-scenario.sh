@@ -190,7 +190,7 @@ case "$scenario" in
     run_logged status "cd '$config_dir' && /bin/zsh -lic 'mise -E $optional_environments bootstrap status'"
     run_logged status-json "/bin/zsh -lic 'mise -E $optional_environments bootstrap status --json' > '$evidence_dir/status.json'"
     run_logged package-verification "/usr/bin/python3 -c 'import json; data = json.load(open(\"$evidence_dir/status.json\")); packages = [package for name in (\"brew\", \"brew-cask\") for package in data[\"packages\"][name][\"packages\"]]; assert all(package[\"state\"] == \"installed\" for package in packages), packages; assert data[\"packages\"][\"mas\"][\"available\"]; print(\"Non-MAS packages installed; MAS applications require sign-in\")'"
-    run_logged cli-verification "/bin/zsh -lic 'mise -E js exec -- node --version && mise -E js exec -- bun --version && kubectl version --client && kubectx --help >/dev/null && helm version && tofu --version && ansible --version && linode-cli --version && gomplate --version && op --version'"
+    run_logged_interactive cli-verification "/bin/zsh -lic 'mise -E js exec -- node --version && mise -E js exec -- bun --version && kubectl version --client && kubectx --help >/dev/null && helm version && tofu --version && ansible --version && linode-cli --version && gomplate --version && op --version'"
     ;;
   full-dry-run)
     run_logged all-environments "/bin/zsh -lic 'cd /tmp && MISE_CONFIG_DIR=\"$config_dir\" mise -E foundation,terminal,development,security,js,development-rust,development-java,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin,ai-tools,ai-cli,ai-desktop,system-preferences bootstrap --dry-run'"
