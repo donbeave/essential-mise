@@ -110,6 +110,10 @@ restore_preferences() {
     case "$state" in
       present)
         [[ -s "$capture_dir/$domain.before.plist" ]] || return 1
+        if ! defaults delete "$domain"; then
+          printf 'Could not clear domain %s before restoring its snapshot\n' "$domain" >&2
+          return 1
+        fi
         if ! defaults import "$domain" "$capture_dir/$domain.before.plist"; then
           printf 'Could not restore domain %s\n' "$domain" >&2
           return 1
@@ -143,7 +147,7 @@ restore_preferences
 
 Restore also returns nonzero on the first unexpected failure; fix the reported problem and rerun it rather than assuming every domain was restored.
 
-Full-domain import also replaces changes made after capture; never use it as a delayed or routine cleanup operation. For later selective reversal, use the per-key commands below. For the two nested values, use `plutil -extract AppleFirstWeekday.gregorian raw -o - "$capture_dir/NSGlobalDomain.before.plist"` and `plutil -extract AppleICUDateFormatStrings.1 raw -o - "$capture_dir/NSGlobalDomain.before.plist"` to inspect the original members, then restore only those members with `defaults write NSGlobalDomain AppleFirstWeekday -dict-add gregorian -int ORIGINAL_INTEGER` or `defaults write NSGlobalDomain AppleICUDateFormatStrings -dict-add 1 -string ORIGINAL_STRING`. If the original member was absent, use the immediate snapshot rollback instead of deleting the whole dictionary.
+Deleting and reimporting a present domain replaces its complete contents and removes keys added after capture; never use full-domain restoration as a delayed or routine cleanup operation. For later selective reversal, use the per-key commands below. For the two nested values, use `plutil -extract AppleFirstWeekday.gregorian raw -o - "$capture_dir/NSGlobalDomain.before.plist"` and `plutil -extract AppleICUDateFormatStrings.1 raw -o - "$capture_dir/NSGlobalDomain.before.plist"` to inspect the original members, then restore only those members with `defaults write NSGlobalDomain AppleFirstWeekday -dict-add gregorian -int ORIGINAL_INTEGER` or `defaults write NSGlobalDomain AppleICUDateFormatStrings -dict-add 1 -string ORIGINAL_STRING`. If the original member was absent, use the immediate snapshot rollback instead of deleting the whole dictionary.
 
 Observable UI behavior and delayed selective restoration remain manual validation boundaries. Restart the affected process and verify the actual interaction: `killall Dock` for Dock/hot-corner values, `killall Finder` for Finder values, and `killall SystemUIServer` for menu/Space-related values. For locale, language, text-input, keyboard, screensaver, storage, Siri, and Window Manager behavior, log out and back in or restart the affected application before testing. Do not claim behavior from stored values alone.
 

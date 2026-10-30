@@ -166,6 +166,11 @@ try:
         assert 'syntheticKeep' in current and 'preserve' in current, current
     top_level = run('current-top-level', ['defaults', 'read', 'NSGlobalDomain', 'EssentialMiseRoundtrip'], real_env)
     assert 'preserve' in top_level, top_level
+    run(
+        'post-capture-marker',
+        ['defaults', 'write', 'NSGlobalDomain', 'EssentialMisePostCapture', '-string', 'remove-on-restore'],
+        real_env,
+    )
 except Exception as error:
     apply_error = error
 finally:
@@ -197,6 +202,7 @@ for key in ('AppleFirstWeekday', 'AppleICUDateFormatStrings'):
     assert 'syntheticKeep' in restored and 'preserve' in restored, restored
 restored_top_level = run('restored-top-level', ['defaults', 'read', 'NSGlobalDomain', 'EssentialMiseRoundtrip'], real_env)
 assert 'preserve' in restored_top_level, restored_top_level
+run('post-capture-removed', ['defaults', 'read', 'NSGlobalDomain', 'EssentialMisePostCapture'], real_env, expected=1)
 
 report = (
     'stub_existing_absent=PASS\nstub_failed_export=PASS\nstub_failed_read=PASS\n'
