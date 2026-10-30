@@ -11,11 +11,14 @@ The `ai-cli` module adds this native block to `~/.zshrc`:
 ```zsh
 claude() {
   local statusline="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/claude-statusline.sh"
-  BASH_COMPAT=3.2 command claude --settings "{\"statusLine\":{\"type\":\"command\",\"command\":\"$statusline\",\"padding\":0,\"refreshInterval\":5}}" "$@"
+  local statusline_command settings
+  printf -v statusline_command '%q' "$statusline"
+  settings="$(/opt/homebrew/bin/jq -cn --arg command "$statusline_command" '{statusLine:{type:"command",command:$command,padding:0,refreshInterval:5}}')" || return
+  BASH_COMPAT=3.2 command claude --settings "$settings" "$@"
 }
 ```
 
-Every argument is forwarded through `command claude`, so existing flags and subcommands are not replaced. The absolute script path follows the adopted config directory, including custom `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` values. `BASH_COMPAT=3.2` is required because Homebrew Bash 5.3 otherwise expands the script's replacement tilde to the account's real home instead of leaving `~`; the script itself was not changed to work around that behavior.
+Every argument is forwarded through `command claude`, so existing flags and subcommands are not replaced. The absolute script path follows the adopted config directory, including custom `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` values. Zsh `%q` shell-quotes the executable path and `jq --arg` JSON-encodes the complete command, so whitespace and shell/JSON metacharacters are preserved. `BASH_COMPAT=3.2` is required because Homebrew Bash 5.3 otherwise expands the script's replacement tilde to the account's real home instead of leaving `~`; the script itself was not changed to work around that behavior.
 
 ## Package owner
 

@@ -29,7 +29,7 @@ The script:
 
 ## Observed results
 
-Verified against the full reviewed commit recorded in the immutable [validation evidence](validation-evidence/). `isolated-fixtures/report.txt` identifies its exact SHA and each command's mise version:
+Verified against the full reviewed commit recorded in the [validation evidence](validation-evidence/). `isolated-fixtures/report.txt` identifies its exact SHA and each command's mise version:
 
 | Invocation | Exit | Captured result |
 |---|---:|---|

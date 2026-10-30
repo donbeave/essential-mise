@@ -17,6 +17,8 @@ The user explicitly approved five AI compatibility exceptions, the Claude status
 
 Deselecting an environment does not remove these packages. Removal is a separate, explicit Homebrew operation; do not use mise prune expecting it to remove only these packages or to preserve unrelated Homebrew installations.
 
+The actual `mise bootstrap packages prune --dry-run` in the validation guest listed `brew:ampcode@0.0.1793318446-g3ee5e2`, `brew:fff-mcp@0.11.0`, and `brew:omp@18.14.0` for removal even though their hooks had installed working tools; it also listed the unrelated fixture `brew:sl@5.02`. **Do not apply a broad native formula prune while these hook-owned packages must remain installed.** Review every candidate and use the explicit Homebrew upgrade/removal commands above instead. No broad prune was executed.
+
 ## Claude Code — `claude-code@latest`
 
 **Exact issue:** the `claude-code` cask is unusable in the current installation. Its `/opt/homebrew/bin/claude` link points to `/opt/homebrew/Caskroom/claude-code/2.1.308/bin/claude`, but that path does not exist; invoking `claude` fails with `command not found`. Real Homebrew reports a successful install without repairing the layout. The supported `claude-code@latest` cask provides a working executable and reports `2.1.312 (Claude Code)`.

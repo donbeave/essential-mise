@@ -14,12 +14,14 @@ The repository targets **mise 2026.10.23**. `config.toml` is intentionally inert
 
 ## First Mac
 
-After the public repository is published, review `bootstrap.sh` and select a reviewed commit. Replace `<reviewed-commit>` with its full SHA, then run the immutable launcher:
+After the public repository is published, review `bootstrap.sh` and select a reviewed commit. Replace `<reviewed-commit>` with its full SHA, then run the commit-pinned launcher:
 
 ```bash
 reviewed_commit='<reviewed-commit>'
 essential_mise_script="$(/usr/bin/curl -fsSL "https://raw.githubusercontent.com/donbeave/essential-mise/$reviewed_commit/bootstrap.sh")" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
 ```
+
+Only the downloaded launcher is pinned. `mise bootstrap --adopt donbeave/essential-mise` still adopts the repository's current default branch; this command does **not** pin or make the complete adopted configuration immutable. Review the adopted revision separately before applying optional modules.
 
 This prepares only Command Line Tools/Git, official Homebrew, pinned mise, inert adoption, and `foundation` zsh activation. A failed/empty download, cancelled prerequisite, conflicting existing config, or unsupported OS fails closed. Rerunning skips adoption when a valid checkout exists and applies only `foundation`, never previously selected optional modules.
 
@@ -67,6 +69,10 @@ mise -E system-preferences bootstrap
 
 Every module is documented in [docs/environments.md](docs/environments.md).
 
+### Approved specification changes
+
+The user subsequently approved six narrowly scoped real-Homebrew package exceptions (Claude Code, Amp CLI, OMP, FFF MCP, Amp Desktop, and Surge) and the exact Claude status-line script/wrapper. These explicit changes supersede revision 7's native-only and excluded-status-line rules; they are not claims of native-only compliance. Each exception requires a demonstrated incompatibility and a documented owner, health check, upgrade path, and removal path in [Homebrew exceptions](docs/homebrew-exceptions.md). Native mise remains the declarative default; `AGENTS.md` intentionally retains the separate user requirement to prefer Homebrew for general dependency installation, using another source only when Homebrew is unavailable or outdated.
+
 ### Claude Code status line
 
 `ai-cli` installs an executable status-line script and a zsh wrapper. Every `claude` launch from zsh passes it through `--settings`; the script shows the directory, model and effort, context usage, and currently running subagents. See [Claude Code status line](docs/claude-statusline.md) for the exact wrapper, output, and verification evidence.
@@ -101,7 +107,7 @@ mise bootstrap unapply ai-cli --dry-run
 mise bootstrap unapply ai-cli
 ```
 
-Packages, repositories, and preferences require separate handling. Package pruning is a broad, separately approved maintenance operation and can affect unrelated Homebrew packages; never run it automatically after deselection.
+Packages, repositories, and preferences require separate handling. A real prune dry run offered to remove working hook-installed Amp CLI, FFF, and OMP as well as unrelated Homebrew packages. **Do not apply a broad native formula prune while these hook-owned packages must remain installed.** Never prune automatically after deselection; review every candidate and use the explicit, separate Homebrew cleanup documented in [Homebrew exceptions](docs/homebrew-exceptions.md).
 
 ## Repository status and boundaries
 
