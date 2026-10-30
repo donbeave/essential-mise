@@ -11,7 +11,9 @@ source "$(dirname "$0")/common.sh"
 vm_require_name
 vm_require_running
 vm_scan_host_key
-export VM_IP VM_SSH_USER VM_SSH_KEY VM_KNOWN_HOSTS VM_OWNER_PASSWORD_FILE
+VM_AUTO_CONFIRM="${VM_AUTO_CONFIRM:-0}"
+[[ "$VM_AUTO_CONFIRM" =~ ^[01]$ ]] || fail 'VM_AUTO_CONFIRM must be 0 or 1'
+export VM_IP VM_SSH_USER VM_SSH_KEY VM_KNOWN_HOSTS VM_OWNER_PASSWORD_FILE VM_AUTO_CONFIRM
 VM_REMOTE_COMMAND="$1"
 export VM_REMOTE_COMMAND
 
@@ -47,6 +49,14 @@ expect {
     }
     send -- "$owner_password\n"
     exp_continue
+  }
+  -re "y/n/enter.*submit" {
+    if {$env(VM_AUTO_CONFIRM) eq "1"} {
+      send -- "y\n"
+      exp_continue
+    }
+    puts stderr "Native mise confirmation requires explicit VM_AUTO_CONFIRM=1"
+    exit 1
   }
   -nocase -re "press.*(return|enter)" {
     send -- "\n"

@@ -51,6 +51,7 @@ run_logged_interactive() {
   mkdir -p "$host_evidence"
   set +e
   VM_OWNER_PASSWORD_FILE="${VM_OWNER_PASSWORD_FILE:-/tmp/essential-mise-vm-owner-password}" \
+  VM_AUTO_CONFIRM="${VM_AUTO_CONFIRM:-0}" \
     "$(dirname "$0")/owner-auth-ssh.sh" "$command" 2>&1 | tee "$host_evidence/$name.log"
   result=$?
   set -e
@@ -60,14 +61,13 @@ run_logged_interactive() {
 }
 
 stage0_command="set -e
-export MISE_YES=1
 reviewed_commit='$reviewed_commit'
 essential_mise_script=\"\$(/usr/bin/curl -fsSL \"https://raw.githubusercontent.com/donbeave/essential-mise/\$reviewed_commit/bootstrap.sh\")\" && test -n \"\$essential_mise_script\" && /bin/bash -c \"\$essential_mise_script\""
 
 case "$scenario" in
   stage0)
     [[ "$reviewed_commit" =~ ^[0-9a-f]{40}$ ]] || fail 'Stage 0 requires VM_REVIEWED_COMMIT with a full reviewed commit SHA'
-    run_logged_interactive first-run "$stage0_command"
+    VM_AUTO_CONFIRM=1 run_logged_interactive first-run "$stage0_command"
     vm_ssh "printf 'env = [\"ai-cli\", \"system-preferences\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged optional-selection-rerun "$stage0_command"
     vm_ssh "git -C '$config_dir' remote set-url origin 'https://example.invalid/essential-mise.git'"
