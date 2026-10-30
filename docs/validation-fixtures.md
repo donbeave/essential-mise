@@ -8,7 +8,7 @@ Use a registered disposable VM and a full reviewed commit SHA:
 
 ```bash
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/isolated-validation.sh
-VM_NAME=essential-mise-test-evidence \
+VM_AUTO_CONFIRM=1 VM_NAME=essential-mise-test-evidence \
 VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   scripts/vm/owner-auth-ssh.sh \
   "REVIEWED_COMMIT=$(git rev-parse HEAD) /bin/bash /tmp/essential-mise-artifact/isolated-validation.sh"
@@ -29,7 +29,7 @@ The script:
 
 ## Observed results
 
-Verified with reviewed commit `25854d1dd4157b690c1af6473942472c601f1e81`:
+Verified against the full reviewed commit recorded in the immutable [validation evidence](validation-evidence/). `isolated-fixtures/report.txt` identifies its exact SHA and each command's mise version:
 
 | Invocation | Exit | Captured result |
 |---|---:|---|
@@ -50,4 +50,4 @@ Verified with reviewed commit `25854d1dd4157b690c1af6473942472c601f1e81`:
 
 The first replay attempt also proved that an isolated HOME must exist before stage 0 writes `.zprofile`. The fixture now creates both temporary homes explicitly; the successful replay above includes that correction.
 
-Host-collected evidence is under `/tmp/essential-mise-evidence-review/isolated-fixtures`; guest-origin logs and `report.txt` are under `/tmp/essential-mise-evidence/isolated-fixtures`.
+Collected guest logs and `report.txt` are preserved under `docs/validation-evidence/<reviewed-commit>/isolated-fixtures` with SHA-256 checksums. Evidence is collected before stopping or rebooting the guest because its `/tmp` contents may be removed during the guest lifecycle.
