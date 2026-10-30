@@ -20,7 +20,9 @@ vm_ssh "mkdir -p '$evidence_dir'"
 reviewed_commit="${VM_REVIEWED_COMMIT:-}"
 config_dir="/Users/$VM_SSH_USER/.config/mise"
 vm_ssh "printf 'scenario=%s\nreviewed_commit=%s\n' '$scenario' '$reviewed_commit' > '$evidence_dir/scenario.env'"
-vm_ssh "\$HOME/.local/bin/mise --version > '$evidence_dir/mise-version.txt'"
+if vm_ssh 'test -x "$HOME/.local/bin/mise"'; then
+  vm_ssh "\$HOME/.local/bin/mise --version > '$evidence_dir/mise-version.txt'"
+fi
 if vm_ssh "test -d '$config_dir/.git'"; then
   vm_ssh "git -C '$config_dir' rev-parse HEAD > '$evidence_dir/config-revision.txt'"
 fi
