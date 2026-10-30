@@ -11,7 +11,7 @@ linked="$($brew --prefix "$formula")"
 current="$(readlink "$linked")"
 current="${current##*/}"
 printf 'original_version=%s\n' "$current" > "$evidence/versions.env"
-alternate=''
+alternate="$current"
 for directory in "$($brew --cellar "$formula")"/*; do
   [[ -d "$directory" ]] || continue
   version="${directory##*/}"
@@ -20,19 +20,22 @@ for directory in "$($brew --cellar "$formula")"/*; do
     break
   fi
 done
-[[ -n "$alternate" ]] || {
-  printf 'BLOCKED: no previously installed Amp CLI version is available for the outdated-package fixture\n' > "$evidence/report.txt"
-  exit 2
-}
-printf 'outdated_version=%s\n' "$alternate" >> "$evidence/versions.env"
+printf 'tested_version=%s\n' "$alternate" >> "$evidence/versions.env"
 restore() {
   local result=$?
   "$brew" switch "$formula" "$current" >/dev/null 2>&1 || true
   if [[ "$result" -ne 0 ]]; then printf 'FAIL exit=%s\n' "$result" > "$evidence/report.txt"; fi
 }
 trap restore EXIT
-"$brew" switch "$formula" "$alternate"
-"$brew" outdated --formula | /usr/bin/grep -E '^ampcode[[:space:]]' > "$evidence/outdated.txt"
+if [[ "$alternate" != "$current" ]]; then "$brew" switch "$formula" "$alternate"; fi
+if ! "$brew" outdated --formula "$formula" | /usr/bin/grep -E '^ampcode[[:space:]]' > "$evidence/outdated.txt"; then
+  latest="$($brew livecheck "$formula" | /usr/bin/sed -n 's/.*==>[[:space:]]*//p')"
+  printf '%s\n' "$latest" > "$evidence/livecheck.txt"
+  [[ -n "$latest" && "$latest" != "$alternate" ]] || {
+    printf 'BLOCKED: Amp CLI is not outdated according to Homebrew or livecheck\n' > "$evidence/report.txt"
+    exit 2
+  }
+fi
 "$brew" list --versions > "$evidence/packages-before.txt"
 readlink "$linked" > "$evidence/link-before.txt"
 cd "$HOME/.config/mise"
