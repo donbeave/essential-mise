@@ -45,7 +45,7 @@ env = ["foundation", "terminal", "development", "security"]
 | `office` | Word, Excel, PDF Expert, Delimited, Create Booklet 2 | Licenses, accounts, and app setup |
 | `design` | Sketch, Pixelmator Pro | License and Sketch Library registration |
 | `media` | VLC, Transmission, HandBrake, Plex Media Server, Blackmagic RAW, Shazam | Media server setup and accounts |
-| `network` | Surge, Cloudflare WARP, Tunnelblick, WhyFi | Proxy/VPN endpoints, secrets, extensions, and privileged setup are manual |
+| `network` | Surge, Cloudflare WARP, Tunnelblick, WhyFi | Surge uses a documented real-Homebrew hook because mise cannot expand its `$APPDIR` binary artifact. Proxy/VPN endpoints, secrets, extensions, and privileged setup are manual |
 | `admin` | Transmit, Apple Remote Desktop, Disk Aid, iStatistica Pro, Apple Configurator (`mas:1037126344`) | Apple Configurator is NEW; device enrollment, MDM, and admin approval are manual |
 
 Every MAS-owning module also declares `brew:mas` so it is independent. App Store sign-in, purchases/claims, and a possible second apply are manual.

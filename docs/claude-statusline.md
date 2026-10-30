@@ -30,7 +30,15 @@ The sample payload exercised `workspace.current_dir`, `model.display_name`, `eff
 ↳ explorer │ sonnet low │ 91k
 ```
 
-The test passed with one running subagent, finished/interrupted/idle agents hidden, and green/yellow/red context thresholds at 35%, 50%, and 80%.
+The test passed with one running subagent, finished/interrupted/idle agents hidden, and green/yellow/red context thresholds at 35%, 50%, and 80%. Replay it inside a registered guest and collect `/tmp/essential-mise-evidence/claude-statusline` before restarting that guest:
+
+```bash
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-statusline.py
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-statusline.py"
+```
 
 Fresh login zsh checks from both `/tmp` and `/Users/admin` returned the wrapper above with the adopted absolute script path. An interactive launch of Claude Code 2.1.312 included that exact `--settings` JSON in its process title. Its debug log also reported `model=claude-sonnet-5-5` from the synthetic project settings, confirming that `--settings` merges with, rather than discards, project settings. No real account was used; post-login rendering was not claimed because the test stopped at the login screen.
 

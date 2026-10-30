@@ -87,7 +87,7 @@ VM_NAME=essential-mise-test-stage0 \
   scripts/vm/collect-evidence.sh /tmp/essential-mise-evidence/stage0
 ```
 
-Guest artifacts are limited to `/tmp/essential-mise-artifact`; guest evidence is collected from `/tmp/essential-mise-evidence`.
+Guest artifacts are limited to `/tmp/essential-mise-artifact`; guest evidence is collected from `/tmp/essential-mise-evidence`. Collect it before stopping or rebooting a guest because temporary evidence may be removed during the guest lifecycle. Scenario logs include exact command exit codes, the reviewed/config revisions, fixture checksum, mise/Tart versions, and guest OS/build.
 
 Run application scenarios only in a registered disposable VM:
 
@@ -99,11 +99,42 @@ VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh ai
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh ai-desktop
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh amp-conflict
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh claude-conflict
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh unapply
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh prune-review
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh java
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh rust
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh login-items
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh omp-config
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh mas-signed-out
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh optional-modules
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh full-dry-run
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh preferences
 ```
 
-The scenarios deliberately share one VM when they have dependencies. Use separate clones for independent clean-state tests. The stage-0 launcher uses a full reviewed commit, not mutable `main`; update that commit deliberately. Run `ai` before the full dry run to exercise the real-Homebrew hooks and eliminate package conflicts. Review every log before assigning a release result; a completed scenario command is not a blanket release approval. MAS/account, paid-license, personal-credential, and authenticated-provider tests remain blocked without synthetic or explicitly approved test accounts.
+The scenarios deliberately share one VM when they have dependencies. Use separate clones for independent clean-state tests. The stage-0 launcher uses a full reviewed commit, not mutable `main`; update that commit deliberately. Run `ai` before the full dry run to exercise the real-Homebrew hooks and eliminate package conflicts. The `optional-modules` scenario models a first, nonactivated shell, so MAS entries are skipped while non-MAS packages install; its login-shell status exposes the remaining App Store gap rather than reporting complete success. Review every log before assigning a release result; a completed scenario command is not a blanket release approval. MAS/account, paid-license, personal-credential, and authenticated-provider tests remain blocked without synthetic or explicitly approved test accounts.
+
+Replay the synthetic Claude status-line checks:
+
+```bash
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-statusline.py
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-statusline.py"
+```
+
+Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
+
+```bash
+VM_NAME=essential-mise-test-amp scripts/vm/grant-cua-permissions.sh
+VM_NAME=essential-mise-test-amp scripts/vm/transfer-app.sh scripts/vm/diagnose-amp-startup.sh
+VM_NAME=essential-mise-test-amp \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/bin/bash /tmp/essential-mise-artifact/diagnose-amp-startup.sh"
+VM_NAME=essential-mise-test-amp \
+  scripts/vm/collect-evidence.sh /tmp/essential-mise-amp-evidence
+```
 
 Replay the isolated first-run, optional-selection rerun, wrong-origin, and XDG fixtures:
 

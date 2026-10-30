@@ -4,7 +4,7 @@ The repository uses native mise package managers wherever they work. A dependenc
 
 ## Approved exception scope and package management
 
-The user explicitly approved a narrow exception for the five packages in this document and for the Claude status-line script/wrapper. This is a specification change, not a claim that revision 7's native-only rule is satisfied. Hooks are installation/health-check commands, not declarative package resources. `mise bootstrap status --missing`, native package upgrades, and native prune must not be relied on for these hook-installed packages. Hooks run on every apply, so the required health checks must pass every time.
+The user explicitly approved five AI compatibility exceptions, the Claude status-line script/wrapper, and a real-Homebrew fallback for demonstrated current-mise failures. Surge is the sixth package exception under that fallback. This is a specification change, not a claim that revision 7's native-only rule is satisfied. Hooks are installation/health-check commands, not declarative package resources. `mise bootstrap status --missing`, native package upgrades, and native prune must not be relied on for these hook-installed packages. Hooks run on every apply, so the required health checks must pass every time.
 
 | Package | Install owner | Required health check | Upgrade owner | Manual removal |
 |---|---|---|---|---|
@@ -13,6 +13,7 @@ The user explicitly approved a narrow exception for the five packages in this do
 | OMP | `brew install can1357/tap/omp` | `/opt/homebrew/bin/omp --version` | `brew upgrade can1357/tap/omp` | `brew uninstall can1357/tap/omp` |
 | FFF MCP | `brew install dmtrKovalenko/fff/fff-mcp` | `/opt/homebrew/bin/fff-mcp --healthcheck` | `brew upgrade dmtrKovalenko/fff/fff-mcp` | `brew uninstall dmtrKovalenko/fff/fff-mcp` |
 | Amp Desktop | `brew install --cask ampcode/tap/amp@beta` | Executable exists and `codesign --verify --deep --strict` passes | `brew upgrade --cask ampcode/tap/amp@beta` | `brew uninstall --cask ampcode/tap/amp@beta` |
+| Surge | `brew install --cask surge` | `surge-cli`, `surge-dhcpd` are executable and `codesign --verify --deep --strict` passes | `brew upgrade --cask surge` | `brew uninstall --cask surge` |
 
 Deselecting an environment does not remove these packages. Removal is a separate, explicit Homebrew operation; do not use mise prune expecting it to remove only these packages or to preserve unrelated Homebrew installations.
 
@@ -86,7 +87,23 @@ Real Homebrew supports this Ruby DSL. The former native `macos-app:amp` declarat
 /opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta
 ```
 
-The current cask is version `1.0,996`, using the official `Amp-1.0-996.dmg` and SHA-256 `b589a47dc32a99e045d2aa92236e55317eccda64e7ee76089751012beecb3c7a`. The hook in `config.ai-desktop.toml` first refuses an existing `/Applications/Amp.app` that is not registered to this Homebrew cask. Migrate such an installation manually before applying the module; there is no automatic adoption or ownership transfer.
+The validated cask is version `1.0,998`, using the official `Amp-1.0-998.dmg` and SHA-256 `5fc0e7e0b1f1644ea0d234aae70832caae70677ebde79eb645e2a623314dad6b`. The hook in `config.ai-desktop.toml` first refuses an existing `/Applications/Amp.app` that is not registered to this Homebrew cask. Migrate such an installation manually before applying the module; there is no automatic adoption or ownership transfer.
+
+## Surge — `surge`
+
+**Exact mise issue:** the cask declares a binary at `$APPDIR/Surge.app/Contents/Applications/Surge Dashboard.app`. The nested app is present in the downloaded bundle, but native mise 2026.10.23 fails with:
+
+```text
+brew-cask: binary artifact '$APPDIR/Surge.app/Contents/Applications/Surge Dashboard.app' was not found
+```
+
+The native declaration is removed. The `network` module's real-Homebrew hook refuses an existing unmanaged `Surge.app` or `Surge Dashboard.app` rather than transferring ownership. During validation, the known incomplete mise app was moved into the evidence directory before running Homebrew; no existing user installation was adopted.
+
+```bash
+/opt/homebrew/bin/brew install --cask surge
+```
+
+Real Homebrew installed Surge `6.10.0,12500,79b87792e2bd345e064c2d473790b404`, linked `Surge Dashboard.app`, `surge-cli`, and `surge-dhcpd`, and passed executable and signature health checks. Homebrew owns upgrades and explicit removal. Proxy endpoints, secrets, privileged helpers, and application configuration remain manual.
 
 ## Related decisions that are not Homebrew exceptions
 
@@ -101,4 +118,4 @@ The current cask is version `1.0,996`, using the official `Amp-1.0-996.dmg` and 
 
 The current official DMG downloads successfully, has SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9` (identical to the cask's expected artifact), and passes Developer ID/notarization verification. `config.ai-desktop.toml` therefore uses native `macos-app:grok-bot` with this exact official URL, checksum, and `Grok Bot.app` artifact, without adoption. No alternate source or custom installer is used.
 
-On the clean `admin`/`admin` disposable guest, real Homebrew installed Amp Desktop `1.0,996`, Amp CLI `0.0.1793304039-g62d85d`, OMP `18.14.0`, and FFF `0.11.0`. Amp and FFF executable health checks passed, and the full AI scenario plus second-run hooks converged. Full AI Desktop also passed with the official Grok DMG. A separate unmanaged `/Applications/Amp.app` triggered the hook's refusal without ownership transfer. Amp's package installation is verified; two independent clean guests reproduced its `_dyld_start` GUI stall, so GUI setup is MANUAL/DROP on macOS 27.2 and is documented in `docs/validation.md`.
+On the clean `admin`/`admin` disposable guest, real Homebrew installed Amp Desktop `1.0,998`, Amp CLI `0.0.1793318446-g3ee5e2`, OMP `18.14.0`, and FFF `0.11.0`. Amp and FFF executable health checks passed, and the full AI scenario plus second-run hooks converged. Full AI Desktop also passed with the official Grok DMG. A separate unmanaged `/Applications/Amp.app` triggered the hook's refusal without ownership transfer. Amp's package installation is verified; independent clean guests reproduced its `_dyld_start` GUI stall, so GUI setup is MANUAL/DROP on macOS 27.2 and is documented in `docs/validation.md`.

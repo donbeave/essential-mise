@@ -2,14 +2,14 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences>'
+[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|surge-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences>'
 scenario="$1"
 case "$VM_NAME" in
   essential-mise-test-*) ;;
   *) fail 'Application scenarios require a registered disposable VM' ;;
 esac
 case "$scenario" in
-  stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences) ;;
+  stage0|standard|ai|ai-desktop|amp-conflict|surge-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences) ;;
   *) fail "Unknown test scenario: $scenario" ;;
 esac
 vm_require_name
@@ -66,7 +66,7 @@ essential_mise_script=\"\$(/usr/bin/curl -fsSL \"https://raw.githubusercontent.c
 case "$scenario" in
   stage0)
     [[ "$reviewed_commit" =~ ^[0-9a-f]{40}$ ]] || fail 'Stage 0 requires VM_REVIEWED_COMMIT with a full reviewed commit SHA'
-    run_logged first-run "$stage0_command"
+    run_logged_interactive first-run "$stage0_command"
     vm_ssh "printf 'env = [\"ai-cli\", \"system-preferences\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged optional-selection-rerun "$stage0_command"
     vm_ssh "git -C '$config_dir' remote set-url origin 'https://example.invalid/essential-mise.git'"
@@ -109,6 +109,22 @@ case "$scenario" in
     fi
     vm_ssh 'test "$(/bin/cat /Applications/Amp.app/Contents/essential-mise-test-marker)" = unmanaged && ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1'
     [[ "$outcome" == expected-refusal ]] || fail 'Amp hook accepted an unmanaged existing app'
+    ;;
+  surge-conflict)
+    run_logged verify-owner '/opt/homebrew/bin/brew list --cask surge && test -d /Applications/Surge.app'
+    run_logged_interactive uninstall-existing '/opt/homebrew/bin/brew uninstall --cask surge'
+    vm_ssh 'mkdir -p /Applications/Surge.app/Contents && printf unmanaged > /Applications/Surge.app/Contents/essential-mise-test-marker'
+    if run_logged existing-app-refusal "cd '$config_dir' && \$HOME/.local/bin/mise -E network bootstrap --only packages --yes"; then
+      outcome=unexpected-success
+    else
+      outcome=expected-refusal
+    fi
+    vm_ssh 'test "$(/bin/cat /Applications/Surge.app/Contents/essential-mise-test-marker)" = unmanaged && ! /opt/homebrew/bin/brew list --cask surge >/dev/null 2>&1'
+    vm_ssh '/usr/bin/python3 -c '\''from pathlib import Path; assert "Existing Surge applications require manual ownership migration before using Homebrew." in Path("/tmp/essential-mise-evidence/surge-conflict/existing-app-refusal.log").read_text()'\'''
+    [[ "$outcome" == expected-refusal ]] || fail 'Surge hook accepted an unmanaged existing app'
+    vm_ssh "mv /Applications/Surge.app '$evidence_dir/Surge-unmanaged.app'"
+    run_logged_interactive restore "cd '$config_dir' && \$HOME/.local/bin/mise -E network bootstrap --only packages --yes"
+    run_logged verify-restored '/opt/homebrew/bin/brew list --cask surge && test -x /opt/homebrew/bin/surge-cli && test -x /opt/homebrew/sbin/surge-dhcpd && /usr/bin/codesign --verify --deep --strict /Applications/Surge.app'
     ;;
   claude-conflict)
     run_logged install-existing "/opt/homebrew/bin/brew install --cask claude-code@latest"

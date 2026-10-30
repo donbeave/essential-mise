@@ -32,7 +32,7 @@ The old generic components and sanitized legacy example have different provenanc
 | `apps.omp` | NEW + REAL HOMEBREW | `can1357/tap/omp` through the documented real-Homebrew hook in `ai-cli`; native global instructions and YAML model merges | mise cannot execute `with_env`; real-Homebrew install proof; `omp config`, `omp models`, and instruction-file loading |
 | `apps.opencode` | NATIVE + DROP | `brew:opencode` in `ai-cli`, `brew-cask:opencode-desktop` in `ai-desktop`; shared instructions; old JSONC/plugin integration dropped | Separate package assertions; no missing plugin paths |
 | `apps.sketch` | NATIVE + MANUAL | `brew-cask:sketch` in `design`; Library registration manual | Package metadata; manual Library onboarding |
-| `apps.surge` | NATIVE + MANUAL + DROP | `brew-cask:surge` in `network`; custom renderer, endpoint secrets, and privileged setup not ported | Native cask metadata/install; profile/proxy setup manual |
+| `apps.surge` | REAL HOMEBREW + MANUAL + DROP | Real-Homebrew `surge` hook in `network`; custom renderer, endpoint secrets, and privileged setup not ported | Native `$APPDIR` binary expansion failed; real-Homebrew cask install and artifact checks passed; profile/proxy setup manual |
 | `apps.telegram` | NATIVE + MANUAL | `mas:747648890` in `messengers`; sign-in manual | MAS availability/sign-in/rerun |
 | `apps.warp` | NATIVE + MANUAL | `brew-cask:cloudflare-warp` in `network`; mode/disconnect automation dropped | Package metadata; WARP mode manual |
 | `apps.zcode` | NATIVE + MANUAL | `brew-cask:zcode` in `ai-desktop`; authentication manual | Desktop-only package assertion |
@@ -89,7 +89,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `ai-desktop` | `macos-app:grok-bot` version `0.78.1`, official `/grokbot/` DMG, SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9`, `Grok Bot.app` | NATIVE + OFFICIAL DIRECT | The cask's `/sand/` URL returned 403 through both package managers; the official page's current DMG passed hash, signature, notarization, and installation checks |
 | `ai-desktop` | `"brew-cask:zcode" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-desktop` | `"brew-cask:codexbar" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
-| `ai-desktop` | Real Homebrew `/opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta` in `post-packages`; existing unmanaged app refused | NEW + REAL HOMEBREW | mise 2026.10.23 cannot evaluate the cask's `Array#second` DSL; current cask `1.0,996` uses the official DMG/checksum. No automatic adoption or second owner |
+| `ai-desktop` | Real Homebrew `/opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta` in `post-packages`; existing unmanaged app refused | NEW + REAL HOMEBREW | mise 2026.10.23 cannot evaluate the cask's `Array#second` DSL; validated cask `1.0,998` uses the official DMG/checksum. No automatic adoption or second owner; GUI startup is MANUAL/DROP on macOS 27.2 |
 | `ai-tools` | `"brew:ripgrep" = "latest"` | NEW | Formula API verified; native install/status |
 | `ai-tools` | `"brew:fd" = "latest"` | NEW | Formula API verified; native install/status |
 | `ai-tools` | `"brew:fzf" = "latest"` | NEW | Formula API verified; native install/status |
@@ -169,7 +169,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `messengers` | `"mas:803453959" = "latest"` | NATIVE | MAS availability/sign-in |
 | `messengers` | `"mas:836500024" = "latest"` | NATIVE | MAS availability/sign-in |
 | `messengers` | `"brew-cask:zoom" = "latest"` | NATIVE | Native cask metadata/install |
-| `network` | `"brew-cask:surge" = "latest"` | NATIVE | Native cask metadata/install; profile setup manual |
+| `network` | Real-Homebrew `surge` hook in `[bootstrap.hooks.post-packages]` | APPROVED EXCEPTION | Native `$APPDIR` expansion failed; real Homebrew owns installation, upgrade, and removal; profile setup manual |
 | `network` | `"brew-cask:cloudflare-warp" = "latest"` | NATIVE | Native cask metadata/install; mode manual |
 | `network` | `"brew-cask:tunnelblick" = "latest"` | NATIVE | Native cask metadata/install; VPN setup manual |
 | `network` | `"brew-cask:whyfi" = "latest"` | NATIVE | Native cask metadata/install |
