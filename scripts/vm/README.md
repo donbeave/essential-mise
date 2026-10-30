@@ -165,9 +165,14 @@ VM_NAME=essential-mise-test-evidence \
 VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   scripts/vm/owner-auth-ssh.sh \
   "/bin/bash /tmp/essential-mise-artifact/verify-native-cask-coexistence.sh"
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-project-boundaries.py
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-project-boundaries.py"
 ```
 
-The hook lifecycle fixture requires `brew outdated` or `livecheck` to prove the currently linked Amp CLI is behind upstream. It applies `ai-cli` and asserts no formula or link changes without downgrading or restoring anything. If neither source proves an outdated installation, it is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges.
+The hook lifecycle fixture requires `brew outdated` or `livecheck` to prove the currently linked Amp CLI is behind upstream. It applies `ai-cli` and asserts no formula or link changes without downgrading or restoring anything. If neither source proves an outdated installation, it is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges. Project-boundary evidence under `/tmp/essential-mise-evidence/project-boundaries` covers selector precedence, project-local resource/environment isolation, and ignored synthetic workspace activation using only explicitly trusted synthetic fixture files.
 
 Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
 
