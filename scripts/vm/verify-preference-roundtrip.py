@@ -134,6 +134,15 @@ run(
     {**failed_import_env, 'capture_dir': str(failed_import_dir)},
     expected=1,
 )
+failed_mktemp_bin = root / 'failed-mktemp-bin'
+failed_mktemp_bin.mkdir()
+failed_mktemp = failed_mktemp_bin / 'mktemp'
+failed_mktemp.write_text('#!/bin/bash\nexit 1\n')
+failed_mktemp.chmod(0o755)
+failed_mktemp_env = stub_env()
+failed_mktemp_env['PATH'] = f'{failed_mktemp_bin}:{stub_bin}:/usr/bin:/bin'
+run('stub-failed-mktemp', ['/bin/bash', '-c', capture_block], failed_mktemp_env, expected=1)
+assert 'Could not create preference snapshot directory' in (evidence / 'stub-failed-mktemp.stderr').read_text()
 
 real_env = {
     **os.environ,
@@ -207,7 +216,7 @@ run('post-capture-removed', ['defaults', 'read', 'NSGlobalDomain', 'EssentialMis
 
 report = (
     'stub_existing_absent=PASS\nstub_failed_export=PASS\nstub_failed_read=PASS\n'
-    'stub_failed_import=PASS\nreal_capture_apply_restore=PASS\n'
+    'stub_failed_import=PASS\nstub_failed_mktemp=PASS\nreal_capture_apply_restore=PASS\n'
     'roundtrip_compare=PASS\nunrelated_content_preservation=PASS\n'
 )
 (evidence / 'report.txt').write_text(report)

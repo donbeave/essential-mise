@@ -57,7 +57,14 @@ For an exact full-domain rollback, capture every affected domain before applying
 ```bash
 capture_preferences() {
   preference_domains=(NSGlobalDomain com.apple.dock com.apple.finder com.apple.spaces com.apple.WindowManager com.apple.assistant.support com.apple.Siri com.apple.screensaver com.apple.onetimepasscodes com.apple.TextInputMenu com.apple.bird)
-  capture_dir="$(mktemp -d /tmp/essential-mise-preferences.XXXXXX)"
+  if ! capture_dir="$(mktemp -d /tmp/essential-mise-preferences.XXXXXX)"; then
+    printf 'Could not create preference snapshot directory\n' >&2
+    return 1
+  fi
+  if [[ -z "$capture_dir" || ! -d "$capture_dir" ]]; then
+    printf 'Preference snapshot directory is missing\n' >&2
+    return 1
+  fi
   local domain state state_file error_file
   for domain in "${preference_domains[@]}"; do
     state_file="$capture_dir/$domain.before.state"

@@ -243,7 +243,7 @@ VM_AUTO_CONFIRM=1 VM_NAME=essential-mise-test-evidence \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-preference-roundtrip.py"
 ```
 
-The fixture extracts the exact shell functions from `docs/manual-actions.md`. Stubbed checks cover existing and absent domains plus read/export/import failures. The real guest check captures all affected domains, applies `system-preferences`, checks stored status, restores immediately, compares every present domain with its snapshot, confirms original absence, and verifies unrelated nested and top-level values. Restoration is attempted even when an earlier assertion fails. Output is under `/tmp/essential-mise-evidence/preference-roundtrip` and is collected externally.
+The fixture extracts the exact shell functions from `docs/manual-actions.md`. Stubbed checks cover existing and absent domains plus read/export/import and snapshot-directory creation failures. The real guest check captures all affected domains, applies `system-preferences`, checks stored status, restores immediately, compares every present domain with its snapshot, confirms original absence, and verifies unrelated nested and top-level values. Restoration is attempted even when an earlier assertion fails. Output is under `/tmp/essential-mise-evidence/preference-roundtrip` and is collected externally.
 
 Delete only a registered disposable VM after its test is complete:
 

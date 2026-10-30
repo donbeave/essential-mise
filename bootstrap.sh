@@ -86,6 +86,7 @@ installed_mise_version="$("$MISE_BIN" --version | /usr/bin/awk '{print $1}')"
 export MISE_CONFIG_DIR="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
 [[ "$MISE_CONFIG_DIR" == /* ]] || fail "MISE_CONFIG_DIR must be absolute: $MISE_CONFIG_DIR"
 [[ "$MISE_CONFIG_DIR" != '/' && "$MISE_CONFIG_DIR" != "$HOME" ]] || fail "Unsafe MISE_CONFIG_DIR: $MISE_CONFIG_DIR"
+[[ "$MISE_CONFIG_DIR" != *:* ]] || fail "MISE_CONFIG_DIR cannot contain a colon because MISE_CEILING_PATHS is colon-separated: $MISE_CONFIG_DIR"
 config_path=''
 IFS='/' read -r -a config_components <<< "${MISE_CONFIG_DIR#/}"
 for component in "${config_components[@]}"; do
@@ -122,6 +123,7 @@ first_adoption=0
 if [[ ! -e "$MISE_CONFIG_DIR" ]] || { [[ -d "$MISE_CONFIG_DIR" ]] && [[ -z "$(/bin/ls -A "$MISE_CONFIG_DIR")" ]]; }; then
   say '4/6 - First-run adoption of public configuration'
   work_dir="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/essential-mise-adopt.XXXXXX")"
+  [[ "$work_dir" != *:* ]] || fail "Temporary adoption directory cannot contain a colon because MISE_CEILING_PATHS is colon-separated: $work_dir"
   cd "$work_dir"
   MISE_CEILING_PATHS="$work_dir:$MISE_CONFIG_DIR" "$MISE_BIN" bootstrap --adopt "$REPO"
   first_adoption=1

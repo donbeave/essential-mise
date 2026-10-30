@@ -31,7 +31,7 @@ env.pop('MISE_GLOBAL_CONFIG_FILE', None)
 env.pop('MISE_CEILING_PATHS', None)
 
 
-def run(name, arguments, cwd, custom_env=None):
+def run(name, arguments, cwd, custom_env=None, expected=0):
     result = subprocess.run(
         [str(argument) for argument in arguments],
         cwd=cwd,
@@ -42,7 +42,8 @@ def run(name, arguments, cwd, custom_env=None):
     output = result.stdout + result.stderr
     (evidence / f'{name}.log').write_text(output)
     (evidence / f'{name}.exit').write_text(f'{result.returncode}\n')
-    result.check_returncode()
+    if result.returncode != expected:
+        raise AssertionError(f'{name} exited {result.returncode}, expected {expected}: {output}')
     return output
 
 
@@ -129,6 +130,27 @@ repository_declaration = "REPO='donbeave/essential-mise'"
 assert launcher_source.count(repository_declaration) == 1
 nested_script.write_text(launcher_source.replace(repository_declaration, f"REPO='{source_config}'"))
 nested_env = {**env, 'MISE_CONFIG_DIR': str(nested_config)}
+colon_config = root / 'essential:mise'
+colon_output = run(
+    'colon-config-refusal',
+    ['/bin/bash', nested_script],
+    project,
+    {**nested_env, 'MISE_CONFIG_DIR': str(colon_config)},
+    expected=1,
+)
+assert 'MISE_CONFIG_DIR cannot contain a colon' in colon_output
+assert not colon_config.exists()
+colon_tmpdir = root / 'tmp:colon'
+colon_tmpdir.mkdir()
+colon_tmp_output = run(
+    'colon-tmpdir-refusal',
+    ['/bin/bash', nested_script],
+    project,
+    {**nested_env, 'TMPDIR': str(colon_tmpdir)},
+    expected=1,
+)
+assert 'Temporary adoption directory cannot contain a colon' in colon_tmp_output
+assert not nested_config.exists()
 first_adoption = run('nested-first-adoption', ['/bin/bash', nested_script], project, nested_env)
 assert 'essential-mise-project-only' not in first_adoption
 assert 'essential-mise-parent-hook' not in first_adoption
@@ -156,7 +178,8 @@ report = (
     'project_selector_precedence=PASS\nproject_resource_isolation=PASS\n'
     'project_env_isolation=PASS\nworkspace_ignore_and_activation=PASS\n'
     'bootstrap_next_step_scope=PASS\nnested_adoption_isolation=PASS\n'
-    'nested_foundation_rerun_isolation=PASS\n'
+    'nested_foundation_rerun_isolation=PASS\ncolon_config_refusal=PASS\n'
+    'colon_tmpdir_refusal=PASS\n'
 )
 (evidence / 'report.txt').write_text(report)
 print(report, end='')
