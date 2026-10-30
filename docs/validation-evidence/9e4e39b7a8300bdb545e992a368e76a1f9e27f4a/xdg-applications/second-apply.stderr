@@ -1,0 +1,13 @@
+mise bootstrap: system packages
+mise brew-cask: 6 package(s) already installed
+mise brew: 18 package(s) already installed
+mise bootstrap: post-packages hooks
+mise GitHub CLI owns its XDG/GH_CONFIG_DIR configuration and preserves unrelated keys
+mise Presence-only real Homebrew: Claude Code, Amp CLI, and OMP; upgrades are separate
+mise bootstrap: dotfiles
+mise files: all files are applied
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: post-dotfiles hooks
+mise XDG-aware Fish activation; native shell activation has fixed paths
+mise XDG-aware Amp Fish completion block; preserves unrelated startup content

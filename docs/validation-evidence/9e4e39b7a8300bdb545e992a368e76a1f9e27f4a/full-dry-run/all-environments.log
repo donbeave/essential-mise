@@ -1,0 +1,77 @@
+mise bootstrap: system packages
+mise brew-cask: 49 package(s) already installed
+mise brew: 47 package(s) already installed
+mas install 1569813296 6476452351 429449079 497799835 470158793 747648890 310633997 803453959 836500024 1462114288 6475002485 1055273043 6740486871 1350225911 1289583905 1466185689 897118787 409907375 1007358832 1447778660 1037126344
+mise macos-app: 1 package(s) already installed
+mise bootstrap: post-packages hooks
+sh -o errexit -c '/opt/homebrew/bin/gh config set git_protocol https'
+sh -o errexit -c '/opt/homebrew/bin/gh config set editor '\'''\'''
+sh -o errexit -c '/opt/homebrew/bin/gh config set prompt enabled'
+sh -o errexit -c '/opt/homebrew/bin/gh config set prefer_editor_prompt disabled'
+sh -o errexit -c '/opt/homebrew/bin/gh config set pager '\'''\'''
+sh -o errexit -c '/opt/homebrew/bin/gh alias set co '\''pr checkout'\'' --clobber'
+sh -o errexit -c '/opt/homebrew/bin/gh config set http_unix_socket '\'''\'''
+sh -o errexit -c '/opt/homebrew/bin/gh config set browser '\'''\'''
+sh -o errexit -c '/opt/homebrew/bin/gh config set color_labels disabled'
+sh -o errexit -c '/opt/homebrew/bin/gh config set accessible_colors disabled'
+sh -o errexit -c '/opt/homebrew/bin/gh config set accessible_prompter disabled'
+sh -o errexit -c '/opt/homebrew/bin/gh config set spinner enabled'
+sh -o errexit -c 'test "$(/opt/homebrew/bin/gh config get git_protocol)" = https'
+sh -o errexit -c 'test -z "$(/opt/homebrew/bin/gh config get editor)"'
+sh -o errexit -c 'test "$(/opt/homebrew/bin/gh config get prompt)" = enabled'
+sh -o errexit -c 'test "$(/opt/homebrew/bin/gh config get prefer_editor_prompt)" = disabled'
+sh -o errexit -c 'test -z "$(/opt/homebrew/bin/gh config get pager)"'
+sh -o errexit -c 'test -z "$(/opt/homebrew/bin/gh config get http_unix_socket)"'
+sh -o errexit -c 'test -z "$(/opt/homebrew/bin/gh config get browser)"'
+sh -o errexit -c 'test "$(/opt/homebrew/bin/gh config get color_labels)" = disabled'
+sh -o errexit -c 'test "$(/opt/homebrew/bin/gh config get accessible_colors)" = disabled'
+sh -o errexit -c 'test "$(/opt/homebrew/bin/gh config get accessible_prompter)" = disabled'
+sh -o errexit -c 'test "$(/opt/homebrew/bin/gh config get spinner)" = enabled'
+sh -o errexit -c 'test "$(/opt/homebrew/bin/gh config get version)" = 1'
+sh -o errexit -c '/opt/homebrew/bin/gh alias list | /usr/bin/grep -E '\''^co:[[:space:]]+pr checkout$'\'''
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --cask surge >/dev/null 2>&1; then
+  if [ -e /Applications/Surge.app ] || [ -e "/Applications/Surge Dashboard.app" ] || [ -L "/Applications/Surge Dashboard.app" ]; then
+    printf '\''Existing Surge applications require manual ownership migration before using Homebrew.\n'\'' >&2
+    exit 1
+  fi
+  /opt/homebrew/bin/brew install --cask surge
+fi
+test -x /opt/homebrew/bin/surge-cli
+test -x /opt/homebrew/sbin/surge-dhcpd
+/usr/bin/codesign --verify --deep --strict /Applications/Surge.app'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi'
+sh -o errexit -c '/opt/homebrew/bin/fff-mcp --healthcheck'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --cask claude-code@latest >/dev/null 2>&1; then /opt/homebrew/bin/brew install --cask claude-code@latest; fi'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula ampcode >/dev/null 2>&1; then /opt/homebrew/bin/brew install ampcode/tap/ampcode; fi'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula omp >/dev/null 2>&1; then /opt/homebrew/bin/brew install can1357/tap/omp; fi'
+sh -o errexit -c '/opt/homebrew/bin/claude --version'
+sh -o errexit -c '/opt/homebrew/bin/amp --version'
+sh -o errexit -c '/opt/homebrew/bin/omp --version'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1; then
+  if [ -d /Applications/Amp.app ]; then
+    printf '\''Existing /Applications/Amp.app requires manual ownership migration before using Homebrew.\n'\'' >&2
+    exit 1
+  fi
+  /opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta
+fi
+test -x /Applications/Amp.app/Contents/MacOS/Amp
+/usr/bin/codesign --verify --deep --strict /Applications/Amp.app'
+mise bootstrap: repos
+mise repos: 2 repo(s) already current
+mise bootstrap: dotfiles
+mise files: all files are applied
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: post-dotfiles hooks
+sh -o errexit -c '/usr/bin/python3 "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py" apply activate'
+sh -o errexit -c '/usr/bin/python3 "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py" status activate'
+sh -o errexit -c '/usr/bin/python3 "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py" apply amp'
+sh -o errexit -c '/usr/bin/python3 "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py" status amp'
+mise bootstrap: shell activation
+mise edits: all edits are applied
+mise bootstrap: system defaults
+mise defaults: 67 value(s) already set
+mise bootstrap: login items
+mise login items: already set
+mise bootstrap: tools
+mise all tools are installed

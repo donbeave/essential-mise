@@ -35,6 +35,6 @@ The script:
 
 `isolated-fixtures/report.txt` identifies the reviewed SHA and each command's mise version. The current fixture's successful initial adoption, actual update, apply, and unapply logs must all be present before claiming the complete lifecycle. Historical evidence that reported only `Already up to date` or `nothing to remove` does not close those requirements.
 
-At revision `6c76795b9e4f70e6e83827d8988688bf2c3aaea5`, the preserved report's 42 command-result rows all passed with their expected exit codes, including the real diff/update, dotfile apply, fresh-shell persistence, and actual removal. A separately preserved failed run contains `FAIL exit=1`, proving that an earlier summary cannot survive as false PASS evidence.
+At revision `9e4e39b7a8300bdb545e992a368e76a1f9e27f4a`, all 49 command-result rows passed, including exact revision attribution, the controlled update, custom-XDG application, real Fish activation, and native/helper removal. At the earlier `6c76795b9e4f70e6e83827d8988688bf2c3aaea5`, the preserved report had 42 passing rows. A separately preserved failed run contains `FAIL exit=1`, proving that an earlier summary cannot survive as false PASS evidence.
 
 Collected guest logs and `report.txt` are preserved under `docs/validation-evidence/<reviewed-commit>/isolated-fixtures` with SHA-256 checksums. Evidence is collected before stopping or rebooting the guest because its `/tmp` contents may be removed during the guest lifecycle.

@@ -1,0 +1,44 @@
+[unmodified] exit=0
+packages=129
+tools=5
+dotfiles=17
+settings=1
+preferences=67
+repositories=2
+login_items=2
+executables=2
+current_inventory=PASS
+[remove ai-cli jq only] exit=1
+packages=129
+tools=5
+dotfiles=17
+settings=1
+preferences=67
+repositories=2
+login_items=2
+executables=2
+Missing or mismatched exact migration-matrix records:
+package: ai-cli: brew:jq (no exact owner/resource record)
+[unknown login item] exit=1
+packages=129
+tools=5
+dotfiles=17
+settings=1
+preferences=67
+repositories=2
+login_items=3
+executables=2
+Missing or mismatched exact migration-matrix records:
+login item: utilities: /Applications/Unknown.app (no exact path record)
+[remove Fish helper record] exit=1
+packages=129
+tools=5
+dotfiles=17
+settings=1
+preferences=67
+repositories=2
+login_items=2
+executables=2
+Missing or mismatched exact migration-matrix records:
+executable: Active Git checkout: bin/fish-config.py (no exact resource record)
+mutation_assertions=PASS

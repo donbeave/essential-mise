@@ -1,0 +1,23 @@
+mise bootstrap: system packages
+mise brew-cask: 6 package(s) already installed
+mise brew: 18 package(s) already installed
+mise bootstrap: post-packages hooks
+mise GitHub CLI owns its XDG/GH_CONFIG_DIR configuration and preserves unrelated keys
+mise Presence-only real Homebrew: Claude Code, Amp CLI, and OMP; upgrades are separate
+mise bootstrap: dotfiles
+mise files: copied /Users/admin/.config/mise/dotfiles/terminal/ghostty/config to /tmp/essential-mise-xdg-applications/custom xdg space/ghostty/config
+mise files: copied /Users/admin/.config/mise/dotfiles/terminal/ghostty/generic-terminal to /tmp/essential-mise-xdg-applications/custom xdg space/ghostty/themes/generic-terminal
+mise files: copied /Users/admin/.config/mise/dotfiles/terminal/starship.toml to ~/.config/starship.toml
+mise files: copied /Users/admin/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.claude/CLAUDE.md
+mise files: copied /Users/admin/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.config/opencode/AGENTS.md
+mise files: copied /Users/admin/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.grok/AGENTS.md
+mise files: copied /Users/admin/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.kimi-code/AGENTS.md
+mise files: copied /Users/admin/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.config/amp/AGENTS.md
+mise files: copied /Users/admin/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.omp/agent/AGENTS.md
+mise files: copied /Users/admin/.config/mise/dotfiles/ai-cli/CODEX.md to ~/.codex/AGENTS.md
+mise files: applied /tmp/essential-mise-xdg-applications/custom xdg space/ghostty/config, /tmp/essential-mise-xdg-applications/custom xdg space/ghostty/themes/generic-terminal, ~/.config/starship.toml, ~/.claude/CLAUDE.md, ~/.config/opencode/AGENTS.md, ~/.grok/AGENTS.md, ~/.kimi-code/AGENTS.md, ~/.config/amp/AGENTS.md, ~/.omp/agent/AGENTS.md, ~/.codex/AGENTS.md
+mise bootstrap: dotfile edits
+mise edits: applied ~/.zshrc (block:terminal), ~/.omp/agent/config.yml (merge:shared), ~/.omp/agent/models.yml (merge:shared), ~/.zshrc (block:amp), ~/.zshrc (block:claude-statusline)
+mise bootstrap: post-dotfiles hooks
+mise XDG-aware Fish activation; native shell activation has fixed paths
+mise XDG-aware Amp Fish completion block; preserves unrelated startup content

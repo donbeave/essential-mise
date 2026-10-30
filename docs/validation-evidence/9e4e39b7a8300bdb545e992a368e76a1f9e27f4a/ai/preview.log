@@ -1,0 +1,21 @@
+mise bootstrap: system packages
+mise brew: 22 package(s) already installed
+mise brew-cask: 4 package(s) already installed
+mise bootstrap: post-packages hooks
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi'
+sh -o errexit -c '/opt/homebrew/bin/fff-mcp --healthcheck'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --cask claude-code@latest >/dev/null 2>&1; then /opt/homebrew/bin/brew install --cask claude-code@latest; fi'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula ampcode >/dev/null 2>&1; then /opt/homebrew/bin/brew install ampcode/tap/ampcode; fi'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula omp >/dev/null 2>&1; then /opt/homebrew/bin/brew install can1357/tap/omp; fi'
+sh -o errexit -c '/opt/homebrew/bin/claude --version'
+sh -o errexit -c '/opt/homebrew/bin/amp --version'
+sh -o errexit -c '/opt/homebrew/bin/omp --version'
+mise bootstrap: dotfiles
+mise files: all files are applied
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: post-dotfiles hooks
+sh -o errexit -c '/usr/bin/python3 "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py" apply amp'
+sh -o errexit -c '/usr/bin/python3 "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py" status amp'
+mise bootstrap: tools
+mise all tools are installed

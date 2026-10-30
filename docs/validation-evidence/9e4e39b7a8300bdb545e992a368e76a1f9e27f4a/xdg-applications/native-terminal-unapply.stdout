@@ -1,0 +1,4 @@
+remove  dotfile:/tmp/essential-mise-xdg-applications/custom xdg space/ghostty/config
+remove  dotfile:/tmp/essential-mise-xdg-applications/custom xdg space/ghostty/themes/generic-terminal
+remove  dotfile:~/.config/starship.toml
+remove  edit:~/.zshrc/terminal

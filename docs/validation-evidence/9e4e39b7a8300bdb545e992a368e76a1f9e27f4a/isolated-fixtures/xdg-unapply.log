@@ -1,0 +1,8 @@
+mise 15 declaration(s) in [bootstrap.packages] are not removed by unapply: mise bootstrap packages prune --manager <manager>
+mise 2 declaration(s) in [bootstrap.repos] are not removed by unapply: remove the checkout
+remove  dotfile:/private/tmp/essential-mise-isolated-validation/xdg-custom/ghostty/config
+remove  dotfile:/private/tmp/essential-mise-isolated-validation/xdg-custom/ghostty/themes/generic-terminal
+remove  dotfile:~/.config/starship.toml
+remove  edit:~/.zshrc/terminal
+mise edits: unapplied ~/.zshrc (block:terminal)
+mise files: unapplied /private/tmp/essential-mise-isolated-validation/xdg-custom/ghostty/config, /private/tmp/essential-mise-isolated-validation/xdg-custom/ghostty/themes/generic-terminal, ~/.config/starship.toml

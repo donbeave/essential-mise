@@ -1,0 +1,135 @@
+
+==> 1/6 - Apple Command Line Tools (Git)
+
+==> 2/6 - Homebrew
+
+==> 3/6 - mise (v2026.10.23)
+mise: installing mise...
+#=#=#
+
+                                                                           0.6%
+##                                                                         3.7%
+###########                                                               16.4%
+########################                                                  34.4%
+##################################                                        47.3%
+################################################                          66.9%
+###############################################################           87.9%
+######################################################################## 100.0%
+mise: installed successfully to /private/tmp/essential-mise-isolated-validation/first-home/.local/bin/mise
+mise: run the following to activate mise in your shell:
+echo "eval \"\$(/private/tmp/essential-mise-isolated-validation/first-home/.local/bin/mise activate zsh)\"" >> "/private/tmp/essential-mise-isolated-validation/first-home/.zshrc"
+
+mise: run `mise doctor` to verify this is set up correctly
+
+==> 4/6 - First-run adoption of public configuration
+Cloning into '/private/tmp/essential-mise-isolated-validation/first-home/.config/mise'...
+done.
+mise bootstrap: tools
+mise all tools are installed
+
+==> 5/6 - Foundation only (zsh activation)
+mise bootstrap: dotfile edits
+mise edits: applied ~/.zshenv (line:local-bin)
+mise bootstrap: shell activation
+mise edits: applied ~/.zprofile (block:activate), ~/.zshrc (block:activate)
+mise bootstrap: tools
+mise all tools are installed
+
+==> 6/6 - Verify a new login and interactive zsh
+2026.10.23 macos-arm64 (2026-10-29)
+version: 2026.10.23 macos-arm64 (2026-10-29)
+activated: yes
+shims_on_path: yes
+self_update_available: yes
+
+build_info:
+  Target: aarch64-apple-darwin
+  Features: openssl, rustls-native-roots, self_update
+  Built: Thu, 29 Oct 2026 09:30:08 +0000
+  Rust Version: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+  Profile: release
+
+shell:
+  /bin/zsh
+  zsh 5.9 (arm64-apple-darwin26.0)
+
+aqua:
+  baked in registry: aquaproj/aqua-registry@f6554f4f96583e57af233683604d1c457f449f63
+  baked in registry tools: 2341
+
+dirs:
+  cache: ~/Library/Caches/mise
+  config: ~/.config/mise
+  data: ~/.local/share/mise
+  shims: ~/.local/share/mise/shims
+  system_shims: /usr/local/share/mise/shims
+  state: ~/.local/state/mise
+
+config_files:
+  ~/.config/mise/config.toml
+  ~/.config/mise/config.foundation.toml
+
+env_files:
+  (none)
+
+ignored_config_files: (none)
+
+backends:
+  aqua
+  asdf
+  cargo
+  conda
+  core
+  dotnet
+  forgejo
+  gem
+  github
+  gitlab
+  go
+  npm
+  packslip
+  pypi
+  spinel
+  spm
+  http
+  s3
+  ubi
+  vfox
+
+plugins:
+
+toolset:
+
+path:
+  ~/.local/share/mise/shims
+  /opt/homebrew/bin
+  /opt/homebrew/sbin
+  /usr/local/bin
+  /System/Cryptexes/App/usr/bin
+  /usr/bin
+  /bin
+  /usr/sbin
+  /sbin
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin
+  /pkg/env/global/bin
+  ~/.local/bin
+
+env_vars:
+  MISE_VERSION=v2026.10.23
+  MISE_CONFIG_DIR=~/.config/mise
+  MISE_SHELL=zsh
+
+settings:
+
+No problems found
+
+==> Finished. Open a fresh Terminal window.
+Preview the standard workstation:
+  mise -E foundation,terminal,development,security bootstrap --dry-run
+Apply it after review:
+  mise -E foundation,terminal,development,security bootstrap
+Preview coding agents and shared tools:
+  mise -E ai-tools,ai-cli bootstrap --dry-run
+This script did NOT permanently select an optional environment.

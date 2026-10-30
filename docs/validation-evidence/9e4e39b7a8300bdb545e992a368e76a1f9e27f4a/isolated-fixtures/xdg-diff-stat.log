@@ -1,0 +1,5 @@
+ docs/claude-statusline.md           |  2 +-
+ docs/validation-fixtures.md         |  4 ++++
+ scripts/vm/verify-claude-wrapper.py |  4 ++--
+ scripts/vm/verify-hook-lifecycle.sh | 20 +++++++++++++++++---
+ 4 files changed, 24 insertions(+), 6 deletions(-)

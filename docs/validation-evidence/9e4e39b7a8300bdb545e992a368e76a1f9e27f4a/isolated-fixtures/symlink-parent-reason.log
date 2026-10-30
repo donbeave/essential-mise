@@ -1,0 +1,1 @@
+ERROR: MISE_CONFIG_DIR cannot traverse a symlink: /private/tmp/essential-mise-isolated-validation/config-link

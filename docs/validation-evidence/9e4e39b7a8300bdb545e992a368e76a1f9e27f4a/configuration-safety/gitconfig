@@ -1,0 +1,26 @@
+# synthetic user comment
+[core]
+	autocrlf = input
+    sshCommand = ssh -i /synthetic/key
+	excludesFile = /Users/admin/.config/mise/dotfiles/development/git/ignore
+[credential "https://github.com"]
+    helper = osxkeychain
+    helper = /synthetic/helper
+[includeIf "gitdir:/synthetic/"]
+    path = /synthetic/include
+[pull]
+	rebase = false
+[branch]
+	autoSetupRebase = never
+[fetch]
+	prune = true
+[merge]
+	conflictStyle = zdiff3
+[rerere]
+	enabled = true
+[push]
+	autoSetupRemote = true
+[init]
+	defaultBranch = main
+[alias]
+	merge-main = !git fetch origin && git merge --no-ff origin/main

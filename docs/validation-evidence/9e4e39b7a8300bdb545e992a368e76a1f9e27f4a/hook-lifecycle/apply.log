@@ -1,0 +1,17 @@
+mise bootstrap: system packages
+mise brew: 3 package(s) already installed
+mise brew-cask: 4 package(s) already installed
+mise bootstrap: post-packages hooks
+mise Presence-only real Homebrew: Claude Code, Amp CLI, and OMP; upgrades are separate
+2.1.314 (Claude Code)
+0.0.1793352886-g7ad87b (released 2026-10-30T09:34:46.000Z, 8h ago)
+omp/18.14.0
+mise bootstrap: dotfiles
+mise files: all files are applied
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: post-dotfiles hooks
+mise XDG-aware Amp Fish completion block; preserves unrelated startup content
+amp=applied path=/Users/admin/.config/fish/config.fish
+mise bootstrap: tools
+mise all tools are installed

@@ -1,0 +1,6 @@
+co: pr checkout
+2.1.314 (Claude Code)
+0.0.1793352886-g7ad87b (released 2026-10-30T09:34:46.000Z, 8h ago)
+omp/18.14.0
+activate=applied path=/tmp/essential-mise-xdg-applications/custom xdg space/fish/config.fish
+amp=applied path=/tmp/essential-mise-xdg-applications/custom xdg space/fish/config.fish

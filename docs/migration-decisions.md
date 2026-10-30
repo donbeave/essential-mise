@@ -204,7 +204,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `terminal` | `"brew:wget" = "latest"` | NATIVE | Formula metadata/install |
 | `terminal` | `"brew:bash" = "latest"` | NATIVE | Formula metadata/install; stage-0 script still uses Apple `/bin/bash` |
 | `terminal` | `"brew:nushell" = "latest"` | NATIVE | Formula metadata/install |
-| `terminal` | `"brew:fish" = "latest"` | NEW | Formula page verified; native `auto` activation |
+| `terminal` | `"brew:fish" = "latest"` | NEW | Formula page verified; XDG-aware `auto`-equivalent activation block and actual Fish consumption |
 | `terminal` | `"brew:git-standup" = "latest"` | NATIVE | Formula metadata/install |
 | `terminal` | `"brew:msedit" = "latest"` | NATIVE | Formula metadata/install |
 | `terminal` | `"brew:buf" = "latest"` | NATIVE | Formula metadata/install |
@@ -465,6 +465,6 @@ All 67 are optional, user-scope (`host = "any"`), and have stored-state declarat
 - Root dotfiles: **54/54** mapped individually.
 - Sanitized legacy-example dotfiles: **33/33** mapped individually with separate provenance.
 - Package/runtime/repository/preference/login-item declarations: each has an exact native entry or an explicit MANUAL/DROP/NEW disposition.
-- Current implementation: `verify-current-inventory.py` passes for **129 package declarations, five tools, 19 dotfile targets, one nested setting, 67 preferences, two repositories, two login items, and one executable**, including all hook package owners.
+- Current implementation: `verify-current-inventory.py` passes for **129 package declarations, five tools, 17 dotfile targets, one nested setting, 67 preferences, two repositories, two login items, and two executables**, including all hook package owners.
 - Unsafe Git INI automation is removed; the nine tuning keys and XDG-safe ignore override use Git's own CLI manually.
 - No source behavior is silently preserved through a second orchestrator.

@@ -1,0 +1,11 @@
+custom_xdg_gh_consumption=PASS
+all_gh_scalars_alias_schema=PASS
+gh_config_dir_override=PASS
+custom_xdg_ghostty_consumption=PASS
+ghostty_theme_resolution=PASS
+custom_xdg_fish_activation=PASS
+custom_xdg_fish_amp_completion=PASS
+repeat_convergence=PASS
+unrelated_content_preservation=PASS
+native_ghostty_unapply=PASS
+fish_assisted_unapply=PASS
