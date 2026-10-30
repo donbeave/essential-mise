@@ -115,7 +115,7 @@ case "$scenario" in
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust bootstrap --dry-run"
     run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust bootstrap"
     run_logged exec-check "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust exec -- cargo --version"
-    run_logged tool-check "/bin/zsh -lic 'cargo --version && rustc --version && mr-boxington --version'"
+    run_logged tool-check "/bin/zsh -lic 'cargo --version && rustc --version && mbx --version'"
     vm_ssh "printf 'env = [\"development-rust\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged persistent "/bin/zsh -lic 'cd /tmp && cargo --version && case \"\$(mise which cargo)\" in *\".local/share/mise/installs/\"*) ;; *) exit 1;; esac'"
     ;;

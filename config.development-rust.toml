@@ -4,3 +4,7 @@ credential_command = 'if command -v gh >/dev/null 2>&1; then gh auth token --hos
 [tools]
 rust = { version = "1.99.1", mr_boxington = true, components = ["llvm-tools"] }
 mr-boxington = { version = "1.24.1" }
+
+[wrappers.cargo]
+command = "mbx"
+env = { MBX_CARGO_SHIM_MODE = "1" }
