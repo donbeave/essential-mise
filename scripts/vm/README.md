@@ -167,7 +167,7 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "/bin/bash /tmp/essential-mise-artifact/verify-native-cask-coexistence.sh"
 ```
 
-The hook lifecycle fixture uses an alternate Cellar version when available or the currently linked version when `brew outdated`/`livecheck` proves it is behind upstream. It applies `ai-cli`, asserts no package/link changes, and restores the original version. If neither source proves an outdated installation, it is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges.
+The hook lifecycle fixture requires `brew outdated` or `livecheck` to prove the currently linked Amp CLI is behind upstream. It applies `ai-cli` and asserts no formula or link changes without downgrading or restoring anything. If neither source proves an outdated installation, it is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges.
 
 Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
 
