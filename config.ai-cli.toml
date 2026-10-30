@@ -18,6 +18,13 @@ run = [
   "/opt/homebrew/bin/omp --version",
 ]
 
+[bootstrap.hooks.post-dotfiles]
+description = "XDG-aware Amp Fish completion block; preserves unrelated startup content"
+run = [
+  "/usr/bin/python3 \"{{ config_source | dirname }}/bin/fish-config.py\" apply amp",
+  "/usr/bin/python3 \"{{ config_source | dirname }}/bin/fish-config.py\" status amp",
+]
+
 [dotfiles]
 "~/.claude/CLAUDE.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
 "~/.config/opencode/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
@@ -34,16 +41,11 @@ autoload -Uz compinit
 command -v amp >/dev/null 2>&1 && source <(amp completions zsh)
 ''' }
 "~/.zshrc/claude-statusline" = { block = '''
-claude() {
+function claude {
   local statusline="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/claude-statusline.sh"
   local statusline_command settings
   printf -v statusline_command '%q' "$statusline"
   settings="$(/opt/homebrew/bin/jq -cn --arg command "$statusline_command" '{statusLine:{type:"command",command:$command,padding:0,refreshInterval:5}}')" || return
   BASH_COMPAT=3.2 command claude --settings "$settings" "$@"
 }
-''' }
-"~/.config/fish/config.fish/amp" = { block = '''
-if status is-interactive
-    command -q amp; and amp completions fish | source
-end
 ''' }

@@ -223,21 +223,24 @@ These rows supplement the legacy inventory with current declarations whose exact
 |---|---|---|
 | `~/.codex/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied from `CODEX.md`; content verified; native unapply removes the managed file |
 | `~/.config/amp/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied from `GLOBAL_AGENTS.md`; content verified; native unapply removes the managed file |
-| `~/.config/fish/config.fish/amp` | `ai-cli`; NATIVE | Interactive Amp completion block; does not replace Fish activation; native unapply removes the owned edit |
-| `~/.config/gh/config.yml/shared` | `development`; NATIVE | Nonsecret YAML merge; scalar, alias, and schema-version readbacks; native unapply owns only managed entries |
-| `~/.config/ghostty/themes/generic-terminal` | `terminal`; NATIVE | Explicit copy-mode theme; source existence and application checked; native unapply removes the managed file |
+| `~/.config/ghostty/themes/generic-terminal` | `terminal`; NATIVE | Explicit copy-mode theme at the native `{{ xdg_config_home }}/ghostty/themes/generic-terminal` variant target; application resolution and native unapply are checked |
 | `~/.config/opencode/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied shared policy; native unapply removes the managed file |
 | `~/.config/zed/settings.json/prefs` | `development-editors`; NATIVE + CHANGE | JSONC merge; existing comments, trailing commas, and unrelated keys are preservation-test requirements; native unapply owns managed entries |
 | `~/.grok/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied shared policy; native unapply removes the managed file |
 | `~/.omp/agent/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied shared policy; file existence verified, authenticated runtime loading remains an accepted manual boundary; native unapply removes the managed file |
 | `~/.zshenv/local-bin` | `foundation`; NATIVE | Single PATH edit; fresh-shell verification; native unapply removes the owned edit |
 | `~/.zshrc/amp` | `ai-cli`; NATIVE | Guarded completion edit; native unapply removes the owned block |
-| `~/.zshrc/claude-statusline` | `ai-cli`; APPROVED EXCEPTION | Zsh wrapper uses `%q` plus `jq --arg`; special-path/argument tests; native unapply removes the owned block |
+| `~/.zshrc/claude-statusline` | `ai-cli`; APPROVED EXCEPTION | Alias-safe `function claude` wrapper uses `%q` plus `jq --arg`; existing-alias/later-startup, special-path, and argument tests; native unapply removes the owned block |
 | `~/.zshrc/terminal` | `terminal`; NATIVE | Oh My Zsh/Starship/native activation edits; actual unapply/reapply verified |
 | `bin/claude-statusline.sh` | Active Git checkout; APPROVED EXCEPTION | Executable source is owned and updated by the reviewed checkout, not deployed as a second dotfile copy; exact hash and synthetic fixtures verified; removed only with the checkout |
+| `bin/fish-config.py` | Active Git checkout; XDG COMPATIBILITY HELPER | Owns only `activate` and `amp` marker blocks in `${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish`; repeat apply/status and explicit unapply preserve unrelated startup content |
 | `settings.github.credential_command` | `development-rust`; NATIVE | Uses existing `gh auth token` for release lookup without storing a token; runtime/Cargo checks; deselecting removes it from mise resolution and removes no credentials |
 | `NSGlobalDomain AppleFirstWeekday.gregorian` | `system-preferences`; NATIVE nested entry | Changes only `gregorian`; unrelated dictionary members preserved; preferences require separate explicit reversal |
 | `NSGlobalDomain AppleICUDateFormatStrings.1` | `system-preferences`; NATIVE nested entry | Changes only short-date member `1`; unrelated dictionary members preserved; preferences require separate explicit reversal |
+
+The `development` `post-packages` hook is the exact current owner of GitHub CLI's nonsecret configuration: `git_protocol=https`, empty `editor`, `prompt=enabled`, `prefer_editor_prompt=disabled`, empty `pager`, `co=pr checkout`, empty `http_unix_socket`, empty `browser`, `color_labels=disabled`, `accessible_colors=disabled`, `accessible_prompter=disabled`, and `spinner=enabled`; schema `version=1` and every value are read back. `gh` writes to its actual `GH_CONFIG_DIR`/XDG location and preserves unrelated keys and aliases. This replaces the fixed-target YAML merge because native edit targets cannot follow XDG. Native unapply does not reverse these application-owned values.
+
+The `terminal` and `ai-cli` `post-dotfiles` hooks respectively apply and check the Fish `activate` and `amp` blocks through `bin/fish-config.py`. They replace fixed-path native Fish activation/edit declarations for the same behavior. Native module unapply does not execute hooks, so the helper's explicit `unapply activate` or `unapply amp` command is the corresponding removal owner.
 
 ## 3. Repository declarations
 
@@ -286,13 +289,13 @@ No active workspace repository is declared. Real future workspace URLs must use 
 | `.config/jackin/workspaces/chainargos-blockchain-nodes.toml` | DROP | Same |
 | `.config/jackin/config.toml` | DROP | No Jackin selected; host attach/private workspace configuration not activated |
 | `.config/git/ignore` | MANUAL + XDG-SAFE OVERRIDE | Retained source in the active checkout; set `core.excludesFile` to that absolute source through Git itself so custom XDG paths work; no hardcoded copy is deployed |
-| `.config/ghostty/themes/generic-terminal` | NATIVE | Copy to matching Ghostty theme path |
-| `.config/ghostty/config` | NATIVE | Copy to `~/.config/ghostty/config`; Nerd Font installed |
+| `.config/ghostty/themes/generic-terminal` | NATIVE | Copy to the native XDG-variant Ghostty theme path |
+| `.config/ghostty/config` | NATIVE | Copy through the declaration keyed by `~/.config/ghostty/config` to `{{ xdg_config_home }}/ghostty/config`; Nerd Font installed |
 | `.config/gh/hosts.yml` | DROP | Authentication/account data is not shipped |
-| `.config/gh/config.yml` | NATIVE | YAML merge of listed nonsecret keys; scalar settings and alias validated separately |
+| `.config/gh/config.yml` | NATIVE + CHANGE | Nonsecret values and the `co` alias are applied through `gh` itself to its actual GH_CONFIG_DIR/XDG config; every scalar, alias, and schema version is validated separately |
 | `.config/fish/functions/.keep` | DROP | Empty directory marker is not useful configuration |
 | `.config/fish/fish_variables` | DROP | Application-owned state is not replaced |
-| `.config/fish/config.fish` | DROP | Placeholder would suppress native Fish `auto` activation; additive Amp block only |
+| `.config/fish/config.fish` | DROP | No whole-file replacement; the XDG-aware helper adds only activation and Amp blocks and preserves unrelated startup content |
 | `.config/fish/conf.d/.keep` | DROP | Empty directory marker is not useful configuration |
 | `.config/fish/completions/orbctl.fish` | DROP | Absolute-path stub to old OrbStack payload, not standalone completions |
 | `.config/fish/completions/kubectl.fish` | DROP | Absolute-path stub to old OrbStack payload, not standalone completions |
@@ -335,10 +338,10 @@ These rows preserve provenance. “NATIVE” uses the reviewed current root sour
 | `.config/ghostty/themes/dark` | DROP | Legacy theme variant not merged; current `generic-terminal` used |
 | `.config/ghostty/config` | NATIVE | Current root Ghostty config used, not a three-way merge |
 | `.config/gh/hosts.yml` | DROP | Authentication data not shipped |
-| `.config/gh/config.yml` | NATIVE | Current root nonsecret YAML merge used |
+| `.config/gh/config.yml` | NATIVE + CHANGE | Current nonsecret values are applied through GitHub CLI itself; the legacy YAML file is not merged |
 | `.config/fish/functions/.keep` | DROP | Empty marker |
 | `.config/fish/fish_variables` | DROP | Application state not replaced |
-| `.config/fish/config.fish` | DROP | Native Fish activation owns the file’s activation block |
+| `.config/fish/config.fish` | DROP | XDG-aware activation/Amp blocks own only their marked content |
 | `.config/fish/conf.d/.keep` | DROP | Empty marker |
 | `.config/fish/completions/example.fish` | DROP | Synthetic completion is not a real current app resource |
 | `.config/caveman/config.json` | DROP | Caveman integration not ported |

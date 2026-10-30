@@ -2,5 +2,32 @@
 "brew:gh" = "latest"
 "brew:git-lfs" = "latest"
 
-[dotfiles]
-"~/.config/gh/config.yml/shared" = { source = "dotfiles/development/gh-config.yml", merge = true }
+[bootstrap.hooks.post-packages]
+description = "GitHub CLI owns its XDG/GH_CONFIG_DIR configuration and preserves unrelated keys"
+run = [
+  "/opt/homebrew/bin/gh config set git_protocol https",
+  "/opt/homebrew/bin/gh config set editor ''",
+  "/opt/homebrew/bin/gh config set prompt enabled",
+  "/opt/homebrew/bin/gh config set prefer_editor_prompt disabled",
+  "/opt/homebrew/bin/gh config set pager ''",
+  "/opt/homebrew/bin/gh alias set co 'pr checkout' --clobber",
+  "/opt/homebrew/bin/gh config set http_unix_socket ''",
+  "/opt/homebrew/bin/gh config set browser ''",
+  "/opt/homebrew/bin/gh config set color_labels disabled",
+  "/opt/homebrew/bin/gh config set accessible_colors disabled",
+  "/opt/homebrew/bin/gh config set accessible_prompter disabled",
+  "/opt/homebrew/bin/gh config set spinner enabled",
+  "test \"$(/opt/homebrew/bin/gh config get git_protocol)\" = https",
+  "test -z \"$(/opt/homebrew/bin/gh config get editor)\"",
+  "test \"$(/opt/homebrew/bin/gh config get prompt)\" = enabled",
+  "test \"$(/opt/homebrew/bin/gh config get prefer_editor_prompt)\" = disabled",
+  "test -z \"$(/opt/homebrew/bin/gh config get pager)\"",
+  "test -z \"$(/opt/homebrew/bin/gh config get http_unix_socket)\"",
+  "test -z \"$(/opt/homebrew/bin/gh config get browser)\"",
+  "test \"$(/opt/homebrew/bin/gh config get color_labels)\" = disabled",
+  "test \"$(/opt/homebrew/bin/gh config get accessible_colors)\" = disabled",
+  "test \"$(/opt/homebrew/bin/gh config get accessible_prompter)\" = disabled",
+  "test \"$(/opt/homebrew/bin/gh config get spinner)\" = enabled",
+  "test \"$(/opt/homebrew/bin/gh config get version)\" = 1",
+  "/opt/homebrew/bin/gh alias list | /usr/bin/grep -E '^co:[[:space:]]+pr checkout$'",
+]

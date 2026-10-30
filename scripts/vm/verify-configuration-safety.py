@@ -111,15 +111,6 @@ zed.write_text('''{
   "theme": "UserTheme",
 }
 ''')
-gh_config = merge_home / '.config/gh/config.yml'
-gh_config.parent.mkdir(parents=True)
-gh_config.write_text('''version: 1
-git_protocol: ssh
-aliases:
-  co: old checkout
-  useralias: gist list
-custom_key: preserve
-''')
 merge_env = git_settings(merge_home)
 merge_env['MISE_CONFIG_DIR'] = str(config_dir)
 merge_env.pop('MISE_ENV', None)
@@ -130,25 +121,9 @@ assert '// synthetic user comment' in zed_text
 assert '"vim_mode": true' in zed_text
 assert '"theme": "UserTheme"' not in zed_text
 assert '"agent"' not in zed_text and '"agent_servers"' not in zed_text
-run('gh-merge', [mise, '-C', config_dir, '-E', 'development', 'bootstrap', '--only', 'dotfiles', '--yes'], merge_env)
-gh_text = gh_config.read_text()
-(evidence / 'gh-config.yml').write_text(gh_text)
-assert 'custom_key: preserve' in gh_text
-assert 'useralias: gist list' in gh_text
-for key, expected in {
-    'git_protocol': 'https',
-    'accessible_prompter': 'disabled',
-    'prefer_editor_prompt': 'disabled',
-    'color_labels': 'disabled',
-    'version': '1',
-}.items():
-    actual = run(f'gh-{key}', ['gh', 'config', 'get', key], merge_env).strip()
-    assert actual == expected, (key, actual, expected)
-aliases = run('gh-aliases', ['gh', 'alias', 'list'], merge_env)
-assert 'co:' in aliases and 'pr checkout' in aliases and 'useralias:' in aliases and 'gist list' in aliases
 report = (
     'git_repeated_cli_preservation=PASS\ncustom_xdg_ignore=PASS\n'
-    'zed_jsonc_preservation=PASS\ngh_scalar_alias_schema=PASS\n'
+    'zed_jsonc_preservation=PASS\n'
 )
 (evidence / 'report.txt').write_text(report)
 print(report, end='')

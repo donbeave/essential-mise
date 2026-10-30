@@ -27,12 +27,43 @@ vm_scp "$0" "$VM_SSH_USER@$VM_IP:$evidence_dir/run-test-scenario.sh"
 if vm_ssh 'test -x "$HOME/.local/bin/mise"'; then
   vm_ssh "\$HOME/.local/bin/mise --version > '$evidence_dir/mise-version.txt'"
 fi
-if vm_ssh "test -d '$config_dir/.git'"; then
-  actual_commit="$(vm_ssh "git -C '$config_dir' rev-parse HEAD")"
-  [[ "$actual_commit" == "$reviewed_commit" ]] || fail "Guest config $actual_commit does not match reviewed commit $reviewed_commit"
-  vm_ssh "git -C '$config_dir' status --porcelain > '$evidence_dir/config-status.txt'"
-  vm_ssh "test -z \"\$(git -C '$config_dir' status --porcelain)\"" || fail 'Guest config has uncommitted changes'
-  vm_ssh "git -C '$config_dir' rev-parse HEAD > '$evidence_dir/config-revision.txt'"
+
+record_config_state() {
+  local prefix="$1" actual_commit actual_top inside_worktree is_bare
+  local actual_commit_q actual_top_q config_q evidence_q physical_config physical_top
+  printf -v config_q '%q' "$config_dir"
+  printf -v evidence_q '%q' "$evidence_dir"
+  vm_ssh "rm -f $evidence_q/$prefix-revision.txt $evidence_q/$prefix-status.txt"
+  vm_ssh "test -d $config_q" || fail "Guest config is absent: $config_dir"
+  is_bare="$(vm_ssh "git -C $config_q rev-parse --is-bare-repository" 2>/dev/null)" || \
+    fail "Guest config is not a Git repository: $config_dir"
+  [[ "$is_bare" == false ]] || fail "Guest config must be a nonbare Git worktree: $config_dir"
+  inside_worktree="$(vm_ssh "git -C $config_q rev-parse --is-inside-work-tree" 2>/dev/null)" || \
+    fail "Guest config is not a Git worktree: $config_dir"
+  [[ "$inside_worktree" == true ]] || fail "Guest config is not a Git worktree: $config_dir"
+  actual_top="$(vm_ssh "git -C $config_q rev-parse --show-toplevel" 2>/dev/null)" || \
+    fail "Cannot determine guest config worktree root: $config_dir"
+  printf -v actual_top_q '%q' "$actual_top"
+  physical_config="$(vm_ssh "cd -P $config_q && pwd -P")" || \
+    fail "Cannot resolve guest config directory: $config_dir"
+  physical_top="$(vm_ssh "cd -P $actual_top_q && pwd -P")" || \
+    fail "Cannot resolve guest config worktree root: $actual_top"
+  [[ "$physical_top" == "$physical_config" ]] || \
+    fail "Guest config worktree root $actual_top does not match $config_dir"
+  actual_commit="$(vm_ssh "git -C $config_q rev-parse HEAD" 2>/dev/null)" || \
+    fail "Cannot determine guest config HEAD: $config_dir"
+  [[ "$actual_commit" =~ ^[0-9a-f]{40}$ ]] || fail "Guest config returned an invalid HEAD: $actual_commit"
+  printf -v actual_commit_q '%q' "$actual_commit"
+  vm_ssh "printf '%s\n' $actual_commit_q > $evidence_q/$prefix-revision.txt"
+  vm_ssh "git -C $config_q status --porcelain > $evidence_q/$prefix-status.txt" || \
+    fail "Cannot determine guest config cleanliness: $config_dir"
+  [[ "$actual_commit" == "$reviewed_commit" ]] || \
+    fail "Guest config $actual_commit does not match reviewed commit $reviewed_commit"
+  vm_ssh "test ! -s $evidence_q/$prefix-status.txt" || fail 'Guest config has uncommitted changes'
+}
+
+if [[ "$scenario" != stage0 ]]; then
+  record_config_state config
 fi
 
 run_logged() {
@@ -61,13 +92,7 @@ run_logged_interactive() {
 }
 
 record_adopted_state() {
-  local adopted_commit
-  adopted_commit="$(vm_ssh "git -C '$config_dir' rev-parse HEAD")"
-  [[ "$adopted_commit" == "$reviewed_commit" ]] || \
-    fail "Launcher $reviewed_commit adopted unexpected config $adopted_commit"
-  vm_ssh "git -C '$config_dir' rev-parse HEAD > '$evidence_dir/adopted-config-revision.txt'"
-  vm_ssh "git -C '$config_dir' status --porcelain > '$evidence_dir/adopted-config-status.txt'"
-  vm_ssh "test -z \"\$(git -C '$config_dir' status --porcelain)\"" || fail 'Adopted config has uncommitted changes'
+  record_config_state adopted-config
   vm_ssh "test -x \"\$HOME/.local/bin/mise\" && \$HOME/.local/bin/mise --version > '$evidence_dir/adopted-mise-version.txt'"
 }
 
@@ -153,9 +178,10 @@ case "$scenario" in
     ;;
   unapply)
     run_logged unapply "cd '$config_dir' && \$HOME/.local/bin/mise bootstrap unapply terminal --yes"
-    run_logged verify-removed 'test ! -e "$HOME/.config/ghostty/config" && test ! -e "$HOME/.config/starship.toml" && ! /usr/bin/grep -F "source \"\$ZSH/oh-my-zsh.sh\"" "$HOME/.zshrc" && test -d "$HOME/.oh-my-zsh"'
+    run_logged fish-unapply '/usr/bin/python3 "$HOME/.config/mise/bin/fish-config.py" unapply activate'
+    run_logged verify-removed 'test ! -e "$HOME/.config/ghostty/config" && test ! -e "$HOME/.config/starship.toml" && ! /usr/bin/grep -F "source \"\$ZSH/oh-my-zsh.sh\"" "$HOME/.zshrc" && test -d "$HOME/.oh-my-zsh" && test -f "$HOME/.config/fish/config.fish" && ! /usr/bin/grep -F "mise:activate" "$HOME/.config/fish/config.fish"'
     run_logged reapply "cd '$config_dir' && \$HOME/.local/bin/mise -E terminal bootstrap"
-    run_logged verify-restored 'test -f "$HOME/.config/ghostty/config" && test -f "$HOME/.config/starship.toml" && /usr/bin/grep -F "source \"\$ZSH/oh-my-zsh.sh\"" "$HOME/.zshrc"'
+    run_logged verify-restored 'test -f "$HOME/.config/ghostty/config" && test -f "$HOME/.config/starship.toml" && /usr/bin/grep -F "source \"\$ZSH/oh-my-zsh.sh\"" "$HOME/.zshrc" && /usr/bin/grep -F "mise:activate" "$HOME/.config/fish/config.fish"'
     ;;
   prune-review)
     run_logged install-unrelated "/opt/homebrew/bin/brew install sl"

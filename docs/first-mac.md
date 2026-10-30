@@ -115,4 +115,4 @@ mise bootstrap unapply ai-cli --dry-run
 mise bootstrap unapply ai-cli
 ```
 
-Unapply covers only supported managed files/directories/services/dotfile edits. Packages, repositories, and preferences need separate cleanup. Package pruning is broad and separately approved, never an automatic next step.
+Unapply covers only supported managed files/directories/services/dotfile edits and does not execute hooks. Run `/usr/bin/python3 "$config_dir/bin/fish-config.py" unapply activate` and, when `ai-cli` was applied, `unapply amp` to remove only those Fish blocks. GitHub CLI values remain application-owned and are changed separately through `gh config`/`gh alias`. Packages, repositories, and preferences need separate cleanup. Package pruning is broad and separately approved, never an automatic next step.

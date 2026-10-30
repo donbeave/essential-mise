@@ -9,7 +9,7 @@ This is a narrowly user-approved status-line exception, not an implementation of
 The `ai-cli` module adds this native block to `~/.zshrc`:
 
 ```zsh
-claude() {
+function claude {
   local statusline="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/claude-statusline.sh"
   local statusline_command settings
   printf -v statusline_command '%q' "$statusline"
@@ -18,7 +18,7 @@ claude() {
 }
 ```
 
-Every argument is forwarded through `command claude`, so existing flags and subcommands are not replaced. The absolute script path follows the adopted config directory, including custom `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` values. Zsh `%q` shell-quotes the executable path and `jq --arg` JSON-encodes the complete command, so whitespace and shell/JSON metacharacters are preserved. `BASH_COMPAT=3.2` is required because Homebrew Bash 5.3 otherwise expands the script's replacement tilde to the account's real home instead of leaving `~`; the script itself was not changed to work around that behavior.
+Every argument is forwarded through `command claude`, so existing flags and subcommands are not replaced. The `function claude` declaration is alias-safe: an existing `claude` alias is preserved, sourcing reaches later startup commands, and the function still takes precedence for interactive launches. The absolute script path follows the adopted config directory, including custom `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` values. Zsh `%q` shell-quotes the executable path and `jq --arg` JSON-encodes the complete command, so whitespace and shell/JSON metacharacters are preserved. `BASH_COMPAT=3.2` is required because Homebrew Bash 5.3 otherwise expands the script's replacement tilde to the account's real home instead of leaving `~`; the script itself was not changed to work around that behavior.
 
 ## Package owner
 
@@ -43,7 +43,7 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-statusline.py"
 ```
 
-Replay the wrapper test separately. It extracts the actual function from `~/.zshrc`, uses an XDG path containing spaces, quotes, a dollar sign, and a backslash, captures a mock `claude` invocation, and executes the decoded status-line command through `/bin/sh`:
+Replay the wrapper test separately. It extracts the actual function from `~/.zshrc`, sources it after a preexisting `claude` alias, verifies that the alias remains defined and later startup commands run, uses an XDG path containing spaces, quotes, a dollar sign, and a backslash, captures a mock `claude` invocation, and executes the decoded status-line command through `/bin/sh`:
 
 ```bash
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-wrapper.py

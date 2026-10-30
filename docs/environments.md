@@ -15,8 +15,8 @@ env = ["foundation", "terminal", "development", "security"]
 | Module | Purpose and contents | Prerequisites and boundaries |
 |---|---|---|
 | `foundation` | `~/.local/bin` in `~/.zshenv`; native zsh activation | No packages or optional configuration |
-| `terminal` | Stable Ghostty, JetBrainsMono Nerd Font, Starship, bat, watch, just, xh, wget, Bash, Nushell, Fish, git-standup, msedit, buf, gogcli; pinned Oh My Zsh and zsh-autosuggestions | Starship is the only prompt renderer; Oh My Zsh self-update disabled; Fish uses native `auto` activation, not a copied config file |
-| `development` | GitHub CLI and Git LFS | Nonsecret GitHub CLI YAML merge only. The nine nonidentity Git settings and XDG-safe ignore override use manual `git config` commands to avoid unsafe INI parsing; real identity, `git lfs install`, and `gh auth setup-git` are manual |
+| `terminal` | Stable Ghostty, JetBrainsMono Nerd Font, Starship, bat, watch, just, xh, wget, Bash, Nushell, Fish, git-standup, msedit, buf, gogcli; pinned Oh My Zsh and zsh-autosuggestions | Starship is the only prompt renderer; Oh My Zsh self-update disabled; Ghostty follows `XDG_CONFIG_HOME` through native variant targets; Fish `auto` activation uses an additive XDG-aware block, not a copied config file |
+| `development` | GitHub CLI and Git LFS | Nonsecret GitHub CLI settings and the `co` alias use `gh` itself, preserving unrelated keys and honoring `GH_CONFIG_DIR`/custom XDG. The nine nonidentity Git settings and XDG-safe ignore override use manual `git config` commands to avoid unsafe INI parsing; real identity, `git lfs install`, and `gh auth setup-git` are manual |
 | `security` | 1Password, 1Password CLI, and 1Password for Safari (`mas:1569813296`) | App Store sign-in, account unlock, SSH agent, extension enablement, and CLI auth are manual |
 
 ## Optional development stacks

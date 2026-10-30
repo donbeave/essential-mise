@@ -66,14 +66,35 @@ Tart allows at most two running VMs. Stop one disposable VM before starting anot
 
 ## Disposable test VMs
 
-Create and start a workflow-owned clone:
+For the cold `stage0` workflow, explicitly clone the fresh baseline, not the default automation baseline, and start the workflow-owned clone:
 
 ```bash
-scripts/vm/clone-disposable-vm.sh essential-mise-test-stage0
+VM_SOURCE_BASELINE=essential-mise-fresh-baseline \
+  scripts/vm/clone-disposable-vm.sh essential-mise-test-stage0
 VM_NAME=essential-mise-test-stage0 \
 VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   scripts/vm/start-test-vm.sh
-VM_NAME=essential-mise-test-stage0 scripts/vm/check-vm-ready.sh
+```
+
+Before readiness checks, use `owner-auth-ssh.sh` to download, inspect, and install the official Cua Driver release entirely inside this fresh guest at `/Users/admin/.local/bin/cua-driver`, without installing Homebrew. Verify the release SHA-256 and Developer ID/notarization as required above, then approve the guest-only Cua permissions. Pass the absolute guest driver override to both helpers:
+
+```bash
+VM_NAME=essential-mise-test-stage0 \
+VM_CUA_DRIVER=/Users/admin/.local/bin/cua-driver \
+  scripts/vm/grant-cua-permissions.sh
+VM_NAME=essential-mise-test-stage0 \
+VM_CUA_DRIVER=/Users/admin/.local/bin/cua-driver \
+  scripts/vm/check-vm-ready.sh
+```
+
+For prepared scenarios that do not assert absent Homebrew, keep the default automation baseline and its preinstalled driver:
+
+```bash
+scripts/vm/clone-disposable-vm.sh essential-mise-test-evidence
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/start-test-vm.sh
+VM_NAME=essential-mise-test-evidence scripts/vm/check-vm-ready.sh
 ```
 
 The clone helper records ownership under `~/.config/essential-mise/vm/disposable-vms`. Scripts refuse unrelated VM names and unregistered disposable VMs. The source baseline must remain stopped during cloning.
@@ -95,6 +116,7 @@ Run `stage0` only on a fresh clone with no Homebrew or global config; it asserts
 
 ```bash
 VM_REVIEWED_COMMIT=$(git rev-parse HEAD) VM_NAME=essential-mise-test-stage0 \
+VM_CUA_DRIVER=/Users/admin/.local/bin/cua-driver \
   scripts/vm/run-test-scenario.sh stage0
 ```
 
@@ -144,7 +166,7 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-wrapper.py"
 ```
 
-Replay Git preservation, custom-XDG ignore, Zed JSONC, GitHub CLI YAML, and presence-only hook lifecycle checks. Each standalone fixture clears its previous evidence and records IN_PROGRESS or FAIL instead of retaining an earlier PASS:
+Replay Git preservation, custom-XDG ignore, and Zed JSONC checks, then verify actual GitHub CLI, Ghostty, and Fish behavior under custom XDG separately. Each standalone fixture clears its previous evidence and records IN_PROGRESS or FAIL instead of retaining an earlier PASS:
 
 ```bash
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-configuration-safety.py
@@ -152,6 +174,11 @@ VM_NAME=essential-mise-test-evidence \
 VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   scripts/vm/owner-auth-ssh.sh \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-configuration-safety.py"
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-xdg-applications.py
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-xdg-applications.py"
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-hook-lifecycle.sh
 VM_NAME=essential-mise-test-evidence \
 VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
@@ -172,7 +199,7 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-project-boundaries.py"
 ```
 
-The hook lifecycle fixture requires `brew outdated` or `livecheck` to prove the currently linked Amp CLI is behind upstream. It applies `ai-cli` and asserts no formula or link changes without downgrading or restoring anything. If neither source proves an outdated installation, it is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges. Project-boundary evidence under `/tmp/essential-mise-evidence/project-boundaries` covers selector precedence, project-local resource/environment isolation, and ignored synthetic workspace activation using only explicitly trusted synthetic fixture files.
+The hook lifecycle fixture requires `brew outdated` or `livecheck` to prove the currently linked Amp CLI is behind upstream. It applies `ai-cli` and asserts no formula or link changes without downgrading or restoring anything. If neither source proves an outdated installation, it is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. XDG application evidence is under `/tmp/essential-mise-evidence/xdg-applications`; it covers every GitHub CLI scalar, alias, and schema readback, `GH_CONFIG_DIR`, Ghostty effective config/theme validation, Fish activation and Amp completions, repeat convergence, preservation, and native/helper removal. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges. Project-boundary evidence under `/tmp/essential-mise-evidence/project-boundaries` covers selector precedence, project-local resource/environment isolation, and ignored synthetic workspace activation using only explicitly trusted synthetic fixture files.
 
 Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
 

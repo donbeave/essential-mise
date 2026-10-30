@@ -23,7 +23,7 @@ shutil.copy2(source, script)
 script.chmod(script.stat().st_mode | stat.S_IXUSR)
 
 zshrc = (pathlib.Path.home() / '.zshrc').read_text()
-match = re.search(r'^claude\(\) \{\n(?:  .*\n)+^\}$', zshrc, re.MULTILINE)
+match = re.search(r'^function claude \{\n(?:  .*\n)+^\}$', zshrc, re.MULTILINE)
 assert match, 'Rendered Claude wrapper was not found in ~/.zshrc'
 wrapper = match.group(0) + '\n'
 (evidence / 'wrapper.zsh').write_text(wrapper)
@@ -42,7 +42,15 @@ with open({str(capture)!r}, "w") as output:
 ''')
 mock.chmod(0o755)
 harness = root / 'harness.zsh'
-harness.write_text(wrapper + '\nclaude --version "argument with spaces"\n')
+startup_marker = root / 'startup-reached.txt'
+alias_capture = root / 'existing-alias.txt'
+harness.write_text(
+    "alias claude='claude --permission-mode plan'\n"
+    + wrapper
+    + f"\nprint -r -- \"$aliases[claude]\" > {str(alias_capture)!r}\n"
+    + f"print startup-ok > {str(startup_marker)!r}\n"
+    + 'claude --version "argument with spaces"\n'
+)
 env = {
     **os.environ,
     'HOME': str(home),
@@ -60,6 +68,9 @@ result = subprocess.run(
 (evidence / 'wrapper.stderr').write_text(result.stderr)
 (evidence / 'wrapper.exit').write_text(f'{result.returncode}\n')
 result.check_returncode()
+assert startup_marker.read_text().strip() == 'startup-ok'
+assert alias_capture.read_text().strip() == 'claude --permission-mode plan'
+(evidence / 'existing-alias.txt').write_text(alias_capture.read_text())
 arguments = json.loads(capture.read_text())
 (evidence / 'arguments.json').write_text(json.dumps(arguments, indent=2) + '\n')
 assert arguments[-2:] == ['--version', 'argument with spaces']
@@ -99,6 +110,7 @@ assert plain == '~ │ Synthetic low │ 35% (350/1k)', plain
 report = (
     f'script_sha256={hashlib.sha256(script.read_bytes()).hexdigest()}\n'
     'special_character_xdg_path=PASS\njson_encoding=PASS\nshell_command_quoting=PASS\n'
+    'existing_alias_coexistence=PASS\nlater_startup_reached=PASS\n'
     'argument_forwarding=PASS\nrendered_command=PASS\n'
 )
 (evidence / 'report.txt').write_text(report)

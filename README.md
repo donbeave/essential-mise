@@ -77,7 +77,7 @@ The user subsequently approved six narrowly scoped real-Homebrew package excepti
 
 Scoped v1 explicitly retains Amp Desktop in `ai-desktop` to satisfy the requested Amp inventory, while accepting that its package currently installs but does not launch on macOS 27.2. This is package provisioning only, not a working-GUI claim. Signed-in MAS installation, purchases/claims, and reruns are accepted as manual, unverified v1 boundaries; the standard workstation is not described as fully tested. Authenticated OMP routing/instruction loading and interactive Claude status-line rendering are also accepted manual verification boundaries. These decisions preserve the complete declarations without converting failed or unverified behavior into success, and they are not unrestricted public-release approval.
 
-The Git data-preservation fallback supersedes automatic INI merging: the nine tuning keys and XDG-safe `core.excludesFile` override are applied manually through Git's own CLI. A successful empty Homebrew `shellenv` result is accepted as a valid already-initialized environment, superseding the earlier nonempty-output requirement. Preference stored-state and preservation checks are verified, but every affected UI behavior and delayed selective reversal remains a manual validation boundary with an exact immediate-rollback procedure in [Manual actions](docs/manual-actions.md).
+The Git data-preservation fallback supersedes automatic INI merging: the nine tuning keys and XDG-safe `core.excludesFile` override are applied manually through Git's own CLI. GitHub CLI settings and its `co` alias are applied through `gh` itself, honoring `GH_CONFIG_DIR` and custom XDG while preserving unrelated keys. Ghostty copy targets use native `{{ xdg_config_home }}` variants. Fish activation and Amp completion use additive, XDG-aware blocks because native Fish activation and dotfile edit targets have fixed paths. A successful empty Homebrew `shellenv` result is accepted as a valid already-initialized environment, superseding the earlier nonempty-output requirement. Preference stored-state and preservation checks are verified, but every affected UI behavior and delayed selective reversal remains a manual validation boundary with an exact immediate-rollback procedure in [Manual actions](docs/manual-actions.md).
 
 ### Claude Code status line
 
@@ -126,6 +126,16 @@ Deselecting an environment does not uninstall it. Remove the environment from `m
 mise bootstrap unapply ai-cli --dry-run
 mise bootstrap unapply ai-cli
 ```
+
+Native unapply does not execute hooks. Remove the XDG-aware Fish blocks explicitly while keeping their helper and declarations available:
+
+```bash
+config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
+/usr/bin/python3 "$config_dir/bin/fish-config.py" unapply activate
+/usr/bin/python3 "$config_dir/bin/fish-config.py" unapply amp
+```
+
+Each command removes only its marked block and preserves unrelated Fish startup content. GitHub CLI's application-owned settings and aliases are not reversed by native unapply; review or change them through `gh config` and `gh alias` rather than deleting the whole config or `hosts.yml`.
 
 Packages, repositories, and preferences require separate handling. A real prune dry run offered to remove working hook-installed Amp CLI, FFF, and OMP as well as unrelated Homebrew packages. **Do not apply a broad native formula prune while these hook-owned packages must remain installed.** Never prune automatically after deselection; review every candidate and use the explicit, separate Homebrew cleanup documented in [Homebrew exceptions](docs/homebrew-exceptions.md).
 
