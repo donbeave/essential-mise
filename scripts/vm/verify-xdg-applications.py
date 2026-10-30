@@ -1,9 +1,13 @@
 #!/usr/bin/python3
+import http.server
+import json
 import os
 import pathlib
 import shutil
 import subprocess
 import sys
+import threading
+import time
 
 config_dir = pathlib.Path.home() / '.config/mise'
 mise = pathlib.Path.home() / '.local/bin/mise'
@@ -118,15 +122,110 @@ def verify_gh(prefix, env):
     assert 'useralias:' in aliases and 'gist list' in aliases
 
 
-def opencode_instruction_log(name, env):
+synthetic_requests = []
+
+
+class SyntheticProvider(http.server.BaseHTTPRequestHandler):
+    def send_payload(self, status, body, content_type):
+        encoded = body.encode()
+        self.send_response(status)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def do_GET(self):
+        if self.path == '/v1/models':
+            body = json.dumps({
+                'object': 'list',
+                'data': [{'id': 'synthetic-model', 'object': 'model', 'created': int(time.time()), 'owned_by': 'synthetic'}],
+            })
+            self.send_payload(200, body, 'application/json')
+        else:
+            self.send_payload(404, '{}', 'application/json')
+
+    def do_POST(self):
+        if self.path != '/v1/chat/completions':
+            self.send_payload(404, '{}', 'application/json')
+            return
+        length = int(self.headers.get('Content-Length', '0'))
+        payload = json.loads(self.rfile.read(length))
+        synthetic_requests.append({'path': self.path, 'payload': payload})
+        created = int(time.time())
+        if payload.get('stream'):
+            chunks = [
+                {
+                    'id': 'chatcmpl-synthetic',
+                    'object': 'chat.completion.chunk',
+                    'created': created,
+                    'model': 'synthetic-model',
+                    'choices': [{'index': 0, 'delta': {'role': 'assistant', 'content': 'synthetic-ok'}, 'finish_reason': None}],
+                },
+                {
+                    'id': 'chatcmpl-synthetic',
+                    'object': 'chat.completion.chunk',
+                    'created': created,
+                    'model': 'synthetic-model',
+                    'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}],
+                    'usage': {'prompt_tokens': 1, 'completion_tokens': 1, 'total_tokens': 2},
+                },
+            ]
+            body = ''.join(f'data: {json.dumps(chunk)}\n\n' for chunk in chunks) + 'data: [DONE]\n\n'
+            self.send_payload(200, body, 'text/event-stream')
+            return
+        body = json.dumps({
+            'id': 'chatcmpl-synthetic',
+            'object': 'chat.completion',
+            'created': created,
+            'model': 'synthetic-model',
+            'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': 'synthetic-ok'}, 'finish_reason': 'stop'}],
+            'usage': {'prompt_tokens': 1, 'completion_tokens': 1, 'total_tokens': 2},
+        })
+        self.send_payload(200, body, 'application/json')
+
+    def log_message(self, format, *args):
+        pass
+
+
+synthetic_server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), SyntheticProvider)
+synthetic_server.daemon_threads = True
+synthetic_thread = threading.Thread(target=synthetic_server.serve_forever, daemon=True)
+synthetic_thread.start()
+
+
+def run_synthetic_prompt(name, env):
+    provider = {
+        'model': 'synthetic/synthetic-model',
+        'small_model': 'synthetic/synthetic-model',
+        'provider': {
+            'synthetic': {
+                'npm': '@ai-sdk/openai-compatible',
+                'name': 'Synthetic loopback provider',
+                'options': {
+                    'baseURL': f'http://127.0.0.1:{synthetic_server.server_port}/v1',
+                    'apiKey': 'synthetic-only',
+                },
+                'models': {'synthetic-model': {'name': 'Synthetic loopback model'}},
+            },
+        },
+    }
+    prompt_env = {**env, 'OPENCODE_CONFIG_CONTENT': json.dumps(provider)}
+    before = len(synthetic_requests)
     run(
         name,
-        [opencode, 'debug', 'agents', '--standalone', '--print-logs', '--log-level', 'debug'],
-        env,
-        timeout=30,
+        [opencode, 'run', 'synthetic instruction probe', '--model', 'synthetic/synthetic-model', '--standalone'],
+        prompt_env,
+        timeout=180,
         cwd=opencode_work,
     )
-    return (evidence / f'{name}.stderr').read_text()
+    matches = [
+        entry for entry in synthetic_requests[before:]
+        if 'synthetic instruction probe' in json.dumps(entry['payload'])
+    ]
+    assert matches, synthetic_requests[before:]
+    request = matches[0]
+    (evidence / f'{name}-request.json').write_text(json.dumps(request, indent=2) + '\n')
+    return json.dumps(request['payload'])
 
 
 def verify_opencode(prefix, env, target):
@@ -135,13 +234,14 @@ def verify_opencode(prefix, env, target):
     paths = run(f'{prefix}-paths', [opencode, 'debug', 'paths'], env, timeout=30, cwd=opencode_work)
     assert str(target.parent) in paths, paths
     run(f'{prefix}-config', [opencode, 'debug', 'config', '--standalone'], env, timeout=30, cwd=opencode_work)
-    log = opencode_instruction_log(f'{prefix}-instruction-discovery', env)
-    assert 'watcher subscribe' in log and f'path="{target.resolve()}"' in log, log
+    request = run_synthetic_prompt(f'{prefix}-instruction-consumption', env)
+    assert '# Engineering policy' in request, request
 
 
 def verify_opencode_absent(prefix, env, target):
-    log = opencode_instruction_log(f'{prefix}-instruction-discovery', env)
-    assert f'path="{target.resolve()}"' not in log, log
+    assert not target.exists(), target
+    request = run_synthetic_prompt(f'{prefix}-instruction-consumption', env)
+    assert '# Engineering policy' not in request, request
 
 
 apply('initial-apply', 'terminal,development,ai-cli', 'packages,dotfiles')
@@ -176,9 +276,7 @@ override_target = opencode_override / 'AGENTS.md'
 opencode_override_env = {**base_env, 'OPENCODE_CONFIG_DIR': str(opencode_override)}
 override_paths = run('opencode-override-paths', [opencode, 'debug', 'paths'], opencode_override_env, timeout=30, cwd=opencode_work)
 assert str(opencode_override) in override_paths, override_paths
-override_log = opencode_instruction_log('opencode-override-unmanaged', opencode_override_env)
-assert f'path="{custom_opencode.resolve()}"' not in override_log, override_log
-assert f'path="{override_target.resolve()}"' not in override_log, override_log
+verify_opencode_absent('opencode-override-unmanaged', opencode_override_env, override_target)
 shutil.copy2(config_dir / 'dotfiles/ai-cli/GLOBAL_AGENTS.md', override_target)
 verify_opencode('opencode-override', opencode_override_env, override_target)
 
@@ -278,6 +376,9 @@ assert not default_opencode.exists()
 verify_opencode_absent('opencode-default-absent', default_env, default_opencode)
 assert override_target.is_file()
 verify_opencode('opencode-override-preserved', opencode_override_env, override_target)
+synthetic_server.shutdown()
+synthetic_server.server_close()
+synthetic_thread.join(timeout=5)
 
 report = (
     'custom_xdg_gh_consumption=PASS\nall_gh_scalars_alias_schema=PASS\n'
