@@ -25,4 +25,6 @@ if ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1; then
   fi
 fi
 /opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta
+test -x /Applications/Amp.app/Contents/MacOS/Amp
+/usr/bin/codesign --verify --deep --strict /Applications/Amp.app
 '''

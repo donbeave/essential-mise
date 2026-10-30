@@ -13,6 +13,9 @@ run = [
   "/opt/homebrew/bin/brew install --cask claude-code@latest",
   "/opt/homebrew/bin/brew install ampcode/tap/ampcode",
   "/opt/homebrew/bin/brew install can1357/tap/omp",
+  "/opt/homebrew/bin/claude --version",
+  "/opt/homebrew/bin/amp --version",
+  "/opt/homebrew/bin/omp --version",
 ]
 
 [dotfiles]
@@ -33,7 +36,7 @@ command -v amp >/dev/null 2>&1 && source <(amp completions zsh)
 "~/.zshrc/claude-statusline" = { block = '''
 claude() {
   local statusline="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/claude-statusline.sh"
-  BASH_COMPAT=3.2 command claude --settings "{\"statusLine\":{\"type\":\"command\",\"command\":\"$statusline\",\"padding\":0}}" "$@"
+  BASH_COMPAT=3.2 command claude --settings "{\"statusLine\":{\"type\":\"command\",\"command\":\"$statusline\",\"padding\":0,\"refreshInterval\":5}}" "$@"
 }
 ''' }
 "~/.config/fish/config.fish/amp" = { block = '''

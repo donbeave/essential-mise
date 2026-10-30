@@ -22,4 +22,7 @@
 
 [bootstrap.hooks.post-packages]
 description = "Real Homebrew: FFF MCP (mise 2026.10.23 installs a non-executable raw binary)"
-run = "/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp"
+run = [
+  "/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp",
+  "/opt/homebrew/bin/fff-mcp --healthcheck",
+]

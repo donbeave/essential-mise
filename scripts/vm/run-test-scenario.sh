@@ -2,14 +2,14 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|full-dry-run|preferences>'
+[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|full-dry-run|preferences>'
 scenario="$1"
 case "$VM_NAME" in
   essential-mise-test-*) ;;
   *) fail 'Application scenarios require a registered disposable VM' ;;
 esac
 case "$scenario" in
-  stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|full-dry-run|preferences) ;;
+  stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|full-dry-run|preferences) ;;
   *) fail "Unknown test scenario: $scenario" ;;
 esac
 vm_require_name
@@ -19,6 +19,11 @@ evidence_dir="/tmp/essential-mise-evidence/$scenario"
 vm_ssh "mkdir -p '$evidence_dir'"
 reviewed_commit="${VM_REVIEWED_COMMIT:-}"
 config_dir="/Users/$VM_SSH_USER/.config/mise"
+printf 'scenario=%s\nreviewed_commit=%s\n' "$scenario" "$reviewed_commit" > "$evidence_dir/scenario.env"
+vm_ssh "\$HOME/.local/bin/mise --version > '$evidence_dir/mise-version.txt'"
+if vm_ssh "test -d '$config_dir/.git'"; then
+  vm_ssh "git -C '$config_dir' rev-parse HEAD > '$evidence_dir/config-revision.txt'"
+fi
 
 run_logged() {
   local name="$1" command="$2"
@@ -82,6 +87,56 @@ case "$scenario" in
     run_logged existing-apply "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap"
     run_logged second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-cli bootstrap"
     run_logged cli-verification "/bin/zsh -lic 'claude --version'"
+    ;;
+  unapply)
+    run_logged unapply "cd '$config_dir' && \$HOME/.local/bin/mise bootstrap unapply terminal"
+    run_logged verify-removed 'test ! -e "$HOME/.config/ghostty/config" && test ! -e "$HOME/.config/starship.toml" && ! /usr/bin/grep -F "source \"\$ZSH/oh-my-zsh.sh\"" "$HOME/.zshrc" && test -d "$HOME/.oh-my-zsh"'
+    run_logged reapply "cd '$config_dir' && \$HOME/.local/bin/mise -E terminal bootstrap"
+    run_logged verify-restored 'test -f "$HOME/.config/ghostty/config" && test -f "$HOME/.config/starship.toml" && /usr/bin/grep -F "source \"\$ZSH/oh-my-zsh.sh\"" "$HOME/.zshrc"'
+    ;;
+  prune-review)
+    run_logged install-unrelated "/opt/homebrew/bin/brew install sl"
+    run_logged candidates "cd '$config_dir' && \$HOME/.local/bin/mise bootstrap packages prune --dry-run"
+    vm_ssh '/usr/bin/grep -E "(^|[[:space:]])sl([[:space:]]|$)" /tmp/essential-mise-evidence/prune-review/candidates.log'
+    run_logged manual-cleanup "/opt/homebrew/bin/brew uninstall sl"
+    vm_ssh '! /opt/homebrew/bin/brew list --formula | /usr/bin/grep -Fx sl'
+    ;;
+  java)
+    run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E development-java bootstrap --dry-run"
+    run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E development-java bootstrap"
+    run_logged exec-check "cd '$config_dir' && \$HOME/.local/bin/mise -E development-java exec -- java -version"
+    run_logged build-tools "/bin/zsh -lic 'mvn -version && gradle -version'"
+    vm_ssh "printf 'env = [\"development-java\"]\n' > '$config_dir/miserc.local.toml'"
+    run_logged persistent "/bin/zsh -lic 'cd /tmp && java -version && case \"\$(mise which java)\" in *\".local/share/mise/installs/\"*) ;; *) exit 1;; esac && /opt/homebrew/bin/brew list --versions openjdk || true'"
+    ;;
+  rust)
+    run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust bootstrap --dry-run"
+    run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust bootstrap"
+    run_logged exec-check "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust exec -- cargo --version"
+    run_logged tool-check "/bin/zsh -lic 'cargo --version && rustc --version && mr-boxington --version'"
+    vm_ssh "printf 'env = [\"development-rust\"]\n' > '$config_dir/miserc.local.toml'"
+    run_logged persistent "/bin/zsh -lic 'cd /tmp && cargo --version && case \"\$(mise which cargo)\" in *\".local/share/mise/installs/\"*) ;; *) exit 1;; esac'"
+    ;;
+  login-items)
+    run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E utilities bootstrap --dry-run"
+    run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E utilities bootstrap"
+    run_logged status "cd '$config_dir' && \$HOME/.local/bin/mise bootstrap macos login-items status --missing"
+    run_logged verify 'test -d "/Applications/CleanShot X.app" && test -d "/Applications/Bartender 7.app"'
+    ;;
+  omp-config)
+    run_logged config "/opt/homebrew/bin/omp config"
+    run_logged models "/opt/homebrew/bin/omp models"
+    run_logged instructions 'test -f "$HOME/.omp/agent/AGENTS.md"'
+    ;;
+  mas-signed-out)
+    run_logged cli "/opt/homebrew/bin/mas list"
+    run_logged metadata "/opt/homebrew/bin/mas info 1037126344"
+    if run_logged account "/opt/homebrew/bin/mas account"; then
+      outcome=unexpected-success
+    else
+      outcome=expected-refusal
+    fi
+    [[ "$outcome" == expected-refusal ]] || fail 'MAS account unexpectedly succeeded without sign-in'
     ;;
   full-dry-run)
     run_logged all-environments "cd '$config_dir' && \$HOME/.local/bin/mise -C /tmp -E foundation,terminal,development,security,js,development-rust,development-java,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin,ai-tools,ai-cli,ai-desktop,system-preferences bootstrap --dry-run"

@@ -2,6 +2,20 @@
 
 The repository uses native mise package managers wherever they work. A dependency is moved to real Homebrew only after a concrete incompatibility in **mise 2026.10.23** is identified. Native `[bootstrap.hooks.post-packages]` commands invoke `/opt/homebrew/bin/brew` directly; they are idempotent, appear in dry runs, and do not create a second package owner.
 
+## Approved exception scope and package management
+
+The user explicitly approved a narrow exception for the five packages in this document and for the Claude status-line script/wrapper. This is a specification change, not a claim that revision 7's native-only rule is satisfied. Hooks are installation/health-check commands, not declarative package resources. `mise bootstrap status --missing`, native package upgrades, and native prune must not be relied on for these hook-installed packages. Hooks run on every apply, so the required health checks must pass every time.
+
+| Package | Install owner | Required health check | Upgrade owner | Manual removal |
+|---|---|---|---|---|
+| Claude Code | `brew install --cask claude-code@latest` | `/opt/homebrew/bin/claude --version` | `brew upgrade --cask claude-code@latest` | `brew uninstall --cask claude-code@latest` |
+| Amp CLI | `brew install ampcode/tap/ampcode` | `/opt/homebrew/bin/amp --version` | `brew upgrade ampcode/tap/ampcode` | `brew uninstall ampcode/tap/ampcode` |
+| OMP | `brew install can1357/tap/omp` | `/opt/homebrew/bin/omp --version` | `brew upgrade can1357/tap/omp` | `brew uninstall can1357/tap/omp` |
+| FFF MCP | `brew install dmtrKovalenko/fff/fff-mcp` | `/opt/homebrew/bin/fff-mcp --healthcheck` | `brew upgrade dmtrKovalenko/fff/fff-mcp` | `brew uninstall dmtrKovalenko/fff/fff-mcp` |
+| Amp Desktop | `brew install --cask ampcode/tap/amp@beta` | Executable exists and `codesign --verify --deep --strict` passes | `brew upgrade --cask ampcode/tap/amp@beta` | `brew uninstall --cask ampcode/tap/amp@beta` |
+
+Deselecting an environment does not remove these packages. Removal is a separate, explicit Homebrew operation; do not use mise prune expecting it to remove only these packages or to preserve unrelated Homebrew installations.
+
 ## Claude Code — `claude-code@latest`
 
 **Exact issue:** the `claude-code` cask is unusable in the current installation. Its `/opt/homebrew/bin/claude` link points to `/opt/homebrew/Caskroom/claude-code/2.1.308/bin/claude`, but that path does not exist; invoking `claude` fails with `command not found`. Real Homebrew reports a successful install without repairing the layout. The supported `claude-code@latest` cask provides a working executable and reports `2.1.312 (Claude Code)`.
@@ -87,4 +101,4 @@ The current cask is version `1.0,996`, using the official `Amp-1.0-996.dmg` and 
 
 The current official DMG downloads successfully, has SHA-256 `0e575dfd2f638808f0487f88dec6bf53a871cac2939de7fe454981f927f9f0d9` (identical to the cask's expected artifact), and passes Developer ID/notarization verification. `config.ai-desktop.toml` therefore uses native `macos-app:grok-bot` with this exact official URL, checksum, and `Grok Bot.app` artifact, without adoption. No alternate source or custom installer is used.
 
-On the clean `admin`/`admin` disposable guest, real Homebrew installed Amp Desktop `1.0,996`, Amp CLI `0.0.1793304039-g62d85d`, OMP `18.14.0`, and FFF `0.11.0`. Amp and FFF executable health checks passed, and the full AI scenario plus second-run hooks converged. Full AI Desktop also passed with the official Grok DMG. A separate unmanaged `/Applications/Amp.app` triggered the hook's refusal without ownership transfer. Amp's package installation is verified; its separate GUI startup stall on macOS 27.2 remains unverified and is documented in `docs/validation.md`.
+On the clean `admin`/`admin` disposable guest, real Homebrew installed Amp Desktop `1.0,996`, Amp CLI `0.0.1793304039-g62d85d`, OMP `18.14.0`, and FFF `0.11.0`. Amp and FFF executable health checks passed, and the full AI scenario plus second-run hooks converged. Full AI Desktop also passed with the official Grok DMG. A separate unmanaged `/Applications/Amp.app` triggered the hook's refusal without ownership transfer. Amp's package installation is verified; two independent clean guests reproduced its `_dyld_start` GUI stall, so GUI setup is MANUAL/DROP on macOS 27.2 and is documented in `docs/validation.md`.

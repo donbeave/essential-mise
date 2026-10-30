@@ -37,7 +37,7 @@ The old generic components and sanitized legacy example have different provenanc
 | `apps.warp` | NATIVE + MANUAL | `brew-cask:cloudflare-warp` in `network`; mode/disconnect automation dropped | Package metadata; WARP mode manual |
 | `apps.zcode` | NATIVE + MANUAL | `brew-cask:zcode` in `ai-desktop`; authentication manual | Desktop-only package assertion |
 | `category.admin` | NATIVE + NEW | Split into `admin`: Transmit, ARD, Disk Aid, iStatistica; Apple Configurator `mas:1037126344` added NEW | Per-app MAS/cask checks; no synthetic admin category engine |
-| `category.ai` | NATIVE + DROP | Selective split into `ai-tools` and `ai-cli`; custom skills/MCP/Caveman/Firecrawl/statusline graph dropped | Independent environment checks; no hidden references |
+| `category.ai` | NATIVE + DROP + APPROVED EXCEPTION | Selective split into `ai-tools` and `ai-cli`; old custom skills/MCP/Caveman/Firecrawl/statusline graph dropped; a narrowly approved Claude status-line script/wrapper is new | Independent environment checks; exact status-line output and settings merge verified |
 | `category.apple-dev` | NATIVE + MANUAL | `mas:497799835` in `development-apple`; full Xcode onboarding manual | MAS sign-in and manual first launch |
 | `category.china` | NATIVE | WeChat `mas:836500024` in `messengers` | MAS availability/sign-in |
 | `category.dev` | NATIVE + MANUAL | `brew-cask:jetbrains-toolbox` in `development-apps`; IDE installation/settings manual | Cask metadata; Toolbox onboarding manual |
@@ -46,7 +46,7 @@ The old generic components and sanitized legacy example have different provenanc
 | `category.k8s` | NATIVE | `kubernetes` keeps kubectl, kubectx, Helm | Formula metadata; cluster setup manual |
 | `category.media` | NATIVE | `media` keeps Transmission, HandBrake, Plex; Blackmagic RAW remains MAS there | Separate cask/MAS checks |
 | `category.preview` | NATIVE + CHANGE | Stable `brew-cask:zed` in `development-editors`; historical preview channel dropped | Stable cask metadata and JSONC merge |
-| `host.gaps` | DROP | No Homebrew fallback installer; native tap declarations are used where supported; unsupported FFF becomes MANUAL | No `host.gaps` runtime or bridge exists |
+| `host.gaps` | DROP + REAL HOMEBREW EXCEPTIONS | Native declarations are used where supported; five documented real-Homebrew exceptions are used for concrete mise incompatibilities | No `host.gaps` runtime or bridge exists; exception health checks, upgrade owners, and manual removal are documented |
 | `host.git-lfs` | NATIVE + MANUAL | `brew:git-lfs` in standard `development`; initialization manual | Formula metadata; `git lfs install` manual |
 | `host.network-time` | MANUAL | No native declarative equivalent approved for v1 | Manual Date & Time configuration |
 | `host.tune` | MANUAL + DROP | Privileged sysctl/LaunchDaemon/pmset/systemsetup/Gatekeeper/login-window/Zoom/Little Snitch automation not ported | Manual host settings only |

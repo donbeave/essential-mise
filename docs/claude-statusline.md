@@ -2,6 +2,8 @@
 
 `bin/claude-statusline.sh` is the unchanged status-line script, installed as an executable. It requires Bash, `jq`, and macOS `stat -f`.
 
+This is a narrowly user-approved status-line exception, not an implementation of revision 7's old excluded status-line graph. The new wrapper uses `refreshInterval = 5`, so Claude re-runs the command every five seconds and can remove a subagent row after its ten-minute idle threshold even when the main session is idle. The absolute token figure is input-token usage (input plus cache creation/read), which matches Claude Code's documented `used_percentage` formula; it intentionally does not include output tokens and is not presented as an output-inclusive total.
+
 ## zsh wrapper
 
 The `ai-cli` module adds this native block to `~/.zshrc`:
@@ -9,7 +11,7 @@ The `ai-cli` module adds this native block to `~/.zshrc`:
 ```zsh
 claude() {
   local statusline="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/claude-statusline.sh"
-  BASH_COMPAT=3.2 command claude --settings "{\"statusLine\":{\"type\":\"command\",\"command\":\"$statusline\",\"padding\":0}}" "$@"
+  BASH_COMPAT=3.2 command claude --settings "{\"statusLine\":{\"type\":\"command\",\"command\":\"$statusline\",\"padding\":0,\"refreshInterval\":5}}" "$@"
 }
 ```
 

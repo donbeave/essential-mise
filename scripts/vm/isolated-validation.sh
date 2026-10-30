@@ -37,7 +37,13 @@ run_and_record() {
   "$@" > "$evidence_dir/$name.log" 2>&1
   local result=$?
   set -e
-  printf '%s exit=%s expected=%s\n' "$name" "$result" "$expected" | tee -a "$evidence_dir/report.txt"
+  local mise_version=''
+  if [[ -x "$first_home/.local/bin/mise" ]]; then
+    mise_version="$("$first_home/.local/bin/mise" --version)"
+  elif [[ -x "$xdg_home/.local/bin/mise" ]]; then
+    mise_version="$("$xdg_home/.local/bin/mise" --version)"
+  fi
+  printf '%s exit=%s expected=%s mise=%s\n' "$name" "$result" "$expected" "$mise_version" | tee -a "$evidence_dir/report.txt"
   if [[ "$result" -ne "$expected" ]]; then
     /bin/cat "$evidence_dir/$name.log"
     exit 1
