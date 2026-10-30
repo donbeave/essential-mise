@@ -16,7 +16,7 @@ vm_require_name
 vm_require_running
 vm_scan_host_key
 evidence_dir="/tmp/essential-mise-evidence/$scenario"
-vm_ssh "mkdir -p '$evidence_dir'"
+vm_ssh "rm -rf '$evidence_dir' && mkdir -p '$evidence_dir'"
 reviewed_commit="${VM_REVIEWED_COMMIT:-$(git rev-parse HEAD)}"
 [[ "$reviewed_commit" =~ ^[0-9a-f]{40}$ ]] || fail 'A full reviewed commit SHA is required'
 config_dir="/Users/$VM_SSH_USER/.config/mise"
