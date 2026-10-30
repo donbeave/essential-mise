@@ -50,7 +50,7 @@ In the Tart window for `essential-mise-automation-baseline`, run:
 VM_NAME=essential-mise-automation-baseline scripts/vm/grant-cua-permissions.sh
 ```
 
-Approve Cua Driver's Accessibility, Screen Recording, System Events, and direct screen-capture prompts **inside the guest only**. The driver command can time out while waiting; approve the grants and rerun it. Do not edit TCC databases, disable SIP, or bypass Gatekeeper.
+Approve Cua Driver's Accessibility, Screen Recording, System Events, and direct screen-capture prompts **inside the guest only**. The helper restarts the daemon through guest LaunchServices (`open -n -g -a CuaDriver --args serve`), so TCC attributes the grants to `com.trycua.driver` rather than the SSH session. The driver command can time out while waiting; approve the grants and rerun it. Do not edit TCC databases, disable SIP, or bypass Gatekeeper. A local Tart VNC connection can automate the initial privacy grants before Cua is ready; keep its generated endpoint credential transient and out of evidence, and use Cua for application verification afterward.
 
 After consent succeeds:
 
