@@ -71,7 +71,7 @@ Every module is documented in [docs/environments.md](docs/environments.md).
 
 ### Approved specification changes
 
-The user subsequently approved six narrowly scoped real-Homebrew package exceptions (Claude Code, Amp CLI, OMP, FFF MCP, Amp Desktop, and Surge) and the exact Claude status-line script/wrapper. These explicit changes supersede revision 7's native-only and excluded-status-line rules; they are not claims of native-only compliance. Each exception requires a demonstrated incompatibility and a documented owner, health check, upgrade path, and removal path in [Homebrew exceptions](docs/homebrew-exceptions.md). Native mise remains the declarative default; `AGENTS.md` intentionally retains the separate user requirement to prefer Homebrew for general dependency installation, using another source only when Homebrew is unavailable or outdated.
+The user subsequently approved six narrowly scoped real-Homebrew package exceptions (Claude Code, Amp CLI, OMP, FFF MCP, Amp Desktop, and Surge) and the exact Claude status-line script/wrapper. These explicit changes supersede revision 7's native-only and excluded-status-line rules; they are not claims of native-only compliance. Each exception requires a demonstrated incompatibility and a documented owner, health check, upgrade path, and removal path in [Homebrew exceptions](docs/homebrew-exceptions.md). Native mise remains the declaration default. `AGENTS.md` distinguishes the user's Homebrew-first package-source preference from declaration ownership and permits another source only when Homebrew is unavailable or outdated.
 
 ### Claude Code status line
 

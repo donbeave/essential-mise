@@ -421,7 +421,7 @@ All are optional, user-scope (`host = "any"`), and have both stored-state and be
 | OMP model/provider configuration | NATIVE + MANUAL validation | YAML merges plus `omp config`/`omp models`; stale roles/models/routes dropped; no credentials |
 | Amp completions | NATIVE | Guarded zsh `compinit` and interactive Fish blocks; tests with and without `terminal` |
 | Agent-browser runtime | MANUAL | `agent-browser install`; no old cleanup/retention automation |
-| FFF MCP | Conditional NEW | Keep only after native evaluation and real install; otherwise MANUAL with recorded error; no auto-MCP config |
+| FFF MCP | NEW + REAL HOMEBREW EXCEPTION | `config.ai-tools.toml` hook owns `brew install dmtrKovalenko/fff/fff-mcp`; guest `fff-mcp --healthcheck` passed. Upgrade with `brew upgrade dmtrKovalenko/fff/fff-mcp`; remove explicitly with `brew uninstall dmtrKovalenko/fff/fff-mcp`. Native status/upgrade/prune do not manage it; broad native formula prune is prohibited. MCP registration remains manual |
 | Superwhisper configuration | DROP | No files/directories; all future setup manual |
 | Homebrew/mise cask ownership | NATIVE policy | Mise-owned casks remain mise-managed; Homebrew-owned casks remain Homebrew-managed; no metadata handoff |
 | Package pruning | MANUAL + explicit approval | Broad maintenance operation, never automatic after unapply; manager and full dry-run reviewed |
