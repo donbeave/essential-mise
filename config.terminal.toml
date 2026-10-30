@@ -35,6 +35,6 @@ command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
 [bootstrap.hooks.post-dotfiles]
 description = "XDG-aware Fish activation; native shell activation has fixed paths"
 run = [
-  "/usr/bin/python3 \"{{ config_source | dirname }}/bin/fish-config.py\" apply activate",
-  "/usr/bin/python3 \"{{ config_source | dirname }}/bin/fish-config.py\" status activate",
+  "/usr/bin/python3 \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py\" apply activate",
+  "/usr/bin/python3 \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py\" status activate",
 ]

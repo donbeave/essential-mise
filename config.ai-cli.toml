@@ -21,8 +21,8 @@ run = [
 [bootstrap.hooks.post-dotfiles]
 description = "XDG-aware Amp Fish completion block; preserves unrelated startup content"
 run = [
-  "/usr/bin/python3 \"{{ config_source | dirname }}/bin/fish-config.py\" apply amp",
-  "/usr/bin/python3 \"{{ config_source | dirname }}/bin/fish-config.py\" status amp",
+  "/usr/bin/python3 \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py\" apply amp",
+  "/usr/bin/python3 \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py\" status amp",
 ]
 
 [dotfiles]
