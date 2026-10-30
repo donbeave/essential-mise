@@ -89,7 +89,7 @@ workspace_unselected = run('workspace-unselected', [mise, 'bootstrap', '--dry-ru
 assert 'essential-mise-synthetic-workspace' not in workspace_unselected
 
 launcher_config = root / 'launcher config with spaces'
-run('add-launcher-worktree', ['git', '-C', source_config, 'worktree', 'add', '--detach', launcher_config, 'HEAD'], source_config)
+run('add-launcher-worktree', ['git', '-C', source_config, 'worktree', 'add', '--force', '--detach', launcher_config, 'HEAD'], source_config)
 launcher_env = {**env, 'MISE_CONFIG_DIR': str(launcher_config)}
 launcher_output = run(
     'bootstrap-next-steps',
