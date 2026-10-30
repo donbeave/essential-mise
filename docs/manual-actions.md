@@ -98,7 +98,7 @@ Observable UI behavior and delayed selective restoration remain manual validatio
 | `com.apple.dock minimize-to-application` | Does not minimize into app icon | `defaults delete com.apple.dock minimize-to-application` |
 | `com.apple.dock launchanim` | Enables launch animation | `defaults delete com.apple.dock launchanim` |
 | `com.apple.dock show-process-indicators` | Shows running-app indicators | `defaults delete com.apple.dock show-process-indicators` |
-| `com.apple.dock workspaces-auto-swoosh` | Disables automatic Space switching animation | `defaults delete com.apple.dock workspaces-auto-swoosh` |
+| `com.apple.dock workspaces-auto-swoosh` | Disables automatic switching to a Space containing an application's windows | `defaults delete com.apple.dock workspaces-auto-swoosh` |
 | `com.apple.dock expose-group-apps` | Disables app grouping in Mission Control | `defaults delete com.apple.dock expose-group-apps` |
 | `com.apple.dock enter-mission-control-by-top-window-drag` | Disables top-window drag into Mission Control | `defaults delete com.apple.dock enter-mission-control-by-top-window-drag` |
 | `com.apple.dock wvous-tl-corner` | Top-left hot corner off | Restore previous hot corner or `defaults delete com.apple.dock wvous-tl-corner` |
@@ -149,8 +149,8 @@ Only the named dictionary member is managed; unrelated members must remain.
 
 | Preference | Effect | Reversal |
 |---|---|---|
-| `AppleFirstWeekday.gregorian` | Week starts Monday (`2`) | Restore the captured complete `AppleFirstWeekday` value; do not delete unrelated calendar members |
-| `AppleICUDateFormatStrings.1` | Short date `y-MM-dd` | Restore the captured complete `AppleICUDateFormatStrings` value; do not delete unrelated format members |
+| `AppleFirstWeekday.gregorian` | Week starts Monday (`2`) | Restore only the captured `gregorian` member as described above; do not replace the dictionary or unrelated calendar members |
+| `AppleICUDateFormatStrings.1` | Short date `y-MM-dd` | Restore only the captured `1` member as described above; do not replace the dictionary or unrelated format members |
 
 ### Assistant, security, storage, and text input
 

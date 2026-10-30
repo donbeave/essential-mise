@@ -170,6 +170,18 @@ apply('default-home-apply', 'ai-cli', 'dotfiles', default_env)
 default_opencode = default_home / '.config/opencode/AGENTS.md'
 verify_opencode('opencode-default', default_env, default_opencode)
 
+opencode_override = root / 'opencode override with spaces'
+opencode_override.mkdir()
+override_target = opencode_override / 'AGENTS.md'
+override_env = {**base_env, 'OPENCODE_CONFIG_DIR': str(opencode_override)}
+override_paths = run('opencode-override-paths', [opencode, 'debug', 'paths'], override_env, timeout=30, cwd=opencode_work)
+assert str(opencode_override) in override_paths, override_paths
+override_log = opencode_instruction_log('opencode-override-unmanaged', override_env)
+assert f'path="{custom_opencode.resolve()}"' not in override_log, override_log
+assert f'path="{override_target.resolve()}"' not in override_log, override_log
+shutil.copy2(config_dir / 'dotfiles/ai-cli/GLOBAL_AGENTS.md', override_target)
+verify_opencode('opencode-override', override_env, override_target)
+
 fish_bin = root / 'fish-bin'
 fish_bin.mkdir()
 (fish_bin / 'mise').symlink_to(mise)
@@ -264,12 +276,15 @@ verify_opencode_absent('opencode-custom-absent', base_env, custom_opencode)
 run('native-default-ai-cli-unapply', [mise, '-C', config_dir, 'bootstrap', 'unapply', 'ai-cli', '--yes'], default_env)
 assert not default_opencode.exists()
 verify_opencode_absent('opencode-default-absent', default_env, default_opencode)
+assert override_target.is_file()
+verify_opencode('opencode-override-preserved', override_env, override_target)
 
 report = (
     'custom_xdg_gh_consumption=PASS\nall_gh_scalars_alias_schema=PASS\n'
     'gh_config_dir_override=PASS\ncustom_xdg_ghostty_consumption=PASS\n'
     'ghostty_theme_resolution=PASS\ncustom_xdg_opencode_instructions=PASS\n'
-    'default_xdg_opencode_instructions=PASS\nopencode_unapply=PASS\n'
+    'default_xdg_opencode_instructions=PASS\nopencode_config_dir_override=PASS\n'
+    'opencode_override_preservation=PASS\nopencode_unapply=PASS\n'
     'custom_xdg_fish_runtime_activation=PASS\nfish_activation_negative_control=PASS\n'
     'custom_xdg_fish_amp_completion=PASS\nfish_amp_negative_control=PASS\n'
     'repeat_convergence=PASS\nunrelated_content_preservation=PASS\n'
