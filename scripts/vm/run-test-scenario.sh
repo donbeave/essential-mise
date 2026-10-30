@@ -47,11 +47,14 @@ run_logged() {
 
 run_logged_interactive() {
   local name="$1" command="$2" result
+  local host_evidence="/tmp/essential-mise-host-evidence/$scenario"
+  mkdir -p "$host_evidence"
   set +e
   VM_OWNER_PASSWORD_FILE="${VM_OWNER_PASSWORD_FILE:-/tmp/essential-mise-vm-owner-password}" \
-    "$(dirname "$0")/owner-auth-ssh.sh" "set -o pipefail; { $command; } 2>&1 | tee '$evidence_dir/$name.log'"
+    "$(dirname "$0")/owner-auth-ssh.sh" "$command" 2>&1 | tee "$host_evidence/$name.log"
   result=$?
   set -e
+  vm_scp "$host_evidence/$name.log" "$VM_SSH_USER@$VM_IP:$evidence_dir/$name.log"
   vm_ssh "printf '%s\n' '$result' > '$evidence_dir/$name.exit'"
   return "$result"
 }
@@ -166,8 +169,8 @@ case "$scenario" in
   optional-modules)
     optional_environments='security,js,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin'
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap --dry-run"
-    run_logged_interactive apply "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap"
-    run_logged_interactive second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap"
+    run_logged_interactive apply "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap --yes"
+    run_logged_interactive second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap --yes"
     run_logged status "cd '$config_dir' && /bin/zsh -lic 'mise -E $optional_environments bootstrap status'"
     run_logged status-json "/bin/zsh -lic 'mise -E $optional_environments bootstrap status --json' > '$evidence_dir/status.json'"
     run_logged package-verification "/usr/bin/python3 -c 'import json; data = json.load(open(\"$evidence_dir/status.json\")); packages = [package for name in (\"brew\", \"brew-cask\") for package in data[\"packages\"][name][\"packages\"]]; assert all(package[\"state\"] == \"installed\" for package in packages), packages; assert data[\"packages\"][\"mas\"][\"available\"]; print(\"Non-MAS packages installed; MAS applications require sign-in\")'"
