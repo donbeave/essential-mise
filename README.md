@@ -79,7 +79,7 @@ Deselecting a module does not uninstall it. Native unapply, Fish-block removal, 
 - Account, license, privacy, privileged-extension, and application-specific setup are not automated.
 - Preference stored values can be checked, but every UI effect and delayed selective reversal requires manual verification.
 
-Independent clean installation of every module, an applied native package/cask upgrade, Homebrew-owned cask behavior during actual upgrade/prune, a real new-Terminal UI session, immediate preference snapshot/restore, and the complete standard-workstation gate remain open release checks.
+Independent clean installation of every module, an applied native package/cask upgrade, Homebrew-owned cask behavior during actual upgrade/prune, a real new-Terminal UI session, and the complete standard-workstation gate remain open release checks.
 
 ## Guides
 
