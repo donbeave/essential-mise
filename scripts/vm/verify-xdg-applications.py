@@ -173,14 +173,14 @@ verify_opencode('opencode-default', default_env, default_opencode)
 opencode_override = root / 'opencode override with spaces'
 opencode_override.mkdir()
 override_target = opencode_override / 'AGENTS.md'
-override_env = {**base_env, 'OPENCODE_CONFIG_DIR': str(opencode_override)}
-override_paths = run('opencode-override-paths', [opencode, 'debug', 'paths'], override_env, timeout=30, cwd=opencode_work)
+opencode_override_env = {**base_env, 'OPENCODE_CONFIG_DIR': str(opencode_override)}
+override_paths = run('opencode-override-paths', [opencode, 'debug', 'paths'], opencode_override_env, timeout=30, cwd=opencode_work)
 assert str(opencode_override) in override_paths, override_paths
-override_log = opencode_instruction_log('opencode-override-unmanaged', override_env)
+override_log = opencode_instruction_log('opencode-override-unmanaged', opencode_override_env)
 assert f'path="{custom_opencode.resolve()}"' not in override_log, override_log
 assert f'path="{override_target.resolve()}"' not in override_log, override_log
 shutil.copy2(config_dir / 'dotfiles/ai-cli/GLOBAL_AGENTS.md', override_target)
-verify_opencode('opencode-override', override_env, override_target)
+verify_opencode('opencode-override', opencode_override_env, override_target)
 
 fish_bin = root / 'fish-bin'
 fish_bin.mkdir()
@@ -277,7 +277,7 @@ run('native-default-ai-cli-unapply', [mise, '-C', config_dir, 'bootstrap', 'unap
 assert not default_opencode.exists()
 verify_opencode_absent('opencode-default-absent', default_env, default_opencode)
 assert override_target.is_file()
-verify_opencode('opencode-override-preserved', override_env, override_target)
+verify_opencode('opencode-override-preserved', opencode_override_env, override_target)
 
 report = (
     'custom_xdg_gh_consumption=PASS\nall_gh_scalars_alias_schema=PASS\n'
