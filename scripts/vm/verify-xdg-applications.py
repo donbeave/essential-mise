@@ -132,9 +132,9 @@ def opencode_instruction_log(name, env):
 def verify_opencode(prefix, env, target):
     assert target.is_file(), target
     assert target.read_bytes() == (config_dir / 'dotfiles/ai-cli/GLOBAL_AGENTS.md').read_bytes()
-    paths = run(f'{prefix}-paths', [opencode, 'debug', 'paths'], env, timeout=30, cwd=opencode_work)
+    paths = run(f'{prefix}-paths', [opencode, 'debug', 'paths', '--standalone'], env, timeout=30, cwd=opencode_work)
     assert str(target.parent) in paths, paths
-    run(f'{prefix}-config', [opencode, 'debug', 'config'], env, timeout=30, cwd=opencode_work)
+    run(f'{prefix}-config', [opencode, 'debug', 'config', '--standalone'], env, timeout=30, cwd=opencode_work)
     log = opencode_instruction_log(f'{prefix}-instruction-discovery', env)
     assert 'watcher subscribe' in log and f'path="{target.resolve()}"' in log, log
 
