@@ -1,0 +1,520 @@
+mise bootstrap: system packages
+mise brew:abseil     download abseil-20260817.0.tar.gz
+mise brew:fmt        download fmt-12.2.0.tar.gz
+mise brew:icu4c@79   download icu4c@79-79.1.tar.gz
+mise brew:simdutf    download simdutf-9.3.3.tar.gz
+mise brew:ada-url    download ada-url-4.0.0_1.tar.gz
+mise brew:brotli     download brotli-1.2.1.tar.gz
+mise brew:c-ares     download c-ares-1.34.9.tar.gz
+mise brew:hdrhistogram_c download hdrhistogram_c-0.12.1.tar.gz
+mise brew:hdrhistogram_c checksum
+mise brew:hdrhistogram_c extract
+mise brew:hdrhistogram_c extract hdrhistogram_c-0.12.1.tar.gz
+mise brew:c-ares     checksum
+mise brew:hdrhistogram_c relocate
+mise brew:c-ares     extract
+mise brew:c-ares     extract c-ares-1.34.9.tar.gz
+mise brew:ada-url    checksum
+mise brew:hdrhistogram_c codesign
+mise brew:ada-url    extract
+mise brew:ada-url    extract ada-url-4.0.0_1.tar.gz
+mise brew:fmt        checksum
+mise brew:fmt        extract
+mise brew:fmt        extract fmt-12.2.0.tar.gz
+mise brew:fmt        relocate
+mise brew:ada-url    relocate
+mise brew:simdutf    checksum
+mise brew:fmt        codesign
+mise brew:ada-url    codesign
+mise brew:simdutf    extract
+mise brew:simdutf    extract simdutf-9.3.3.tar.gz
+mise brew:libffi     download libffi-3.8.0.tar.gz
+mise brew:c-ares     relocate
+mise brew:libnghttp2 download libnghttp2-1.70.0.tar.gz
+mise brew:brotli     checksum
+mise brew:c-ares     codesign
+mise brew:simdutf    relocate
+mise brew:brotli     extract
+mise brew:brotli     extract brotli-1.2.1.tar.gz
+mise brew:brotli     relocate
+mise brew:abseil     checksum
+mise brew:libuv      download libuv-1.53.0.tar.gz
+mise brew:merve      download merve-1.2.2_4.tar.gz
+mise brew:abseil     extract
+mise brew:abseil     extract abseil-20260817.0.tar.gz
+mise brew:simdutf    codesign
+mise brew:brotli     codesign
+mise brew:nbytes     download nbytes-0.1.4.tar.gz
+mise brew:simdjson   download simdjson-5.0.7.tar.gz
+mise brew:abseil     relocate
+mise brew:libffi     checksum
+mise brew:libffi     extract
+mise brew:libffi     extract libffi-3.8.0.tar.gz
+mise brew:libnghttp2 checksum
+mise brew:libnghttp2 extract
+mise brew:libnghttp2 extract libnghttp2-1.70.0.tar.gz
+mise brew:libffi     relocate
+mise brew:libnghttp2 relocate
+mise brew:libffi     codesign
+mise brew:libnghttp2 codesign
+mise brew:sqlite     download sqlite-3.54.1.tar.gz
+mise brew:uvwasi     download uvwasi-0.0.23.tar.gz
+mise brew:merve      checksum
+mise brew:merve      extract
+mise brew:merve      extract merve-1.2.2_4.tar.gz
+mise brew:libuv      checksum
+mise brew:merve      relocate
+mise brew:libuv      extract
+mise brew:libuv      extract libuv-1.53.0.tar.gz
+mise brew:merve      codesign
+mise brew:libuv      relocate
+mise brew:libuv      codesign
+mise brew:lz4        download lz4-1.10.0.tar.gz
+mise brew:xz         download xz-5.8.4.tar.gz
+mise brew:nbytes     checksum
+mise brew:nbytes     extract
+mise brew:nbytes     extract nbytes-0.1.4.tar.gz
+mise brew:nbytes     relocate
+mise brew:abseil     codesign
+mise brew:nbytes     codesign
+mise brew:zstd       download zstd-1.5.7_1.tar.gz
+mise brew:simdjson   checksum
+mise brew:simdjson   extract
+mise brew:simdjson   extract simdjson-5.0.7.tar.gz
+mise brew:simdjson   relocate
+mise brew:simdjson   codesign
+mise brew:highway    download highway-1.4.0.tar.gz
+mise brew:uvwasi     checksum
+mise brew:uvwasi     extract
+mise brew:uvwasi     extract uvwasi-0.0.23.tar.gz
+mise brew:uvwasi     relocate
+mise brew:uvwasi     codesign
+mise brew:node       download node-26.13.0_1.tar.gz
+mise brew:sqlite     checksum
+mise brew:sqlite     extract
+mise brew:sqlite     extract sqlite-3.54.1.tar.gz
+mise brew:lz4        checksum
+mise brew:lz4        extract
+mise brew:lz4        extract lz4-1.10.0.tar.gz
+mise brew:xz         checksum
+mise brew:lz4        relocate
+mise brew:xz         extract
+mise brew:xz         extract xz-5.8.4.tar.gz
+mise brew:sqlite     relocate
+mise brew:lz4        codesign
+mise brew:xz         relocate
+mise brew:agent-browser download agent-browser-0.41.0.tar.gz
+mise brew:zstd       checksum
+mise brew:sqlite     codesign
+mise brew:xz         codesign
+mise brew:zstd       extract
+mise brew:zstd       extract zstd-1.5.7_1.tar.gz
+mise brew:zstd       relocate
+mise brew:ast-grep   download ast-grep-0.51.0.tar.gz
+mise brew:highway    checksum
+mise brew:icu4c@79   checksum
+mise brew:highway    extract
+mise brew:highway    extract highway-1.4.0.tar.gz
+mise brew:zstd       codesign
+mise brew:icu4c@79   extract
+mise brew:icu4c@79   extract icu4c@79-79.1.tar.gz
+mise brew:highway    relocate
+mise brew:certifi    download certifi-2026.10.23.tar.gz
+mise brew:pycparser  download pycparser-3.12.tar.gz
+mise brew:highway    codesign
+mise brew:cffi       download cffi-2.1.1_1.tar.gz
+mise brew:icu4c@79   relocate
+mise brew:pycparser  checksum
+mise brew:pycparser  extract
+mise brew:pycparser  extract pycparser-3.12.tar.gz
+mise brew:pycparser  relocate
+mise brew:cryptography download cryptography-50.0.2_2.tar.gz
+mise brew:certifi    checksum
+mise brew:certifi    extract
+mise brew:certifi    extract certifi-2026.10.23.tar.gz
+mise brew:certifi    relocate
+mise brew:dasel      download dasel-3.11.2.tar.gz
+mise brew:node       checksum
+mise brew:node       extract
+mise brew:node       extract node-26.13.0_1.tar.gz
+mise brew:cffi       checksum
+mise brew:cffi       extract
+mise brew:cffi       extract cffi-2.1.1_1.tar.gz
+mise brew:cffi       relocate
+mise brew:dwarfutils download dwarfutils-2.3.3.tar.gz
+mise brew:agent-browser checksum
+mise brew:agent-browser extract
+mise brew:agent-browser extract agent-browser-0.41.0.tar.gz
+mise brew:agent-browser relocate
+mise brew:ast-grep   checksum
+mise brew:ast-grep   extract
+mise brew:ast-grep   extract ast-grep-0.51.0.tar.gz
+mise brew:eza        download eza-0.23.5.tar.gz
+mise brew:ast-grep   relocate
+mise brew:dwarfutils checksum
+mise brew:dwarfutils extract
+mise brew:dwarfutils extract dwarfutils-2.3.3.tar.gz
+mise brew:dwarfutils relocate
+mise brew:icu4c@79   codesign
+mise brew:dwarfutils codesign
+mise brew:node       relocate
+mise brew:fd         download fd-10.5.0.tar.gz
+mise brew:dasel      checksum
+mise brew:dasel      extract
+mise brew:dasel      extract dasel-3.11.2.tar.gz
+mise brew:dasel      relocate
+mise brew:eza        checksum
+mise brew:eza        extract
+mise brew:eza        extract eza-0.23.5.tar.gz
+mise brew:eza        relocate
+mise brew:eza        codesign
+mise brew:fzf        download fzf-0.74.5.tar.gz
+mise brew:git-delta  download git-delta-0.20.1.tar.gz
+mise brew:cryptography checksum
+mise brew:cryptography extract
+mise brew:cryptography extract cryptography-50.0.2_2.tar.gz
+mise brew:gmp        download gmp-6.3.0.tar.gz
+mise brew:abseil     link
+mise brew:cryptography relocate
+mise brew:abseil   ✓ 20260817.0
+mise brew:fmt        link
+mise brew:fmt      ✓ 12.2.0
+mise brew:icu4c@79   link
+mise brew:icu4c@79 ✓ 79.1
+mise brew:simdutf    link
+mise brew:simdutf  ✓ 9.3.3
+mise brew:ada-url    link
+mise brew:ada-url  ✓ 4.0.0_1
+mise brew:brotli     link
+mise brew:brotli   ✓ 1.2.1
+mise brew:c-ares     link
+mise brew:c-ares   ✓ 1.34.9
+mise brew:hdrhistogram_c link
+mise brew:hdrhistogram_c ✓ 0.12.1
+mise brew:libffi     link
+mise brew:libffi   ✓ 3.8.0
+mise brew:libnghttp2 link
+mise brew:libnghttp2 ✓ 1.70.0
+mise brew:libuv      link
+mise brew:libuv    ✓ 1.53.0
+mise brew:merve      link
+mise brew:merve    ✓ 1.2.2_4
+mise brew:nbytes     link
+mise brew:nbytes   ✓ 0.1.4
+mise brew:simdjson   link
+mise brew:simdjson ✓ 5.0.7
+mise brew:sqlite     link
+mise brew:sqlite   ✓ 3.54.1
+mise brew:uvwasi     link
+mise brew:uvwasi   ✓ 0.0.23
+mise brew:lz4        link
+mise brew:cryptography codesign
+mise brew:lz4      ✓ 1.10.0
+mise brew:xz         link
+mise brew:xz       ✓ 5.8.4
+mise brew:zstd       link
+mise brew:zstd     ✓ 1.5.7_1
+mise brew:highway    link
+mise brew:highway  ✓ 1.4.0
+mise brew:hyperfine  download hyperfine-2.0.0.tar.gz
+mise brew:jansson    download jansson-2.15.1.tar.gz
+mise brew:fd         checksum
+mise brew:fd         extract
+mise brew:fd         extract fd-10.5.0.tar.gz
+mise brew:fd         relocate
+mise brew:jq         download jq-1.8.2.tar.gz
+mise brew:kimi-code  download kimi-code-2.4.0.tar.gz
+mise brew:gmp        checksum
+mise brew:gmp        extract
+mise brew:gmp        extract gmp-6.3.0.tar.gz
+mise brew:fzf        checksum
+mise brew:fzf        extract
+mise brew:fzf        extract fzf-0.74.5.tar.gz
+mise brew:git-delta  checksum
+mise brew:gmp        relocate
+mise brew:git-delta  extract
+mise brew:git-delta  extract git-delta-0.20.1.tar.gz
+mise brew:git-delta  relocate
+mise brew:fzf        relocate
+mise brew:gmp        codesign
+mise brew:libev      download libev-4.33.tar.gz
+mise brew:libyaml    download libyaml-0.2.5.tar.gz
+mise brew:git-delta  codesign
+mise brew:mpdecimal  download mpdecimal-4.0.1.tar.gz
+mise brew:node       codesign
+mise brew:node       link
+mise brew:node       post-install
+mise WARN  brew:node: skipped post-install step `symlink` (`source_glob` is not implemented); run `brew postinstall node` if the formula needs it
+mise WARN  brew:node: skipped post-install step `symlink` (`source_glob` is not implemented); run `brew postinstall node` if the formula needs it
+mise WARN  brew:node: skipped post-install step `symlink` (`source_glob` is not implemented); run `brew postinstall node` if the formula needs it
+mise brew:node     ✓ 26.13.0_1
+mise brew:agent-browser link
+mise brew:agent-browser ✓ 0.41.0
+mise brew:ast-grep   link
+mise brew:ast-grep ✓ 0.51.0
+mise brew:certifi    link
+mise brew:certifi  ✓ 2026.10.23
+mise brew:pycparser  link
+mise brew:pycparser ✓ 3.12
+mise brew:cffi       link
+mise brew:cffi     ✓ 2.1.1_1
+mise brew:cryptography link
+mise brew:cryptography ✓ 50.0.2_2
+mise brew:dasel      link
+mise brew:dasel    ✓ 3.11.2
+mise brew:dwarfutils link
+mise brew:dwarfutils ✓ 2.3.3
+mise brew:eza        link
+mise brew:eza      ✓ 0.23.5
+mise brew:fd         link
+mise brew:fd       ✓ 10.5.0
+mise brew:fzf        link
+mise brew:fzf      ✓ 0.74.5
+mise brew:git-delta  link
+mise brew:git-delta ✓ 0.20.1
+mise brew:gmp        link
+mise brew:gmp      ✓ 6.3.0
+mise brew:ripgrep    download ripgrep-15.2.0.tar.gz
+mise brew:jq         checksum
+mise brew:jq         extract
+mise brew:jq         extract jq-1.8.2.tar.gz
+mise brew:jansson    checksum
+mise brew:jansson    extract
+mise brew:jansson    extract jansson-2.15.1.tar.gz
+mise brew:jansson    relocate
+mise brew:hyperfine  checksum
+mise brew:jq         relocate
+mise brew:jansson    codesign
+mise brew:hyperfine  extract
+mise brew:hyperfine  extract hyperfine-2.0.0.tar.gz
+mise brew:hyperfine  relocate
+mise brew:jq         codesign
+mise brew:opencode   download opencode-2.2.3.tar.gz
+mise brew:hyperfine  link
+mise brew:hyperfine ✓ 2.0.0
+mise brew:jansson    link
+mise brew:jansson  ✓ 2.15.1
+mise brew:pydantic   download pydantic-2.14.1.tar.gz
+mise brew:jq         link
+mise brew:jq       ✓ 1.8.2
+mise brew:python@3.15 download python@3.15-3.15.2.tar.gz
+mise brew:libyaml    checksum
+mise brew:libyaml    extract
+mise brew:libyaml    extract libyaml-0.2.5.tar.gz
+mise brew:libyaml    relocate
+mise brew:libyaml    codesign
+mise brew:mpdecimal  checksum
+mise brew:mpdecimal  extract
+mise brew:mpdecimal  extract mpdecimal-4.0.1.tar.gz
+mise brew:mpdecimal  relocate
+mise brew:rpds-py    download rpds-py-2026.9.1_1.tar.gz
+mise brew:mpdecimal  codesign
+mise brew:ripgrep    checksum
+mise brew:ripgrep    extract
+mise brew:ripgrep    extract ripgrep-15.2.0.tar.gz
+mise brew:rtk        download rtk-1.1.0.tar.gz
+mise brew:ripgrep    relocate
+mise brew:ripgrep    codesign
+mise brew:libev      checksum
+mise brew:libev      extract
+mise brew:libev      extract libev-4.33.tar.gz
+mise brew:libev      relocate
+mise brew:sd         download sd-1.1.0.tar.gz
+mise brew:libev      codesign
+mise brew:tree-sitter download tree-sitter-0.27.1.tar.gz
+mise brew:pydantic   checksum
+mise brew:pydantic   extract
+mise brew:pydantic   extract pydantic-2.14.1.tar.gz
+mise brew:tree-sitter checksum
+mise brew:tree-sitter extract
+mise brew:tree-sitter extract tree-sitter-0.27.1.tar.gz
+mise brew:tree-sitter relocate
+mise brew:tree-sitter codesign
+mise brew:rpds-py    checksum
+mise brew:rpds-py    extract
+mise brew:rpds-py    extract rpds-py-2026.9.1_1.tar.gz
+mise brew:semgrep    download semgrep-1.182.0.tar.gz
+mise brew:rpds-py    relocate
+mise brew:pydantic   relocate
+mise brew:rpds-py    codesign
+mise brew:shellcheck download shellcheck-0.11.0.tar.gz
+mise brew:python@3.15 checksum
+mise brew:python@3.15 extract
+mise brew:python@3.15 extract python@3.15-3.15.2.tar.gz
+mise brew:pydantic   codesign
+mise brew:shfmt      download shfmt-3.14.1.tar.gz
+mise brew:sd         checksum
+mise brew:sd         extract
+mise brew:sd         extract sd-1.1.0.tar.gz
+mise brew:sd         relocate
+mise brew:kimi-code  checksum
+mise brew:tokei      download tokei-15.0.0.tar.gz
+mise brew:kimi-code  extract
+mise brew:kimi-code  extract kimi-code-2.4.0.tar.gz
+mise brew:rtk        checksum
+mise brew:rtk        extract
+mise brew:rtk        extract rtk-1.1.0.tar.gz
+mise brew:rtk        relocate
+mise brew:tree       download tree-2.3.2.tar.gz
+mise brew:shfmt      checksum
+mise brew:shfmt      extract
+mise brew:shfmt      extract shfmt-3.14.1.tar.gz
+mise brew:shfmt      relocate
+mise brew:universal-ctags download universal-ctags-6.2.1.tar.gz
+mise brew:kimi-code  relocate
+mise brew:tokei      checksum
+mise brew:tokei      extract
+mise brew:tokei      extract tokei-15.0.0.tar.gz
+mise brew:tokei      relocate
+mise brew:yq         download yq-4.54.1.tar.gz
+mise brew:tree       checksum
+mise brew:tree       extract
+mise brew:tree       extract tree-2.3.2.tar.gz
+mise brew:tree       relocate
+mise brew:zoxide     download zoxide-0.10.0.tar.gz
+mise brew:universal-ctags checksum
+mise brew:universal-ctags extract
+mise brew:universal-ctags extract universal-ctags-6.2.1.tar.gz
+mise brew:universal-ctags relocate
+mise brew:universal-ctags codesign
+mise brew:shellcheck checksum
+mise brew:shellcheck extract
+mise brew:shellcheck extract shellcheck-0.11.0.tar.gz
+mise brew:python@3.15 relocate
+mise brew:shellcheck relocate
+mise brew:kimi-code  codesign
+mise brew:zoxide     checksum
+mise brew:zoxide     extract
+mise brew:zoxide     extract zoxide-0.10.0.tar.gz
+mise brew:zoxide     relocate
+mise brew:yq         checksum
+mise brew:kimi-code  link
+mise brew:yq         extract
+mise brew:yq         extract yq-4.54.1.tar.gz
+mise brew:kimi-code ✓ 2.4.0
+mise brew:libev      link
+mise brew:libev    ✓ 4.33
+mise brew:libyaml    link
+mise brew:libyaml  ✓ 0.2.5
+mise brew:mpdecimal  link
+mise brew:mpdecimal ✓ 4.0.1
+mise brew:ripgrep    link
+mise brew:ripgrep  ✓ 15.2.0
+mise brew:yq         relocate
+mise brew:shellcheck codesign
+mise brew:python@3.15 codesign
+mise brew:semgrep    checksum
+mise brew:semgrep    extract
+mise brew:semgrep    extract semgrep-1.182.0.tar.gz
+mise brew:semgrep    relocate
+mise brew:semgrep    codesign
+mise brew:opencode   checksum
+mise brew:opencode   extract
+mise brew:opencode   extract opencode-2.2.3.tar.gz
+mise brew:opencode   relocate
+mise brew:opencode   link
+mise brew:opencode ✓ 2.2.3
+mise brew:pydantic   link
+mise brew:pydantic ✓ 2.14.1
+mise brew:python@3.15 link
+mise brew:python@3.15 post-install
+mise brew:python@3.15 ✓ 3.15.2
+mise brew:rpds-py    link
+mise brew:rpds-py  ✓ 2026.9.1_1
+mise brew:rtk        link
+mise brew:rtk      ✓ 1.1.0
+mise brew:sd         link
+mise brew:sd       ✓ 1.1.0
+mise brew:tree-sitter link
+mise brew:tree-sitter ✓ 0.27.1
+mise brew:semgrep    link
+mise brew:semgrep  ✓ 1.182.0
+mise brew:shellcheck link
+mise brew:shellcheck ✓ 0.11.0
+mise brew:shfmt      link
+mise brew:shfmt    ✓ 3.14.1
+mise brew:tokei      link
+mise brew:tokei    ✓ 15.0.0
+mise brew:tree       link
+mise brew:tree     ✓ 2.3.2
+mise brew:universal-ctags link
+mise brew:universal-ctags ✓ 6.2.1
+mise brew:yq         link
+mise brew:yq       ✓ 4.54.1
+mise brew:zoxide     link
+mise brew:zoxide   ✓ 0.10.0
+mise brew: installed ripgrep, fd, fzf, ast-grep, semgrep, jq, yq, dasel, sd, git-delta, eza, zoxide, tree, tokei, hyperfine, shellcheck, shfmt, universal-ctags, rtk, agent-browser, kimi-code, opencode
+mise brew-cask:antigravity-cli (download) ✓ downloaded
+mise brew-cask:grok-build (download) ✓ downloaded
+mise brew-cask:codex (download) ✓ downloaded
+mise brew-cask:cursor-cli (download) ✓ downloaded
+mise brew-cask:codex extract codex-0.166.0-d39098698473-codex-package-aarch64-apple-darwin.tar.gz
+mise brew-cask:codex ✓ 0.166.0
+mise brew-cask:cursor-cli extract cursor-cli-2026.10.22-27dcf5f-a261ba718e8b-agent-cli-package.tar.gz
+mise brew-cask:cursor-cli ✓ 2026.10.22-27dcf5f
+mise brew-cask:antigravity-cli extract antigravity-cli-1.4.11,5180209989812224-0ea87fb2c48f-cli_mac_arm64.tar.gz
+mise brew-cask:antigravity-cli ✓ 1.4.11,5180209989812224
+mise brew-cask:grok-build ✓ 1.0.70
+mise brew-cask: installed codex, cursor-cli, antigravity-cli, grok-build
+mise bootstrap: post-packages hooks
+mise Presence-only real Homebrew: FFF MCP; upgrades are separate
+==> Auto-updating Homebrew...
+Adjust how often this is run with `$HOMEBREW_AUTO_UPDATE_SECS` or disable with
+`$HOMEBREW_NO_AUTO_UPDATE=1`. Hide these hints with `$HOMEBREW_NO_ENV_HINTS=1` (see `man brew`).
+==> Tapping dmtrkovalenko/fff
+Cloning into '/opt/homebrew/Library/Taps/dmtrkovalenko/homebrew-fff'...
+Tapped 1 formula (15 files, 17.5KB).
+==> Trusted formula dmtrkovalenko/fff/fff-mcp
+==> Fetching downloads for: fff-mcp
+✔︎ Formula fff-mcp (0.11.0)
+==> Installing fff-mcp from dmtrkovalenko/fff
+🍺  /opt/homebrew/Cellar/fff-mcp/0.11.0: 4 files, 7.4MB, built in 2 seconds
+fff-mcp 0.11.0 (95fd777c2529fc7b4d7572dabff64cc07268f2c5)
+
+  [+] Base path: /Users/admin/.config/mise
+  [+] Git repository: /Users/admin/.config/mise/
+  [x] Frecency DB: path not resolved
+  [x] History DB: path not resolved
+  [+] Log path: /Users/admin/.local/state/fff/fff_mcp.log
+All checks passed.
+mise Presence-only real Homebrew: Claude Code, Amp CLI, and OMP; upgrades are separate
+==> Fetching downloads for: claude-code@latest
+✔︎ Cask claude-code@latest (2.1.314)
+==> Installing Cask claude-code@latest
+==> Linking Binary 'claude' to '/opt/homebrew/bin/claude'
+🍺  claude-code@latest was successfully installed!
+==> Tapping ampcode/tap
+Cloning into '/opt/homebrew/Library/Taps/ampcode/homebrew-tap'...
+Tapped 1 cask and 2 formulae (16 files, 1.9MB).
+==> Trusted formula ampcode/tap/ampcode
+==> Fetching downloads for: ampcode
+✔︎ Formula ampcode (0.0.1793363705-g5c9ae5)
+==> Installing ampcode from ampcode/tap
+🍺  /opt/homebrew/Cellar/ampcode/0.0.1793363705-g5c9ae5: 4 files, 136.4MB, built in 1 second
+==> Tapping can1357/tap
+Cloning into '/opt/homebrew/Library/Taps/can1357/homebrew-tap'...
+Tapped 1 formula (14 files, 170.7KB).
+==> Trusted formula can1357/tap/omp
+==> Fetching downloads for: omp
+✔︎ Formula omp (18.14.0)
+==> Installing omp from can1357/tap
+🍺  /opt/homebrew/Cellar/omp/18.14.0: 7 files, 214.9MB, built in 4 seconds
+==> Caveats
+zsh completions have been installed to:
+  /opt/homebrew/share/zsh/site-functions
+2.1.314 (Claude Code)
+0.0.1793363705-g5c9ae5 (released 2026-10-30T12:35:05.000Z, 3h ago)
+omp/18.14.0
+mise bootstrap: dotfiles
+mise files: copied ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.claude/CLAUDE.md
+mise files: copied ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.config/opencode/AGENTS.md
+mise files: copied ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.grok/AGENTS.md
+mise files: copied ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.kimi-code/AGENTS.md
+mise files: copied ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.config/amp/AGENTS.md
+mise files: copied ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md to ~/.omp/agent/AGENTS.md
+mise files: copied ~/.config/mise/dotfiles/ai-cli/CODEX.md to ~/.codex/AGENTS.md
+mise files: applied ~/.claude/CLAUDE.md, ~/.config/opencode/AGENTS.md, ~/.grok/AGENTS.md, ~/.kimi-code/AGENTS.md, ~/.config/amp/AGENTS.md, ~/.omp/agent/AGENTS.md, ~/.codex/AGENTS.md
+mise bootstrap: dotfile edits
+mise edits: applied ~/.omp/agent/config.yml (merge:shared), ~/.omp/agent/models.yml (merge:shared), ~/.zshrc (block:amp), ~/.zshrc (block:claude-statusline), ~/.config/fish/config.fish (block:amp)
+mise bootstrap: tools
+mise all tools are installed

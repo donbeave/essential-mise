@@ -1,0 +1,32 @@
+diff --git a/bootstrap.sh b/bootstrap.sh
+index f5174ee..17cdb61 100644
+--- a/bootstrap.sh
++++ b/bootstrap.sh
+@@ -109,7 +109,7 @@ validate_config_checkout() {
+   [[ -d "$MISE_CONFIG_DIR" ]] || fail "Configuration directory was not created: $MISE_CONFIG_DIR"
+   inside="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --is-inside-work-tree 2>/dev/null)" || \
+     fail 'Existing config is not a Git worktree.'
+-  [[ "$inside" == 'true' ]] || fail 'Existing config is not inside a Git worktree.'
++  [[ "$inside" == 'true' ]] || fail 'Existing config is not a Git worktree.'
+   bare="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --is-bare-repository)" || fail 'Cannot determine Git repository type.'
+   [[ "$bare" == 'false' ]] || fail 'Existing config cannot be a bare repository.'
+   top="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --show-toplevel)" || fail 'Cannot determine the configuration worktree root.'
+diff --git a/scripts/vm/README.md b/scripts/vm/README.md
+index fddc219..105f41e 100644
+--- a/scripts/vm/README.md
++++ b/scripts/vm/README.md
+@@ -160,9 +160,14 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+ VM_NAME=essential-mise-test-evidence \
+   scripts/vm/owner-auth-ssh.sh \
+   "/opt/homebrew/bin/python3 \$HOME/.config/mise/scripts/vm/verify-current-inventory.py"
++VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-native-cask-coexistence.sh
++VM_NAME=essential-mise-test-evidence \
++VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
++  scripts/vm/owner-auth-ssh.sh \
++  "/bin/bash /tmp/essential-mise-artifact/verify-native-cask-coexistence.sh"
+ ```
+
+-The hook lifecycle fixture requires a previously installed alternate Amp CLI version in the guest Cellar; it switches to that outdated version, requires `brew outdated` to confirm the state, applies `ai-cli`, and asserts no package/link changes before restoring the original version. A missing alternate is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`.
++The hook lifecycle fixture requires a previously installed alternate Amp CLI version in the guest Cellar; it switches to that outdated version, requires `brew outdated` to confirm the state, applies `ai-cli`, and asserts no package/link changes before restoring the original version. A missing alternate is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges.
+
+ Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:

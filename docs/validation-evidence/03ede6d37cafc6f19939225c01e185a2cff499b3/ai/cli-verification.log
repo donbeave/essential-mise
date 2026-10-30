@@ -1,0 +1,24 @@
+ripgrep 15.2.0
+
+features:+pcre2
+simd(compile):+NEON
+simd(runtime):+NEON
+
+PCRE2 10.45 is available (JIT is available)
+fd 10.5.0
+fff-mcp 0.11.0 (95fd777c2529fc7b4d7572dabff64cc07268f2c5)
+
+  [+] Base path: /private/tmp
+  [!] Git repository: not found (fff-mcp will still work, but git-status features are disabled)
+  [x] Frecency DB: path not resolved
+  [x] History DB: path not resolved
+  [+] Log path: /Users/admin/.local/state/fff/fff_mcp.log
+All checks passed.
+rtk 1.1.0
+agent-browser 0.41.0
+0.0.1793363705-g5c9ae5 (released 2026-10-30T12:35:05.000Z, 3h ago)
+omp/18.14.0
+claude
+/opt/homebrew/bin/codex
+/opt/homebrew/bin/kimi
+/opt/homebrew/bin/opencode

@@ -8,6 +8,8 @@ The user explicitly approved five AI compatibility exceptions, the Claude status
 
 Every formula and cask hook checks `brew list` first and invokes its install command only when that package is absent. A healthy installed-but-outdated package is left at its current version; routine applies do not invoke Homebrew installation, dependency upgrades, or cleanup for it. Initial installation can resolve and install dependencies normally. The required executable/signature health check always runs. Use the explicit upgrade command only after review; formula upgrades can change dependencies, and cask upgrades can replace application bundles and require fresh privacy consent or login-item review.
 
+The lifecycle fixture proved this with Amp CLI `0.0.1793352886-g7ad87b` while `livecheck` offered `0.0.1793363705-g5c9ae5`: ordinary `ai-cli` bootstrap left the link and complete formula inventory unchanged, and `amp --version` passed. The fixture compares formula state before/after and does not rely on a dry run.
+
 | Package | Install owner when absent | Required health check | Explicit upgrade owner | Manual removal |
 |---|---|---|---|---|
 | Claude Code | `brew install --cask claude-code@latest` | `/opt/homebrew/bin/claude --version` | `brew upgrade --cask claude-code@latest` | `brew uninstall --cask claude-code@latest` |

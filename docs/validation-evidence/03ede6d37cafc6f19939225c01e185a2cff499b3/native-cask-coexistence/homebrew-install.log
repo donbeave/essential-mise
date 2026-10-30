@@ -1,0 +1,10 @@
+==> Fetching downloads for: ghostty
+✔︎ Cask ghostty (1.4.0)
+==> Installing Cask ghostty
+==> Moving App 'Ghostty.app' to '/Applications/Ghostty.app'
+==> Linking Manpage 'ghostty.5' to '/opt/homebrew/share/man/man5/ghostty.5'
+==> Linking Manpage 'ghostty.1' to '/opt/homebrew/share/man/man1/ghostty.1'
+==> Linking Zsh Completion '_ghostty' to '/opt/homebrew/share/zsh/site-functions/_ghostty'
+==> Linking Bash Completion 'ghostty.bash' to '/opt/homebrew/etc/bash_completion.d/ghostty'
+==> Linking Fish Completion 'ghostty.fish' to '/opt/homebrew/share/fish/vendor_completions.d/ghostty.fish'
+🍺  ghostty was successfully installed!

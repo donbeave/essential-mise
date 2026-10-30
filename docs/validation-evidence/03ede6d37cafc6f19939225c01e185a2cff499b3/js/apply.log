@@ -1,0 +1,16 @@
+mise bootstrap: tools
+mise by @jdx – installing 2 tools
+mise █░░░░░░░░░░░░░░░ 0/2 · 3.0s
+  node@26.9.0  downloading  3.0s  2.2/58.1 MB · 947 kB/s
+  bun@1.4.4    downloading  3.0s  8.0/40.3 MB · 4.5 MB/s
+mise ███████░░░░░░░░░ 0/2 · 6.0s
+  node@26.9.0  downloading  6.0s  8.9/58.1 MB · 1.7 MB/s
+  bun@1.4.4    bun -v       6.0s
+mise bun@1.4.4 1.4.4
+mise ✓ bun@1.4.4    7.0s  bun-darwin-aarch64.zip
+mise ██████████████░░ 1/2 · 9.0s
+  node@26.9.0  extracting  9.0s
+mise node@26.9.0 v26.9.0
+mise node@26.9.0 11.19.1
+mise ✓ node@26.9.0  11.5s  node-v26.9.0-darwin-arm64.tar.gz
+mise ████████████████ 2/2 · installed 2 tools in 11.5s

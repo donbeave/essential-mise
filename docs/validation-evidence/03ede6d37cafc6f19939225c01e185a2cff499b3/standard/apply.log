@@ -1,0 +1,284 @@
+mise bootstrap: system packages
+mise brew-cask:font-jetbrains-mono-nerd-font (download) ✓ downloaded
+mise brew-cask:ghostty (download) ✓ downloaded
+hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.
+"disk6" ejected.
+mise brew-cask:ghostty ✓ 1.4.0
+mise brew-cask:font-jetbrains-mono-nerd-font extract font-jetbrains-mono-nerd-font-3.5.1-8a4174a3f76c-JetBrainsMono.tar.xz
+mise brew-cask:font-jetbrains-mono-nerd-font ✓ 3.5.1
+mise brew-cask: installed ghostty, font-jetbrains-mono-nerd-font
+mise brew:ncurses    download ncurses-6.6.tar.gz
+mise brew:readline   download readline-8.3.6.tar.gz
+mise brew:json-c     download json-c-0.19.tar.gz
+mise brew:libunistring download libunistring-1.5.tar.gz
+mise brew:gettext    download gettext-1.0.tar.gz
+mise brew:bash       download bash-5.3.20.tar.gz
+mise brew:ca-certificates download ca-certificates-2026-10-20.tar.gz
+mise brew:openssl@4  download openssl@4-4.1.0.tar.gz
+mise brew:json-c     checksum
+mise brew:json-c     extract
+mise brew:json-c     extract json-c-0.19.tar.gz
+mise brew:ca-certificates checksum
+mise brew:ca-certificates extract
+mise brew:ca-certificates extract ca-certificates-2026-10-20.tar.gz
+mise brew:ca-certificates relocate
+mise brew:json-c     relocate
+mise brew:libssh2    download libssh2-1.11.1_7.tar.gz
+mise brew:json-c     codesign
+mise brew:llhttp     download llhttp-9.4.3.tar.gz
+mise brew:readline   checksum
+mise brew:readline   extract
+mise brew:readline   extract readline-8.3.6.tar.gz
+mise brew:readline   relocate
+mise brew:llhttp     checksum
+mise brew:llhttp     extract
+mise brew:llhttp     extract llhttp-9.4.3.tar.gz
+mise brew:llhttp     relocate
+mise brew:llhttp     codesign
+mise brew:libgit2    download libgit2-1.9.7_2.tar.gz
+mise brew:readline   codesign
+mise brew:oniguruma  download oniguruma-6.9.10.tar.gz
+mise brew:libssh2    checksum
+mise brew:libssh2    extract
+mise brew:libssh2    extract libssh2-1.11.1_7.tar.gz
+mise brew:libssh2    relocate
+mise brew:libssh2    codesign
+mise brew:bat        download bat-0.26.1.tar.gz
+mise brew:libunistring checksum
+mise brew:libunistring extract
+mise brew:libunistring extract libunistring-1.5.tar.gz
+mise brew:libunistring relocate
+mise brew:libunistring codesign
+mise brew:buf        download buf-1.75.0.tar.gz
+mise brew:ncurses    checksum
+mise brew:ncurses    extract
+mise brew:ncurses    extract ncurses-6.6.tar.gz
+mise brew:bash       checksum
+mise brew:bash       extract
+mise brew:bash       extract bash-5.3.20.tar.gz
+mise brew:libgit2    checksum
+mise brew:libgit2    extract
+mise brew:libgit2    extract libgit2-1.9.7_2.tar.gz
+mise brew:oniguruma  checksum
+mise brew:oniguruma  extract
+mise brew:oniguruma  extract oniguruma-6.9.10.tar.gz
+mise brew:oniguruma  relocate
+mise brew:libgit2    relocate
+mise brew:bash       relocate
+mise brew:oniguruma  codesign
+mise brew:pcre2      download pcre2-10.49.tar.gz
+mise brew:libgit2    codesign
+mise brew:fish       download fish-4.9.3.tar.gz
+mise brew:bash       codesign
+mise brew:ncurses    relocate
+mise brew:gettext    checksum
+mise brew:gettext    extract
+mise brew:gettext    extract gettext-1.0.tar.gz
+mise brew:openssl@4  checksum
+mise brew:openssl@4  extract
+mise brew:openssl@4  extract openssl@4-4.1.0.tar.gz
+mise brew:ncurses    codesign
+mise brew:ncurses    link
+mise brew:ncurses  ✓ 6.6
+mise brew:readline   link
+mise brew:readline ✓ 8.3.6
+mise brew:json-c     link
+mise brew:json-c   ✓ 0.19
+mise brew:libunistring link
+mise brew:libunistring ✓ 1.5
+mise brew:gh         download gh-2.103.3.tar.gz
+mise brew:gettext    relocate
+mise brew:git-lfs    download git-lfs-3.8.1.tar.gz
+mise brew:pcre2      checksum
+mise brew:pcre2      extract
+mise brew:pcre2      extract pcre2-10.49.tar.gz
+mise brew:bat        checksum
+mise brew:bat        extract
+mise brew:bat        extract bat-0.26.1.tar.gz
+mise brew:bat        relocate
+mise brew:pcre2      relocate
+mise brew:bat        codesign
+mise brew:pcre2      codesign
+mise brew:openssl@4  relocate
+mise brew:git-standup download git-standup-2.3.2.tar.gz
+mise brew:fish       checksum
+mise brew:fish       extract
+mise brew:fish       extract fish-4.9.3.tar.gz
+mise brew:gogcli     download gogcli-0.47.1.tar.gz
+mise brew:gettext    codesign
+mise brew:fish       relocate
+mise brew:git-lfs    checksum
+mise brew:git-lfs    extract
+mise brew:git-lfs    extract git-lfs-3.8.1.tar.gz
+mise brew:openssl@4  codesign
+mise brew:fish       codesign
+mise brew:git-lfs    relocate
+mise brew:just       download just-1.59.0.tar.gz
+mise brew:gh         checksum
+mise brew:gh         extract
+mise brew:gh         extract gh-2.103.3.tar.gz
+mise brew:libidn2    download libidn2-2.3.8.tar.gz
+mise brew:git-standup checksum
+mise brew:git-standup extract
+mise brew:git-standup extract git-standup-2.3.2.tar.gz
+mise brew:git-standup relocate
+mise brew:libpsl     download libpsl-0.23.3.tar.gz
+mise brew:msedit     download msedit-2.0.0.tar.gz
+mise brew:gh         relocate
+mise brew:just       checksum
+mise brew:just       extract
+mise brew:just       extract just-1.59.0.tar.gz
+mise brew:just       relocate
+mise brew:gettext    link
+mise brew:gettext  ✓ 1.0
+mise brew:bash       link
+mise brew:bash     ✓ 5.3.20
+mise brew:ca-certificates link
+mise brew:ca-certificates post-install
+mise brew:ca-certificates ✓ 2026-10-20
+mise brew:openssl@4  link
+mise brew:openssl@4  post-install
+mise brew:openssl@4 ✓ 4.1.0
+mise brew:libssh2    link
+mise brew:libssh2  ✓ 1.11.1_7
+mise brew:llhttp     link
+mise brew:llhttp   ✓ 9.4.3
+mise brew:libgit2    link
+mise brew:libgit2  ✓ 1.9.7_2
+mise brew:oniguruma  link
+mise brew:oniguruma ✓ 6.9.10
+mise brew:bat        link
+mise brew:bat      ✓ 0.26.1
+mise brew:nushell    download nushell-0.116.1_1.tar.gz
+mise brew:starship   download starship-1.27.0.tar.gz
+mise brew:watch      download watch-4.0.7.tar.gz
+mise brew:libpsl     checksum
+mise brew:libpsl     extract
+mise brew:libpsl     extract libpsl-0.23.3.tar.gz
+mise brew:libidn2    checksum
+mise brew:libpsl     relocate
+mise brew:libpsl     codesign
+mise brew:libidn2    extract
+mise brew:libidn2    extract libidn2-2.3.8.tar.gz
+mise brew:libidn2    relocate
+mise brew:wget       download wget-1.25.0_2.tar.gz
+mise brew:libidn2    codesign
+mise brew:xh         download xh-0.26.3.tar.gz
+mise brew:msedit     checksum
+mise brew:msedit     extract
+mise brew:msedit     extract msedit-2.0.0.tar.gz
+mise brew:msedit     relocate
+mise brew:wget       checksum
+mise brew:wget       extract
+mise brew:wget       extract wget-1.25.0_2.tar.gz
+mise brew:wget       relocate
+mise brew:wget       codesign
+mise brew:watch      checksum
+mise brew:watch      extract
+mise brew:watch      extract watch-4.0.7.tar.gz
+mise brew:watch      relocate
+mise brew:watch      codesign
+mise brew:starship   checksum
+mise brew:starship   extract
+mise brew:starship   extract starship-1.27.0.tar.gz
+mise brew:starship   relocate
+mise brew:buf        checksum
+mise brew:buf        extract
+mise brew:buf        extract buf-1.75.0.tar.gz
+mise brew:gogcli     checksum
+mise brew:gogcli     extract
+mise brew:gogcli     extract gogcli-0.47.1.tar.gz
+mise brew:gogcli     relocate
+mise brew:buf        relocate
+mise brew:buf        link
+mise brew:buf      ✓ 1.75.0
+mise brew:pcre2      link
+mise brew:pcre2    ✓ 10.49
+mise brew:fish       link
+mise brew:fish     ✓ 4.9.3
+mise brew:gh         link
+mise brew:gh       ✓ 2.103.3
+mise brew:git-lfs    link
+mise brew:git-lfs  ✓ 3.8.1
+mise brew:git-standup link
+mise brew:git-standup ✓ 2.3.2
+mise brew:gogcli     link
+mise brew:gogcli   ✓ 0.47.1
+mise brew:just       link
+mise brew:just     ✓ 1.59.0
+mise brew:libidn2    link
+mise brew:libidn2  ✓ 2.3.8
+mise brew:libpsl     link
+mise brew:libpsl   ✓ 0.23.3
+mise brew:msedit     link
+mise brew:msedit   ✓ 2.0.0
+mise brew:xh         checksum
+mise brew:xh         extract
+mise brew:xh         extract xh-0.26.3.tar.gz
+mise brew:xh         relocate
+mise brew:nushell    checksum
+mise brew:nushell    extract
+mise brew:nushell    extract nushell-0.116.1_1.tar.gz
+mise brew:nushell    relocate
+mise brew:nushell    link
+mise brew:nushell  ✓ 0.116.1_1
+mise brew:starship   link
+mise brew:starship ✓ 1.27.0
+mise brew:watch      link
+mise brew:watch    ✓ 4.0.7
+mise brew:wget       link
+mise brew:wget     ✓ 1.25.0_2
+mise brew:xh         link
+mise brew:xh       ✓ 0.26.3
+mise brew: installed starship, bat, watch, just, xh, wget, bash, nushell, fish, git-standup, msedit, buf, gogcli, gh, git-lfs
+mise bootstrap: repos
+Cloning into '/Users/admin/.oh-my-zsh'...
+Note: switching to '0b50afdbfd8cbd0e03be68ecec4e1b5d3f55ef0a'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at 0b50afdb chore(history-substring-search): update to a0bdb0d4 (#14115)
+Cloning into '/Users/admin/.oh-my-zsh/custom/plugins/zsh-autosuggestions'...
+Note: switching to '85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at 85919cd Merge pull request #829 from win8linux/patch-1
+mise repos: applied ~/.oh-my-zsh, ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+mise bootstrap: dotfiles
+mise files: copied ~/.config/mise/dotfiles/terminal/ghostty/config to ~/.config/ghostty/config
+mise files: copied ~/.config/mise/dotfiles/terminal/ghostty/generic-terminal to ~/.config/ghostty/themes/generic-terminal
+mise files: copied ~/.config/mise/dotfiles/terminal/starship.toml to ~/.config/starship.toml
+mise files: applied ~/.config/ghostty/config, ~/.config/ghostty/themes/generic-terminal, ~/.config/starship.toml
+mise bootstrap: dotfile edits
+mise edits: applied ~/.zshrc (block:terminal), ~/.config/gh/config.yml (merge:shared)
+mise bootstrap: shell activation
+mise edits: applied ~/.config/fish/config.fish (block:activate)
+mise bootstrap: tools
+mise all tools are installed

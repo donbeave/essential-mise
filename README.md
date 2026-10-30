@@ -46,6 +46,8 @@ printf 'env = ["foundation", "terminal", "development", "security"]\n' \
 
 That command overwrites an existing selector; do not use it to add modules. Review and replace the list deliberately when changing it later. `-E` replaces the persistent selection for one command and does not uninstall anything.
 
+Apply the nine authorized Git tuning settings and XDG-safe ignore override through the exact `git config` commands in [Manual actions](docs/manual-actions.md). They are intentionally not merged automatically, because generic INI parsing can delete ordinary user-added Git settings.
+
 ## Optional modules
 
 Examples:

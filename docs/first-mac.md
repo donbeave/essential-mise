@@ -23,9 +23,9 @@ Stage 0 performs only:
 
 1. Platform checks.
 2. Apple Command Line Tools and Git verification, waiting for Apple’s GUI installation if needed.
-3. Official Homebrew installation and guarded `shellenv` initialization. Only its standard line is appended to `~/.zprofile`; the file is not replaced.
+3. Official Homebrew installation and guarded `shellenv` initialization, including its valid empty no-op when Homebrew is already initialized. Only its standard line is appended to `~/.zprofile`; the file is not replaced.
 4. Official `mise.run` installation of `v2026.10.23`, with exact version verification and `~/.local/bin` added to the current PATH.
-5. First-run-only adoption into `$MISE_CONFIG_DIR` (default `~/.config/mise`) from an empty working directory. Existing valid checkouts skip adoption; wrong-origin/conflicting paths fail without modification.
+5. First-run-only adoption into `$MISE_CONFIG_DIR` (default `~/.config/mise`) from an empty working directory. The path must be absolute, normalized, and free of symlinked components. Existing checkouts skip adoption only after their actual nonbare worktree root and origin are verified; wrong-origin, alias, bare-repository, subdirectory, and conflicting paths fail without modification.
 6. Only `mise -E foundation bootstrap`, which adds the native `~/.local/bin` line to `~/.zshenv` and native zsh activation.
 7. Fresh login+interactive zsh checks for Git, brew, mise version, and foundation-scoped `mise -E foundation doctor`, so selected-but-not-applied optional tools cannot fail a foundation-only rerun.
 
@@ -52,6 +52,8 @@ printf 'env = ["foundation", "terminal", "development", "security"]\n' \
 ```
 
 This overwrites an existing selector. To add modules later, review the current file and replace the list while preserving existing entries. Project-level `.miserc*`, `MISE_ENV`, and `-E` can override this global selection.
+
+Apply the nine nonidentity Git settings and custom-XDG ignore override with the exact `git config` commands in `docs/manual-actions.md`. Automatic INI merging is disabled to protect user-added settings, helpers, includes, comments, and indentation.
 
 ## 3. Optional environments
 

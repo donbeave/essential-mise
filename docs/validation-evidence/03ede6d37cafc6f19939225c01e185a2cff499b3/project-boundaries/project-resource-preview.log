@@ -1,0 +1,8 @@
+git clone https://example.invalid/project-only.git /private/tmp/essential-mise-project-only
+mise bootstrap: repos
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: shell activation
+mise edits: all edits are applied
+mise bootstrap: tools
+mise all tools are installed

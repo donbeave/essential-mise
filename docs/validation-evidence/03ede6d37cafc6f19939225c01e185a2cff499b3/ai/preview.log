@@ -1,0 +1,94 @@
+mise bootstrap: system packages
+pour abseil/20260817.0 (dependency)
+pour fmt/12.2.0 (dependency)
+pour icu4c@79/79.1 (dependency)
+pour simdutf/9.3.3 (dependency)
+pour ada-url/4.0.0_1 (dependency)
+pour brotli/1.2.1 (dependency)
+pour c-ares/1.34.9 (dependency)
+pour hdrhistogram_c/0.12.1 (dependency)
+pour libffi/3.8.0 (dependency)
+pour libnghttp2/1.70.0 (dependency)
+pour libuv/1.53.0 (dependency)
+pour merve/1.2.2_4 (dependency)
+pour nbytes/0.1.4 (dependency)
+pour simdjson/5.0.7 (dependency)
+pour sqlite/3.54.1 (dependency)
+pour uvwasi/0.0.23 (dependency)
+pour lz4/1.10.0 (dependency)
+pour xz/5.8.4 (dependency)
+pour zstd/1.5.7_1 (dependency)
+pour highway/1.4.0 (dependency)
+pour node/26.13.0_1 (dependency)
+pour agent-browser/0.41.0 (requested)
+pour ast-grep/0.51.0 (requested)
+pour certifi/2026.10.23 (dependency)
+pour pycparser/3.12 (dependency)
+pour cffi/2.1.1_1 (dependency)
+pour cryptography/50.0.2_2 (dependency)
+pour dasel/3.11.2 (requested)
+pour dwarfutils/2.3.3 (dependency)
+pour eza/0.23.5 (requested)
+pour fd/10.5.0 (requested)
+pour fzf/0.74.5 (requested)
+pour git-delta/0.20.1 (requested)
+pour gmp/6.3.0 (dependency)
+pour hyperfine/2.0.0 (requested)
+pour jansson/2.15.1 (dependency)
+pour jq/1.8.2 (requested)
+pour kimi-code/2.4.0 (requested)
+pour libev/4.33 (dependency)
+pour libyaml/0.2.5 (dependency)
+pour mpdecimal/4.0.1 (dependency)
+pour ripgrep/15.2.0 (requested)
+pour opencode/2.2.3 (requested)
+pour pydantic/2.14.1 (dependency)
+pour python@3.15/3.15.2 (dependency)
+pour rpds-py/2026.9.1_1 (dependency)
+pour rtk/1.1.0 (requested)
+pour sd/1.1.0 (requested)
+pour tree-sitter/0.27.1 (dependency)
+pour semgrep/1.182.0 (requested)
+pour shellcheck/0.11.0 (requested)
+pour shfmt/3.14.1 (requested)
+pour tokei/15.0.0 (requested)
+pour tree/2.3.2 (requested)
+pour universal-ctags/6.2.1 (requested)
+pour yq/4.54.1 (requested)
+pour zoxide/0.10.0 (requested)
+install cask codex/0.166.0
+link binary $HOMEBREW_PREFIX/bin/codex
+generate completions from bin/codex
+install cask cursor-cli/2026.10.22-27dcf5f
+link binary cursor-agent
+install cask antigravity-cli/1.4.11,5180209989812224
+link binary agy
+install cask grok-build/1.0.70
+link binary grok
+link binary agent
+generate completions from grok-1.0.70-macos-aarch64
+mise bootstrap: post-packages hooks
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi'
+sh -o errexit -c '/opt/homebrew/bin/fff-mcp --healthcheck'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --cask claude-code@latest >/dev/null 2>&1; then /opt/homebrew/bin/brew install --cask claude-code@latest; fi'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula ampcode >/dev/null 2>&1; then /opt/homebrew/bin/brew install ampcode/tap/ampcode; fi'
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --formula omp >/dev/null 2>&1; then /opt/homebrew/bin/brew install can1357/tap/omp; fi'
+sh -o errexit -c '/opt/homebrew/bin/claude --version'
+sh -o errexit -c '/opt/homebrew/bin/amp --version'
+sh -o errexit -c '/opt/homebrew/bin/omp --version'
+mise bootstrap: dotfiles
+cp ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md ~/.claude/CLAUDE.md
+cp ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md ~/.config/opencode/AGENTS.md
+cp ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md ~/.grok/AGENTS.md
+cp ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md ~/.kimi-code/AGENTS.md
+cp ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md ~/.config/amp/AGENTS.md
+cp ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md ~/.omp/agent/AGENTS.md
+cp ~/.config/mise/dotfiles/ai-cli/CODEX.md ~/.codex/AGENTS.md
+mise bootstrap: dotfile edits
+edit ~/.omp/agent/config.yml (merge:shared)
+edit ~/.omp/agent/models.yml (merge:shared)
+edit ~/.zshrc (block:amp)
+edit ~/.zshrc (block:claude-statusline)
+edit ~/.config/fish/config.fish (block:amp)
+mise bootstrap: tools
+mise all tools are installed

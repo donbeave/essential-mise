@@ -1,0 +1,1113 @@
+spawn /usr/bin/ssh -tt -i /Users/donbeave/.config/essential-mise/vm/id_ed25519 -o BatchMode=no -o IdentitiesOnly=yes -o PreferredAuthentications=publickey,password -o NumberOfPasswordPrompts=2 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/Users/donbeave/.config/essential-mise/vm/known_hosts -o LogLevel=ERROR -o ConnectTimeout=10 admin@192.168.64.19 stty sane; set -e
+reviewed_commit='94890d714202da5c3116a862264c6f421201f007'
+essential_mise_script="$(/usr/bin/curl -fsSL "https://raw.githubusercontent.com/donbeave/essential-mise/$reviewed_commit/bootstrap.sh")" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
+
+
+
+==> 1/6 - Apple Command Line Tools (Git)
+
+
+
+==> 2/6 - Homebrew
+
+==> Checking for `sudo` access (which may request your password)...
+
+Password:
+
+==> This script will install:
+
+/opt/homebrew/bin/brew
+
+/opt/homebrew/share/doc/homebrew
+
+/opt/homebrew/share/man/man1/brew.1
+
+/opt/homebrew/share/zsh/site-functions/_brew
+
+/opt/homebrew/etc/bash_completion.d/brew
+
+/opt/homebrew
+
+/etc/paths.d/homebrew
+
+==> The following new directories will be created:
+
+/opt/homebrew/bin
+
+/opt/homebrew/etc
+
+/opt/homebrew/include
+
+/opt/homebrew/lib
+
+/opt/homebrew/sbin
+
+/opt/homebrew/share
+
+/opt/homebrew/var
+
+/opt/homebrew/opt
+
+/opt/homebrew/share/zsh
+
+/opt/homebrew/share/zsh/site-functions
+
+/opt/homebrew/var/homebrew
+
+/opt/homebrew/var/homebrew/linked
+
+/opt/homebrew/Cellar
+
+/opt/homebrew/Caskroom
+
+/opt/homebrew/Frameworks
+
+
+
+Press RETURN/ENTER to continue or any other key to abort:
+
+==> /usr/bin/sudo /usr/bin/install -d -o admin -g admin -m 0755 /opt/homebrew
+
+==> Found Git: /Library/Developer/CommandLineTools/usr/bin/git
+
+==> Downloading and installing Homebrew...
+
+remote: Enumerating objects: 369456, done.
+
+remote: Counting objects:   0% (1/216)
+remote: Counting objects:   1% (3/216)
+remote: Counting objects:   2% (5/216)
+remote: Counting objects:   3% (7/216)
+remote: Counting objects:   4% (9/216)
+remote: Counting objects:   5% (11/216)
+remote: Counting objects:   6% (13/216)
+remote: Counting objects:   7% (16/216)
+remote: Counting objects:   8% (18/216)
+remote: Counting objects:   9% (20/216)
+remote: Counting objects:  10% (22/216)
+remote: Counting objects:  11% (24/216)
+remote: Counting objects:  12% (26/216)
+remote: Counting objects:  13% (29/216)
+remote: Counting objects:  14% (31/216)
+remote: Counting objects:  15% (33/216)
+remote: Counting objects:  16% (35/216)
+remote: Counting objects:  17% (37/216)
+remote: Counting objects:  18% (39/216)
+remote: Counting objects:  19% (42/216)
+remote: Counting objects:  20% (44/216)
+remote: Counting objects:  21% (46/216)
+remote: Counting objects:  22% (48/216)
+remote: Counting objects:  23% (50/216)
+remote: Counting objects:  24% (52/216)
+remote: Counting objects:  25% (54/216)
+remote: Counting objects:  26% (57/216)
+remote: Counting objects:  27% (59/216)
+remote: Counting objects:  28% (61/216)
+remote: Counting objects:  29% (63/216)
+remote: Counting objects:  30% (65/216)
+remote: Counting objects:  31% (67/216)
+remote: Counting objects:  32% (70/216)
+remote: Counting objects:  33% (72/216)
+remote: Counting objects:  34% (74/216)
+remote: Counting objects:  35% (76/216)
+remote: Counting objects:  36% (78/216)
+remote: Counting objects:  37% (80/216)
+remote: Counting objects:  38% (83/216)
+remote: Counting objects:  39% (85/216)
+remote: Counting objects:  40% (87/216)
+remote: Counting objects:  41% (89/216)
+remote: Counting objects:  42% (91/216)
+remote: Counting objects:  43% (93/216)
+remote: Counting objects:  44% (96/216)
+remote: Counting objects:  45% (98/216)
+remote: Counting objects:  46% (100/216)
+remote: Counting objects:  47% (102/216)
+remote: Counting objects:  48% (104/216)
+remote: Counting objects:  49% (106/216)
+remote: Counting objects:  50% (108/216)
+remote: Counting objects:  51% (111/216)
+remote: Counting objects:  52% (113/216)
+remote: Counting objects:  53% (115/216)
+remote: Counting objects:  54% (117/216)
+remote: Counting objects:  55% (119/216)
+remote: Counting objects:  56% (121/216)
+remote: Counting objects:  57% (124/216)
+remote: Counting objects:  58% (126/216)
+remote: Counting objects:  59% (128/216)
+remote: Counting objects:  60% (130/216)
+remote: Counting objects:  61% (132/216)
+remote: Counting objects:  62% (134/216)
+remote: Counting objects:  63% (137/216)
+remote: Counting objects:  64% (139/216)
+remote: Counting objects:  65% (141/216)
+remote: Counting objects:  66% (143/216)
+remote: Counting objects:  67% (145/216)
+remote: Counting objects:  68% (147/216)
+remote: Counting objects:  69% (150/216)
+remote: Counting objects:  70% (152/216)
+remote: Counting objects:  71% (154/216)
+remote: Counting objects:  72% (156/216)
+remote: Counting objects:  73% (158/216)
+remote: Counting objects:  74% (160/216)
+remote: Counting objects:  75% (162/216)
+remote: Counting objects:  76% (165/216)
+remote: Counting objects:  77% (167/216)
+remote: Counting objects:  78% (169/216)
+remote: Counting objects:  79% (171/216)
+remote: Counting objects:  80% (173/216)
+remote: Counting objects:  81% (175/216)
+remote: Counting objects:  82% (178/216)
+remote: Counting objects:  83% (180/216)
+remote: Counting objects:  84% (182/216)
+remote: Counting objects:  85% (184/216)
+remote: Counting objects:  86% (186/216)
+remote: Counting objects:  87% (188/216)
+remote: Counting objects:  88% (191/216)
+remote: Counting objects:  89% (193/216)
+remote: Counting objects:  90% (195/216)
+remote: Counting objects:  91% (197/216)
+remote: Counting objects:  92% (199/216)
+remote: Counting objects:  93% (201/216)
+remote: Counting objects:  94% (204/216)
+remote: Counting objects:  95% (206/216)
+remote: Counting objects:  96% (208/216)
+remote: Counting objects:  97% (210/216)
+remote: Counting objects:  98% (212/216)
+remote: Counting objects:  99% (214/216)
+remote: Counting objects: 100% (216/216)
+remote: Counting objects: 100% (216/216), done.
+
+remote: Compressing objects:   0% (1/118)
+remote: Compressing objects:   1% (2/118)
+remote: Compressing objects:   2% (3/118)
+remote: Compressing objects:   3% (4/118)
+remote: Compressing objects:   4% (5/118)
+remote: Compressing objects:   5% (6/118)
+remote: Compressing objects:   6% (8/118)
+remote: Compressing objects:   7% (9/118)
+remote: Compressing objects:   8% (10/118)
+remote: Compressing objects:   9% (11/118)
+remote: Compressing objects:  10% (12/118)
+remote: Compressing objects:  11% (13/118)
+remote: Compressing objects:  12% (15/118)
+remote: Compressing objects:  13% (16/118)
+remote: Compressing objects:  14% (17/118)
+remote: Compressing objects:  15% (18/118)
+remote: Compressing objects:  16% (19/118)
+remote: Compressing objects:  17% (21/118)
+remote: Compressing objects:  18% (22/118)
+remote: Compressing objects:  19% (23/118)
+remote: Compressing objects:  20% (24/118)
+remote: Compressing objects:  21% (25/118)
+remote: Compressing objects:  22% (26/118)
+remote: Compressing objects:  23% (28/118)
+remote: Compressing objects:  24% (29/118)
+remote: Compressing objects:  25% (30/118)
+remote: Compressing objects:  26% (31/118)
+remote: Compressing objects:  27% (32/118)
+remote: Compressing objects:  28% (34/118)
+remote: Compressing objects:  29% (35/118)
+remote: Compressing objects:  30% (36/118)
+remote: Compressing objects:  31% (37/118)
+remote: Compressing objects:  32% (38/118)
+remote: Compressing objects:  33% (39/118)
+remote: Compressing objects:  34% (41/118)
+remote: Compressing objects:  35% (42/118)
+remote: Compressing objects:  36% (43/118)
+remote: Compressing objects:  37% (44/118)
+remote: Compressing objects:  38% (45/118)
+remote: Compressing objects:  39% (47/118)
+remote: Compressing objects:  40% (48/118)
+remote: Compressing objects:  41% (49/118)
+remote: Compressing objects:  42% (50/118)
+remote: Compressing objects:  43% (51/118)
+remote: Compressing objects:  44% (52/118)
+remote: Compressing objects:  45% (54/118)
+remote: Compressing objects:  46% (55/118)
+remote: Compressing objects:  47% (56/118)
+remote: Compressing objects:  48% (57/118)
+remote: Compressing objects:  49% (58/118)
+remote: Compressing objects:  50% (59/118)
+remote: Compressing objects:  51% (61/118)
+remote: Compressing objects:  52% (62/118)
+remote: Compressing objects:  53% (63/118)
+remote: Compressing objects:  54% (64/118)
+remote: Compressing objects:  55% (65/118)
+remote: Compressing objects:  56% (67/118)
+remote: Compressing objects:  57% (68/118)
+remote: Compressing objects:  58% (69/118)
+remote: Compressing objects:  59% (70/118)
+remote: Compressing objects:  60% (71/118)
+remote: Compressing objects:  61% (72/118)
+remote: Compressing objects:  62% (74/118)
+remote: Compressing objects:  63% (75/118)
+remote: Compressing objects:  64% (76/118)
+remote: Compressing objects:  65% (77/118)
+remote: Compressing objects:  66% (78/118)
+remote: Compressing objects:  67% (80/118)
+remote: Compressing objects:  68% (81/118)
+remote: Compressing objects:  69% (82/118)
+remote: Compressing objects:  70% (83/118)
+remote: Compressing objects:  71% (84/118)
+remote: Compressing objects:  72% (85/118)
+remote: Compressing objects:  73% (87/118)
+remote: Compressing objects:  74% (88/118)
+remote: Compressing objects:  75% (89/118)
+remote: Compressing objects:  76% (90/118)
+remote: Compressing objects:  77% (91/118)
+remote: Compressing objects:  78% (93/118)
+remote: Compressing objects:  79% (94/118)
+remote: Compressing objects:  80% (95/118)
+remote: Compressing objects:  81% (96/118)
+remote: Compressing objects:  82% (97/118)
+remote: Compressing objects:  83% (98/118)
+remote: Compressing objects:  84% (100/118)
+remote: Compressing objects:  85% (101/118)
+remote: Compressing objects:  86% (102/118)
+remote: Compressing objects:  87% (103/118)
+remote: Compressing objects:  88% (104/118)
+remote: Compressing objects:  89% (106/118)
+remote: Compressing objects:  90% (107/118)
+remote: Compressing objects:  91% (108/118)
+remote: Compressing objects:  92% (109/118)
+remote: Compressing objects:  93% (110/118)
+remote: Compressing objects:  94% (111/118)
+remote: Compressing objects:  95% (113/118)
+remote: Compressing objects:  96% (114/118)
+remote: Compressing objects:  97% (115/118)
+remote: Compressing objects:  98% (116/118)
+remote: Compressing objects:  99% (117/118)
+remote: Compressing objects: 100% (118/118)
+remote: Compressing objects: 100% (118/118), done.
+
+remote: Total 369456 (delta 131), reused 148 (delta 98), pack-reused 369240 (from 2)
+
+remote: Enumerating objects: 55, done.
+
+remote: Counting objects:   3% (1/33)
+remote: Counting objects:   6% (2/33)
+remote: Counting objects:   9% (3/33)
+remote: Counting objects:  12% (4/33)
+remote: Counting objects:  15% (5/33)
+remote: Counting objects:  18% (6/33)
+remote: Counting objects:  21% (7/33)
+remote: Counting objects:  24% (8/33)
+remote: Counting objects:  27% (9/33)
+remote: Counting objects:  30% (10/33)
+remote: Counting objects:  33% (11/33)
+remote: Counting objects:  36% (12/33)
+remote: Counting objects:  39% (13/33)
+remote: Counting objects:  42% (14/33)
+remote: Counting objects:  45% (15/33)
+remote: Counting objects:  48% (16/33)
+remote: Counting objects:  51% (17/33)
+remote: Counting objects:  54% (18/33)
+remote: Counting objects:  57% (19/33)
+remote: Counting objects:  60% (20/33)
+remote: Counting objects:  63% (21/33)
+remote: Counting objects:  66% (22/33)
+remote: Counting objects:  69% (23/33)
+remote: Counting objects:  72% (24/33)
+remote: Counting objects:  75% (25/33)
+remote: Counting objects:  78% (26/33)
+remote: Counting objects:  81% (27/33)
+remote: Counting objects:  84% (28/33)
+remote: Counting objects:  87% (29/33)
+remote: Counting objects:  90% (30/33)
+remote: Counting objects:  93% (31/33)
+remote: Counting objects:  96% (32/33)
+remote: Counting objects: 100% (33/33)
+remote: Counting objects: 100% (33/33), done.
+
+remote: Total 55 (delta 33), reused 33 (delta 33), pack-reused 22 (from 1)
+
+==> /usr/bin/sudo /usr/bin/install -o root -g wheel -m 0644 /var/folders/33/7wgx60y97dvbv274hbhddv6m0000gn/T/tmp.4wzOtydDwM /etc/paths.d/homebrew
+
+==> Updating Homebrew...
+
+==> Downloading https://ghcr.io/v2/homebrew/core/portable-ruby/blobs/sha256:43ff285a82f48c84a06d0676a3800815a19d290d32e44182ddd7a6e95478e18e
+
+#=#=#
+##O#-#
+##O=#  #
+#=#=-#  #
+-#O#- #   #
+-=#=#   #   #
+-=O#-#   #   #
+-=O=#  #   #   #
+
+                                                                           0.1%
+#                                                                          2.5%
+################                                                          22.9%
+#########################################################                 79.5%
+######################################################################## 100.0%
+
+==> Pouring portable-ruby-4.0.9.arm64_big_sur.bottle.tar.gz
+
+==> Installation successful!
+
+
+
+==> Homebrew has enabled anonymous aggregate formulae and cask analytics.
+
+Read the analytics documentation (and how to opt-out) here:
+
+  https://docs.brew.sh/Analytics
+
+No analytics data has been sent yet (nor will any be during this install run).
+
+
+
+==> Homebrew is run entirely by unpaid volunteers. Please consider donating:
+
+  https://github.com/Homebrew/brew#donations
+
+
+
+==> Next steps:
+
+- Run these commands in your terminal to add Homebrew to your PATH:
+
+    echo >> /Users/admin/.zprofile
+
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv zsh)"' >> /Users/admin/.zprofile
+
+    eval "$(/opt/homebrew/bin/brew shellenv zsh)"
+
+- Run brew help to get started
+
+- Further documentation:
+
+    https://docs.brew.sh
+
+
+
+
+
+==> 3/6 - mise (v2026.10.23)
+
+mise: installing mise...
+
+#=#=#
+
+                                                                           0.6%
+###                                                                        4.5%
+#############                                                             18.7%
+#####################                                                     30.3%
+#################################                                         47.1%
+#############################################                             62.9%
+########################################################                  78.1%
+################################################################          89.7%
+######################################################################## 100.0%
+
+mise: installed successfully to /Users/admin/.local/bin/mise
+
+mise: run the following to activate mise in your shell:
+
+echo "eval \"\$(/Users/admin/.local/bin/mise activate zsh)\"" >> "/Users/admin/.zshrc"
+
+
+
+mise: run `mise doctor` to verify this is set up correctly
+
+
+
+==> 4/6 - First-run adoption of public configuration
+
+Cloning into '/Users/admin/.config/mise'...
+
+remote: Enumerating objects: 642, done.
+
+remote: Counting objects:   0% (1/642)
+remote: Counting objects:   1% (7/642)
+remote: Counting objects:   2% (13/642)
+remote: Counting objects:   3% (20/642)
+remote: Counting objects:   4% (26/642)
+remote: Counting objects:   5% (33/642)
+remote: Counting objects:   6% (39/642)
+remote: Counting objects:   7% (45/642)
+remote: Counting objects:   8% (52/642)
+remote: Counting objects:   9% (58/642)
+remote: Counting objects:  10% (65/642)
+remote: Counting objects:  11% (71/642)
+remote: Counting objects:  12% (78/642)
+remote: Counting objects:  13% (84/642)
+remote: Counting objects:  14% (90/642)
+remote: Counting objects:  15% (97/642)
+remote: Counting objects:  16% (103/642)
+remote: Counting objects:  17% (110/642)
+remote: Counting objects:  18% (116/642)
+remote: Counting objects:  19% (122/642)
+remote: Counting objects:  20% (129/642)
+remote: Counting objects:  21% (135/642)
+remote: Counting objects:  22% (142/642)
+remote: Counting objects:  23% (148/642)
+remote: Counting objects:  24% (155/642)
+remote: Counting objects:  25% (161/642)
+remote: Counting objects:  26% (167/642)
+remote: Counting objects:  27% (174/642)
+remote: Counting objects:  28% (180/642)
+remote: Counting objects:  29% (187/642)
+remote: Counting objects:  30% (193/642)
+remote: Counting objects:  31% (200/642)
+remote: Counting objects:  32% (206/642)
+remote: Counting objects:  33% (212/642)
+remote: Counting objects:  34% (219/642)
+remote: Counting objects:  35% (225/642)
+remote: Counting objects:  36% (232/642)
+remote: Counting objects:  37% (238/642)
+remote: Counting objects:  38% (244/642)
+remote: Counting objects:  39% (251/642)
+remote: Counting objects:  40% (257/642)
+remote: Counting objects:  41% (264/642)
+remote: Counting objects:  42% (270/642)
+remote: Counting objects:  43% (277/642)
+remote: Counting objects:  44% (283/642)
+remote: Counting objects:  45% (289/642)
+remote: Counting objects:  46% (296/642)
+remote: Counting objects:  47% (302/642)
+remote: Counting objects:  48% (309/642)
+remote: Counting objects:  49% (315/642)
+remote: Counting objects:  50% (321/642)
+remote: Counting objects:  51% (328/642)
+remote: Counting objects:  52% (334/642)
+remote: Counting objects:  53% (341/642)
+remote: Counting objects:  54% (347/642)
+remote: Counting objects:  55% (354/642)
+remote: Counting objects:  56% (360/642)
+remote: Counting objects:  57% (366/642)
+remote: Counting objects:  58% (373/642)
+remote: Counting objects:  59% (379/642)
+remote: Counting objects:  60% (386/642)
+remote: Counting objects:  61% (392/642)
+remote: Counting objects:  62% (399/642)
+remote: Counting objects:  63% (405/642)
+remote: Counting objects:  64% (411/642)
+remote: Counting objects:  65% (418/642)
+remote: Counting objects:  66% (424/642)
+remote: Counting objects:  67% (431/642)
+remote: Counting objects:  68% (437/642)
+remote: Counting objects:  69% (443/642)
+remote: Counting objects:  70% (450/642)
+remote: Counting objects:  71% (456/642)
+remote: Counting objects:  72% (463/642)
+remote: Counting objects:  73% (469/642)
+remote: Counting objects:  74% (476/642)
+remote: Counting objects:  75% (482/642)
+remote: Counting objects:  76% (488/642)
+remote: Counting objects:  77% (495/642)
+remote: Counting objects:  78% (501/642)
+remote: Counting objects:  79% (508/642)
+remote: Counting objects:  80% (514/642)
+remote: Counting objects:  81% (521/642)
+remote: Counting objects:  82% (527/642)
+remote: Counting objects:  83% (533/642)
+remote: Counting objects:  84% (540/642)
+remote: Counting objects:  85% (546/642)
+remote: Counting objects:  86% (553/642)
+remote: Counting objects:  87% (559/642)
+remote: Counting objects:  88% (565/642)
+remote: Counting objects:  89% (572/642)
+remote: Counting objects:  90% (578/642)
+remote: Counting objects:  91% (585/642)
+remote: Counting objects:  92% (591/642)
+remote: Counting objects:  93% (598/642)
+remote: Counting objects:  94% (604/642)
+remote: Counting objects:  95% (610/642)
+remote: Counting objects:  96% (617/642)
+remote: Counting objects:  97% (623/642)
+remote: Counting objects:  98% (630/642)
+remote: Counting objects:  99% (636/642)
+remote: Counting objects: 100% (642/642)
+remote: Counting objects: 100% (642/642), done.
+
+remote: Compressing objects:   0% (1/391)
+remote: Compressing objects:   1% (4/391)
+remote: Compressing objects:   2% (8/391)
+remote: Compressing objects:   3% (12/391)
+remote: Compressing objects:   4% (16/391)
+remote: Compressing objects:   5% (20/391)
+remote: Compressing objects:   6% (24/391)
+remote: Compressing objects:   7% (28/391)
+remote: Compressing objects:   8% (32/391)
+remote: Compressing objects:   9% (36/391)
+remote: Compressing objects:  10% (40/391)
+remote: Compressing objects:  11% (44/391)
+remote: Compressing objects:  12% (47/391)
+remote: Compressing objects:  13% (51/391)
+remote: Compressing objects:  14% (55/391)
+remote: Compressing objects:  15% (59/391)
+remote: Compressing objects:  16% (63/391)
+remote: Compressing objects:  17% (67/391)
+remote: Compressing objects:  18% (71/391)
+remote: Compressing objects:  19% (75/391)
+remote: Compressing objects:  20% (79/391)
+remote: Compressing objects:  21% (83/391)
+remote: Compressing objects:  22% (87/391)
+remote: Compressing objects:  23% (90/391)
+remote: Compressing objects:  24% (94/391)
+remote: Compressing objects:  25% (98/391)
+remote: Compressing objects:  26% (102/391)
+remote: Compressing objects:  27% (106/391)
+remote: Compressing objects:  28% (110/391)
+remote: Compressing objects:  29% (114/391)
+remote: Compressing objects:  30% (118/391)
+remote: Compressing objects:  31% (122/391)
+remote: Compressing objects:  32% (126/391)
+remote: Compressing objects:  33% (130/391)
+remote: Compressing objects:  34% (133/391)
+remote: Compressing objects:  35% (137/391)
+remote: Compressing objects:  36% (141/391)
+remote: Compressing objects:  37% (145/391)
+remote: Compressing objects:  38% (149/391)
+remote: Compressing objects:  39% (153/391)
+remote: Compressing objects:  40% (157/391)
+remote: Compressing objects:  41% (161/391)
+remote: Compressing objects:  42% (165/391)
+remote: Compressing objects:  43% (169/391)
+remote: Compressing objects:  44% (173/391)
+remote: Compressing objects:  45% (176/391)
+remote: Compressing objects:  46% (180/391)
+remote: Compressing objects:  47% (184/391)
+remote: Compressing objects:  48% (188/391)
+remote: Compressing objects:  49% (192/391)
+remote: Compressing objects:  50% (196/391)
+remote: Compressing objects:  51% (200/391)
+remote: Compressing objects:  52% (204/391)
+remote: Compressing objects:  53% (208/391)
+remote: Compressing objects:  54% (212/391)
+remote: Compressing objects:  55% (216/391)
+remote: Compressing objects:  56% (219/391)
+remote: Compressing objects:  57% (223/391)
+remote: Compressing objects:  58% (227/391)
+remote: Compressing objects:  59% (231/391)
+remote: Compressing objects:  60% (235/391)
+remote: Compressing objects:  61% (239/391)
+remote: Compressing objects:  62% (243/391)
+remote: Compressing objects:  63% (247/391)
+remote: Compressing objects:  64% (251/391)
+remote: Compressing objects:  65% (255/391)
+remote: Compressing objects:  66% (259/391)
+remote: Compressing objects:  67% (262/391)
+remote: Compressing objects:  68% (266/391)
+remote: Compressing objects:  69% (270/391)
+remote: Compressing objects:  70% (274/391)
+remote: Compressing objects:  71% (278/391)
+remote: Compressing objects:  72% (282/391)
+remote: Compressing objects:  73% (286/391)
+remote: Compressing objects:  74% (290/391)
+remote: Compressing objects:  75% (294/391)
+remote: Compressing objects:  76% (298/391)
+remote: Compressing objects:  77% (302/391)
+remote: Compressing objects:  78% (305/391)
+remote: Compressing objects:  79% (309/391)
+remote: Compressing objects:  80% (313/391)
+remote: Compressing objects:  81% (317/391)
+remote: Compressing objects:  82% (321/391)
+remote: Compressing objects:  83% (325/391)
+remote: Compressing objects:  84% (329/391)
+remote: Compressing objects:  85% (333/391)
+remote: Compressing objects:  86% (337/391)
+remote: Compressing objects:  87% (341/391)
+remote: Compressing objects:  88% (345/391)
+remote: Compressing objects:  89% (348/391)
+remote: Compressing objects:  90% (352/391)
+remote: Compressing objects:  91% (356/391)
+remote: Compressing objects:  92% (360/391)
+remote: Compressing objects:  93% (364/391)
+remote: Compressing objects:  94% (368/391)
+remote: Compressing objects:  95% (372/391)
+remote: Compressing objects:  96% (376/391)
+remote: Compressing objects:  97% (380/391)
+remote: Compressing objects:  98% (384/391)
+remote: Compressing objects:  99% (388/391)
+remote: Compressing objects: 100% (391/391)
+remote: Compressing objects: 100% (391/391), done.
+
+Receiving objects:   0% (1/642)
+Receiving objects:   1% (7/642)
+Receiving objects:   2% (13/642)
+Receiving objects:   3% (20/642)
+Receiving objects:   4% (26/642)
+Receiving objects:   5% (33/642)
+Receiving objects:   6% (39/642)
+Receiving objects:   7% (45/642)
+Receiving objects:   8% (52/642)
+Receiving objects:   9% (58/642)
+Receiving objects:  10% (65/642)
+Receiving objects:  11% (71/642)
+Receiving objects:  12% (78/642)
+Receiving objects:  13% (84/642)
+Receiving objects:  14% (90/642)
+Receiving objects:  15% (97/642)
+Receiving objects:  16% (103/642)
+Receiving objects:  17% (110/642)
+Receiving objects:  18% (116/642)
+Receiving objects:  19% (122/642)
+Receiving objects:  20% (129/642)
+Receiving objects:  21% (135/642)
+Receiving objects:  22% (142/642)
+Receiving objects:  23% (148/642)
+Receiving objects:  24% (155/642)
+Receiving objects:  25% (161/642)
+Receiving objects:  26% (167/642)
+Receiving objects:  27% (174/642)
+Receiving objects:  28% (180/642)
+Receiving objects:  29% (187/642)
+Receiving objects:  29% (191/642), 13.28 MiB | 13.12 MiB/s
+Receiving objects:  30% (193/642), 13.28 MiB | 13.12 MiB/s
+Receiving objects:  31% (200/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  32% (206/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  33% (212/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  34% (219/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  35% (225/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  36% (232/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  37% (238/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  38% (244/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  39% (251/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  40% (257/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  41% (264/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  42% (270/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  43% (277/642), 22.18 MiB | 14.62 MiB/s
+Receiving objects:  43% (282/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  44% (283/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  45% (289/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  46% (296/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  47% (302/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  48% (309/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  49% (315/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  50% (321/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  51% (328/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  52% (334/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  53% (341/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  54% (347/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  55% (354/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  56% (360/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  57% (366/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  58% (373/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  59% (379/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  60% (386/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  61% (392/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  62% (399/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  63% (405/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  64% (411/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  65% (418/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  66% (424/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  67% (431/642), 31.32 MiB | 15.44 MiB/s
+remote: Total 642 (delta 306), reused 526 (delta 190), pack-reused 0 (from 0)
+
+Receiving objects:  68% (437/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  69% (443/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  70% (450/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  71% (456/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  72% (463/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  73% (469/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  74% (476/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  75% (482/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  76% (488/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  77% (495/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  78% (501/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  79% (508/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  80% (514/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  81% (521/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  82% (527/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  83% (533/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  84% (540/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  85% (546/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  86% (553/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  87% (559/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  88% (565/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  89% (572/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  90% (578/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  91% (585/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  92% (591/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  93% (598/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  94% (604/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  95% (610/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  96% (617/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  97% (623/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  98% (630/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects:  99% (636/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects: 100% (642/642), 31.32 MiB | 15.44 MiB/s
+Receiving objects: 100% (642/642), 36.17 MiB | 15.76 MiB/s, done.
+
+Resolving deltas:   0% (0/306)
+Resolving deltas:   1% (4/306)
+Resolving deltas:   2% (7/306)
+Resolving deltas:   3% (10/306)
+Resolving deltas:   4% (13/306)
+Resolving deltas:   5% (17/306)
+Resolving deltas:   6% (19/306)
+Resolving deltas:   7% (22/306)
+Resolving deltas:   8% (25/306)
+Resolving deltas:   9% (28/306)
+Resolving deltas:  10% (31/306)
+Resolving deltas:  11% (34/306)
+Resolving deltas:  12% (37/306)
+Resolving deltas:  13% (40/306)
+Resolving deltas:  14% (43/306)
+Resolving deltas:  15% (46/306)
+Resolving deltas:  16% (49/306)
+Resolving deltas:  17% (53/306)
+Resolving deltas:  18% (56/306)
+Resolving deltas:  19% (59/306)
+Resolving deltas:  20% (62/306)
+Resolving deltas:  21% (65/306)
+Resolving deltas:  22% (68/306)
+Resolving deltas:  23% (71/306)
+Resolving deltas:  24% (74/306)
+Resolving deltas:  25% (77/306)
+Resolving deltas:  26% (80/306)
+Resolving deltas:  27% (83/306)
+Resolving deltas:  28% (86/306)
+Resolving deltas:  29% (89/306)
+Resolving deltas:  30% (92/306)
+Resolving deltas:  31% (95/306)
+Resolving deltas:  32% (98/306)
+Resolving deltas:  33% (101/306)
+Resolving deltas:  34% (105/306)
+Resolving deltas:  35% (109/306)
+Resolving deltas:  36% (111/306)
+Resolving deltas:  37% (114/306)
+Resolving deltas:  38% (118/306)
+Resolving deltas:  39% (120/306)
+Resolving deltas:  40% (123/306)
+Resolving deltas:  41% (126/306)
+Resolving deltas:  42% (129/306)
+Resolving deltas:  43% (132/306)
+Resolving deltas:  44% (135/306)
+Resolving deltas:  45% (138/306)
+Resolving deltas:  46% (141/306)
+Resolving deltas:  47% (144/306)
+Resolving deltas:  48% (147/306)
+Resolving deltas:  49% (150/306)
+Resolving deltas:  50% (153/306)
+Resolving deltas:  51% (158/306)
+Resolving deltas:  52% (160/306)
+Resolving deltas:  53% (163/306)
+Resolving deltas:  54% (166/306)
+Resolving deltas:  55% (169/306)
+Resolving deltas:  56% (172/306)
+Resolving deltas:  57% (175/306)
+Resolving deltas:  58% (178/306)
+Resolving deltas:  59% (181/306)
+Resolving deltas:  60% (184/306)
+Resolving deltas:  61% (187/306)
+Resolving deltas:  62% (190/306)
+Resolving deltas:  63% (193/306)
+Resolving deltas:  64% (196/306)
+Resolving deltas:  65% (199/306)
+Resolving deltas:  66% (202/306)
+Resolving deltas:  67% (206/306)
+Resolving deltas:  68% (210/306)
+Resolving deltas:  69% (212/306)
+Resolving deltas:  70% (215/306)
+Resolving deltas:  71% (218/306)
+Resolving deltas:  72% (221/306)
+Resolving deltas:  73% (224/306)
+Resolving deltas:  74% (228/306)
+Resolving deltas:  75% (230/306)
+Resolving deltas:  76% (233/306)
+Resolving deltas:  77% (237/306)
+Resolving deltas:  78% (239/306)
+Resolving deltas:  79% (242/306)
+Resolving deltas:  80% (245/306)
+Resolving deltas:  81% (248/306)
+Resolving deltas:  82% (251/306)
+Resolving deltas:  83% (254/306)
+Resolving deltas:  84% (258/306)
+Resolving deltas:  85% (263/306)
+Resolving deltas:  86% (264/306)
+Resolving deltas:  87% (267/306)
+Resolving deltas:  88% (270/306)
+Resolving deltas:  89% (273/306)
+Resolving deltas:  90% (276/306)
+Resolving deltas:  91% (280/306)
+Resolving deltas:  92% (282/306)
+Resolving deltas:  93% (285/306)
+Resolving deltas:  94% (288/306)
+Resolving deltas:  95% (291/306)
+Resolving deltas:  96% (294/306)
+Resolving deltas:  97% (298/306)
+Resolving deltas:  98% (300/306)
+Resolving deltas:  99% (303/306)
+Resolving deltas: 100% (306/306)
+Resolving deltas: 100% (306/306), done.
+
+mise bootstrap: tools
+
+mise all tools are installed
+
+
+
+==> 5/6 - Foundation only (zsh activation)
+
+mise bootstrap: dotfile edits
+
+
+edits: apply ~/.zshenv (line:local-bin)?
+
+
+
+
+
+   Yes     No
+
+
+
+←/→ toggle • y/n/enter submit
+
+
+
+
+
+
+
+
+edits: apply ~/.zshenv (line:local-bin)? Yes
+
+mise edits: applied ~/.zshenv (line:local-bin)
+
+mise bootstrap: shell activation
+
+
+edits: apply ~/.zprofile (block:activate), ~/.zshrc (block:activate)?
+
+
+
+
+
+   Yes     No
+
+
+
+←/→ toggle • y/n/enter submit
+
+
+
+
+
+
+
+
+edits: apply ~/.zprofile (block:activate), ~/.zshrc (block:activate)? Yes
+
+y
+
+mise edits: applied ~/.zprofile (block:activate), ~/.zshrc (block:activate)
+
+mise bootstrap: tools
+
+mise all tools are installed
+
+
+
+==> 6/6 - Verify a new login and interactive zsh
+
+              _                                        __
+
+   ____ ___  (_)_______        ___  ____        ____  / /___ _________
+
+  / __ `__ \/ / ___/ _ \______/ _ \/ __ \______/ __ \/ / __ `/ ___/ _ \
+
+ / / / / / / (__  )  __/_____/  __/ / / /_____/ /_/ / / /_/ / /__/  __/
+
+/_/ /_/ /_/_/____/\___/      \___/_/ /_/     / .___/_/\__,_/\___/\___/
+
+                                            /_/                 by @jdx
+
+2026.10.23 macos-arm64 (2026-10-29)
+
+mise hint keep mise updated automatically with mise settings self_update.auto=true
+
+version: 2026.10.23 macos-arm64 (2026-10-29)
+
+activated: yes
+
+shims_on_path: yes
+
+self_update_available: yes
+
+
+
+build_info:
+
+  Target: aarch64-apple-darwin
+
+  Features: openssl, rustls-native-roots, self_update
+
+  Built: Thu, 29 Oct 2026 09:30:08 +0000
+
+  Rust Version: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+
+  Profile: release
+
+
+
+shell:
+
+  /bin/zsh
+
+  zsh 5.9 (arm64-apple-darwin26.0)
+
+
+
+aqua:
+
+  baked in registry: aquaproj/aqua-registry@f6554f4f96583e57af233683604d1c457f449f63
+
+  baked in registry tools: 2341
+
+
+
+dirs:
+
+  cache: ~/Library/Caches/mise
+
+  config: ~/.config/mise
+
+  data: ~/.local/share/mise
+
+  shims: ~/.local/share/mise/shims
+
+  system_shims: /usr/local/share/mise/shims
+
+  state: ~/.local/state/mise
+
+
+
+config_files:
+
+  ~/.config/mise/config.toml
+
+  ~/.config/mise/config.foundation.toml
+
+
+
+env_files:
+
+  (none)
+
+
+
+ignored_config_files: (none)
+
+
+
+backends:
+
+  aqua
+
+  asdf
+
+  cargo
+
+  conda
+
+  core
+
+  dotnet
+
+  forgejo
+
+  gem
+
+  github
+
+  gitlab
+
+  go
+
+  npm
+
+  packslip
+
+  pypi
+
+  spinel
+
+  spm
+
+  http
+
+  s3
+
+  ubi
+
+  vfox
+
+
+
+plugins:
+
+
+
+toolset:
+
+
+
+path:
+
+  ~/.local/share/mise/shims
+
+  /opt/homebrew/bin
+
+  /opt/homebrew/sbin
+
+  /usr/local/bin
+
+  /System/Cryptexes/App/usr/bin
+
+  /usr/bin
+
+  /bin
+
+  /usr/sbin
+
+  /sbin
+
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin
+
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin
+
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin
+
+  /pkg/env/global/bin
+
+  ~/.local/bin
+
+
+
+env_vars:
+
+  MISE_VERSION=v2026.10.23
+
+  MISE_CONFIG_DIR=~/.config/mise
+
+  MISE_SHELL=zsh
+
+
+
+settings:
+
+
+
+No problems found
+
+
+
+==> Finished. Open a fresh Terminal window.
+
+Preview the standard workstation:
+
+  mise -E foundation,terminal,development,security bootstrap --dry-run
+
+Apply it after review:
+
+  mise -E foundation,terminal,development,security bootstrap
+
+Preview coding agents and shared tools:
+
+  mise -E ai-tools,ai-cli bootstrap --dry-run
+
+This script did NOT permanently select an optional environment.

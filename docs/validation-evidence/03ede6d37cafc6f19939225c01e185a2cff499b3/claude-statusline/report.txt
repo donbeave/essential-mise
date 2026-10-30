@@ -1,0 +1,8 @@
+script_sha256=e0268e5e61bb07456bdbbcda5975c7189f5e89168b8cd3df6821cadc2c05917d
+sample_output=PASS
+running_subagent=PASS
+finished_interrupted_idle_filtering=PASS
+green_35=PASS
+yellow_50=PASS
+red_80=PASS
+input_token_formula=PASS

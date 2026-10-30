@@ -1,0 +1,38 @@
+packages  brew:ripgrep                  15.2.0                                                installed
+packages  brew:fd                       10.5.0                                                installed
+packages  brew:fzf                      0.74.5                                                installed
+packages  brew:ast-grep                 0.51.0                                                installed
+packages  brew:semgrep                  1.182.0                                               installed
+packages  brew:jq                       1.8.2                                                 installed
+packages  brew:yq                       4.54.1                                                installed
+packages  brew:dasel                    3.11.2                                                installed
+packages  brew:sd                       1.1.0                                                 installed
+packages  brew:git-delta                0.20.1                                                installed
+packages  brew:eza                      0.23.5                                                installed
+packages  brew:zoxide                   0.10.0                                                installed
+packages  brew:tree                     2.3.2                                                 installed
+packages  brew:tokei                    15.0.0                                                installed
+packages  brew:hyperfine                2.0.0                                                 installed
+packages  brew:shellcheck               0.11.0                                                installed
+packages  brew:shfmt                    3.14.1                                                installed
+packages  brew:universal-ctags          6.2.1                                                 installed
+packages  brew:rtk                      1.1.0                                                 installed
+packages  brew:agent-browser            0.41.0                                                installed
+packages  brew:kimi-code                2.4.0                                                 installed
+packages  brew:opencode                 2.2.3                                                 installed
+packages  brew-cask:codex               0.166.0                                               installed
+packages  brew-cask:cursor-cli          2026.10.22-27dcf5f                                    installed
+packages  brew-cask:antigravity-cli     1.4.11,5180209989812224                               installed (auto-updates)
+packages  brew-cask:grok-build          1.0.70                                                installed
+dotfiles  ~/.claude/CLAUDE.md           copy ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md  applied
+dotfiles  ~/.config/opencode/AGENTS.md  copy ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md  applied
+dotfiles  ~/.grok/AGENTS.md             copy ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md  applied
+dotfiles  ~/.kimi-code/AGENTS.md        copy ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md  applied
+dotfiles  ~/.config/amp/AGENTS.md       copy ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md  applied
+dotfiles  ~/.omp/agent/AGENTS.md        copy ~/.config/mise/dotfiles/ai-cli/GLOBAL_AGENTS.md  applied
+dotfiles  ~/.codex/AGENTS.md            copy ~/.config/mise/dotfiles/ai-cli/CODEX.md          applied
+dotfiles  ~/.omp/agent/config.yml       merge:shared                                          applied
+dotfiles  ~/.omp/agent/models.yml       merge:shared                                          applied
+dotfiles  ~/.zshrc                      block:amp                                             applied
+dotfiles  ~/.zshrc                      block:claude-statusline                               applied
+dotfiles  ~/.config/fish/config.fish    block:amp                                             applied

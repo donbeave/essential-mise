@@ -1,0 +1,4 @@
+git clone https://example.invalid/synthetic-workspace.git /private/tmp/essential-mise-synthetic-workspace
+mise bootstrap: repos
+mise bootstrap: tools
+mise all tools are installed
