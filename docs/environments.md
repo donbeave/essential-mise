@@ -16,7 +16,7 @@ env = ["foundation", "terminal", "development", "security"]
 |---|---|---|
 | `foundation` | `~/.local/bin` in `~/.zshenv`; native zsh activation | No packages or optional configuration |
 | `terminal` | Stable Ghostty, JetBrainsMono Nerd Font, Starship, bat, watch, just, xh, wget, Bash, Nushell, Fish, git-standup, msedit, buf, gogcli; pinned Oh My Zsh and zsh-autosuggestions | Starship is the only prompt renderer; Oh My Zsh self-update disabled; Fish uses native `auto` activation, not a copied config file |
-| `development` | GitHub CLI and Git LFS | Nonidentity Git settings and nonsecret GitHub CLI config only; real identity, `git lfs install`, and `gh auth setup-git` are manual |
+| `development` | GitHub CLI and Git LFS | Nonsecret GitHub CLI YAML merge only. The nine nonidentity Git settings and XDG-safe ignore override use manual `git config` commands to avoid unsafe INI parsing; real identity, `git lfs install`, and `gh auth setup-git` are manual |
 | `security` | 1Password, 1Password CLI, and 1Password for Safari (`mas:1569813296`) | App Store sign-in, account unlock, SSH agent, extension enablement, and CLI auth are manual |
 
 ## Optional development stacks

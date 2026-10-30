@@ -66,9 +66,9 @@ brew_shellenv=''
 if ! brew_shellenv="$("$BREW_BIN" shellenv)"; then
   fail 'brew shellenv failed.'
 fi
-[[ -n "$brew_shellenv" ]] || fail 'brew shellenv returned no output.'
 eval "$brew_shellenv"
 command -v brew >/dev/null 2>&1 || fail 'brew is not available after shellenv initialization.'
+[[ "$("$BREW_BIN" --prefix)" == '/opt/homebrew' ]] || fail 'Homebrew prefix is not /opt/homebrew.'
 brew_shellenv_line='eval "$(/opt/homebrew/bin/brew shellenv)"'
 if [[ ! -f "$HOME/.zprofile" ]] || ! /usr/bin/grep -Fqx "$brew_shellenv_line" "$HOME/.zprofile"; then
   printf '\n# Homebrew (essential-mise stage 0)\n%s\n' "$brew_shellenv_line" >> "$HOME/.zprofile"
@@ -86,9 +86,37 @@ installed_mise_version="$("$MISE_BIN" --version | /usr/bin/awk '{print $1}')"
 export MISE_CONFIG_DIR="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
 [[ "$MISE_CONFIG_DIR" == /* ]] || fail "MISE_CONFIG_DIR must be absolute: $MISE_CONFIG_DIR"
 [[ "$MISE_CONFIG_DIR" != '/' && "$MISE_CONFIG_DIR" != "$HOME" ]] || fail "Unsafe MISE_CONFIG_DIR: $MISE_CONFIG_DIR"
-[[ "$MISE_CONFIG_DIR" != *'..'* ]] || fail "MISE_CONFIG_DIR cannot contain parent traversal: $MISE_CONFIG_DIR"
-[[ ! -L "$MISE_CONFIG_DIR" ]] || fail "MISE_CONFIG_DIR cannot be a symlink: $MISE_CONFIG_DIR"
+config_path=''
+IFS='/' read -r -a config_components <<< "${MISE_CONFIG_DIR#/}"
+for component in "${config_components[@]}"; do
+  [[ -n "$component" && "$component" != '.' && "$component" != '..' ]] || \
+    fail "MISE_CONFIG_DIR contains an empty or relative path component: $MISE_CONFIG_DIR"
+  config_path+="/$component"
+  [[ ! -L "$config_path" ]] || fail "MISE_CONFIG_DIR cannot traverse a symlink: $config_path"
+done
+[[ "$config_path" == "$MISE_CONFIG_DIR" ]] || fail "MISE_CONFIG_DIR is not normalized: $MISE_CONFIG_DIR"
+config_parent="$MISE_CONFIG_DIR"
+while [[ ! -d "$config_parent" ]]; do
+  config_parent="${config_parent%/*}"
+  [[ -n "$config_parent" ]] || config_parent='/'
+done
+physical_parent="$(cd -P "$config_parent" && pwd -P)" || fail 'Cannot resolve the configuration parent.'
+[[ "$physical_parent" == "$config_parent" ]] || fail "MISE_CONFIG_DIR is not filesystem-canonical: $MISE_CONFIG_DIR"
 unset MISE_ENV MISE_GLOBAL_CONFIG_FILE
+
+validate_config_checkout() {
+  local inside bare top physical_config physical_top
+  [[ -d "$MISE_CONFIG_DIR" ]] || fail "Configuration directory was not created: $MISE_CONFIG_DIR"
+  inside="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --is-inside-work-tree 2>/dev/null)" || \
+    fail 'Existing config is not a Git worktree.'
+  [[ "$inside" == 'true' ]] || fail 'Existing config is not inside a Git worktree.'
+  bare="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --is-bare-repository)" || fail 'Cannot determine Git repository type.'
+  [[ "$bare" == 'false' ]] || fail 'Existing config cannot be a bare repository.'
+  top="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --show-toplevel)" || fail 'Cannot determine the configuration worktree root.'
+  physical_config="$(cd -P "$MISE_CONFIG_DIR" && pwd -P)" || fail 'Cannot resolve the configuration directory.'
+  physical_top="$(cd -P "$top" && pwd -P)" || fail 'Cannot resolve the configuration worktree root.'
+  [[ "$physical_top" == "$physical_config" ]] || fail "Config path must be the actual worktree root, not $top"
+}
 
 if [[ ! -e "$MISE_CONFIG_DIR" ]] || { [[ -d "$MISE_CONFIG_DIR" ]] && [[ -z "$(/bin/ls -A "$MISE_CONFIG_DIR")" ]]; }; then
   say '4/6 - First-run adoption of public configuration'
@@ -97,15 +125,14 @@ if [[ ! -e "$MISE_CONFIG_DIR" ]] || { [[ -d "$MISE_CONFIG_DIR" ]] && [[ -z "$(/b
   "$MISE_BIN" bootstrap --adopt "$REPO"
 else
   say '4/6 - Existing configuration detected; skipping adoption'
-  [[ -d "$MISE_CONFIG_DIR" ]] || fail "Config path is not a directory: $MISE_CONFIG_DIR"
-  origin="$(/usr/bin/git -C "$MISE_CONFIG_DIR" remote get-url origin 2>/dev/null || true)"
-  case "$origin" in
-    'https://github.com/donbeave/essential-mise'|'https://github.com/donbeave/essential-mise.git'|'git@github.com:donbeave/essential-mise'|'git@github.com:donbeave/essential-mise.git') ;;
-    *) fail "Existing config has an unexpected or missing origin ($origin); refusing to overwrite or pull." ;;
-  esac
 fi
 
-[[ -d "$MISE_CONFIG_DIR" ]] || fail "Configuration directory was not created: $MISE_CONFIG_DIR"
+validate_config_checkout
+origin="$(/usr/bin/git -C "$MISE_CONFIG_DIR" remote get-url origin 2>/dev/null || true)"
+case "$origin" in
+  'https://github.com/donbeave/essential-mise'|'https://github.com/donbeave/essential-mise.git'|'git@github.com:donbeave/essential-mise'|'git@github.com:donbeave/essential-mise.git') ;;
+  *) fail "Existing config has an unexpected or missing origin ($origin); refusing to overwrite or pull." ;;
+esac
 
 say '5/6 - Foundation only (zsh activation)'
 cd "$MISE_CONFIG_DIR"

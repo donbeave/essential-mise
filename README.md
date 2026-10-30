@@ -75,6 +75,8 @@ The user subsequently approved six narrowly scoped real-Homebrew package excepti
 
 Scoped v1 explicitly retains Amp Desktop in `ai-desktop` to satisfy the requested Amp inventory, while accepting that its package currently installs but does not launch on macOS 27.2. This is package provisioning only, not a working-GUI claim. Signed-in MAS installation, purchases/claims, and reruns are accepted as manual, unverified v1 boundaries; the standard workstation is not described as fully tested. Authenticated OMP routing/instruction loading and interactive Claude status-line rendering are also accepted manual verification boundaries. These decisions preserve the complete declarations without converting failed or unverified behavior into success, and they are not unrestricted public-release approval.
 
+The Git data-preservation fallback supersedes automatic INI merging: the nine tuning keys and XDG-safe `core.excludesFile` override are applied manually through Git's own CLI. A successful empty Homebrew `shellenv` result is accepted as a valid already-initialized environment, superseding the earlier nonempty-output requirement. Preference stored-state and preservation checks are verified, but every affected UI behavior and delayed selective reversal remains a manual validation boundary with an exact immediate-rollback procedure in [Manual actions](docs/manual-actions.md).
+
 ### Claude Code status line
 
 `ai-cli` installs an executable status-line script and a zsh wrapper. Every `claude` launch from zsh passes it through `--settings`; the script shows the directory, model and effort, context usage, and currently running subagents. See [Claude Code status line](docs/claude-statusline.md) for the exact wrapper, output, and verification evidence.
@@ -99,6 +101,20 @@ mise bootstrap
 ```
 
 Stop for a dirty/conflicting checkout. Plain `mise bootstrap --update` is separate: it refreshes package metadata and declared repositories, not the global config checkout by itself.
+
+## Upgrade native packages and tools
+
+Configuration pulls, package upgrades, and removal are separate operations. Review the native upgrade plan, then apply it deliberately:
+
+```bash
+cd "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
+mise bootstrap --upgrade --dry-run
+mise bootstrap --upgrade
+```
+
+`--upgrade` respects exact tool pins and package version constraints. Node, Bun, Rust, mr-boxington, and GraalVM therefore remain at their declared versions until the configuration changes; the Grok Bot declaration also stays at its pinned DMG URL and checksum. It does not upgrade mise itself, update declared repositories, refresh the adopted Git checkout, or restart services. Stage 0 continues to install and verify the explicitly pinned mise version.
+
+Upgrade the six Homebrew exceptions only with their separate commands in [Homebrew exceptions](docs/homebrew-exceptions.md). Routine hooks ensure presence and health without upgrading outdated packages. Formula upgrades can change dependencies. Cask upgrades can replace application bundles, so review signatures, login items, and Accessibility/Screen Recording/Automation permissions afterward instead of assuming they carry over.
 
 ## Removal
 

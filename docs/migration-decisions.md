@@ -46,7 +46,7 @@ The old generic components and sanitized legacy example have different provenanc
 | `category.k8s` | NATIVE | `kubernetes` keeps kubectl, kubectx, Helm | Formula metadata; cluster setup manual |
 | `category.media` | NATIVE | `media` keeps Transmission, HandBrake, Plex; Blackmagic RAW remains MAS there | Separate cask/MAS checks |
 | `category.preview` | NATIVE + CHANGE | Stable `brew-cask:zed` in `development-editors`; historical preview channel dropped | Stable cask metadata and JSONC merge |
-| `host.gaps` | DROP + REAL HOMEBREW EXCEPTIONS | Native declarations are used where supported; five documented real-Homebrew exceptions are used for concrete mise incompatibilities | No `host.gaps` runtime or bridge exists; exception health checks, upgrade owners, and manual removal are documented |
+| `host.gaps` | DROP + REAL HOMEBREW EXCEPTIONS | Native declarations are used where supported; six documented real-Homebrew exceptions are used for concrete mise incompatibilities | No `host.gaps` runtime or bridge exists; presence-only exception health checks, explicit upgrade owners, and manual removal are documented |
 | `host.git-lfs` | NATIVE + MANUAL | `brew:git-lfs` in standard `development`; initialization manual | Formula metadata; `git lfs install` manual |
 | `host.network-time` | MANUAL | No native declarative equivalent approved for v1 | Manual Date & Time configuration |
 | `host.tune` | MANUAL + DROP | Privileged sysctl/LaunchDaemon/pmset/systemsetup/Gatekeeper/login-window/Zoom/Little Snitch automation not ported | Manual host settings only |
@@ -61,7 +61,7 @@ The old generic components and sanitized legacy example have different provenanc
 
 ## 2. Package and runtime declarations
 
-Every declaration below is literal TOML. Repeated `brew:mas` is intentional independence for MAS modules; repeated Nerd Font is intentional independence for terminal/editors. All others have one functional owner.
+Every declaration below is literal TOML. Repeated `brew:mas` is intentional independence for MAS modules, repeated Nerd Font is intentional independence for terminal/editors, and repeated `brew:jq` is an independent prerequisite of both AI terminal modules. All others have one functional owner.
 
 | Module | Exact declaration | Status | Validation |
 |---|---|---|---|
@@ -71,6 +71,7 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `admin` | `"mas:1007358832" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `admin` | `"mas:1447778660" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `admin` | `"mas:1037126344" = "latest"` | NEW | Apple lookup confirms `com.apple.configurator.ui`; disposable-host MAS install |
+| `ai-cli` | `"brew:jq" = "latest"` | NEW + SHARED PREREQUISITE | Independent JSON encoder for the Claude wrapper; identical declaration also exists in `ai-tools` |
 | `ai-cli` | Real Homebrew `/opt/homebrew/bin/brew install --cask claude-code@latest` in `post-packages` | REAL HOMEBREW + CHANGE | Stable cask's `bin/claude` target was missing; supported latest cask provides Claude Code 2.1.312 and a working CLI |
 | `ai-cli` | `"brew-cask:codex" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
 | `ai-cli` | `"brew-cask:cursor-cli" = "latest"` | NATIVE | Native metadata/status/dry-run; disposable-host install for third-party/privileged apps |
@@ -214,6 +215,30 @@ Every declaration below is literal TOML. Repeated `brew:mas` is intentional inde
 | `utilities` | `"brew:mas" = "latest"` | NATIVE | MAS prerequisite check |
 | `utilities` | `"mas:470158793" = "latest"` | NATIVE | MAS availability/sign-in |
 
+### Exact current-resource and ownership additions
+
+These rows supplement the legacy inventory with current declarations whose exact targets, ownership, validation, or removal behavior must remain visible. `scripts/vm/verify-current-inventory.py` mechanically checks every current package, tool, dotfile target, setting, preference, repository, login item, hook package, and executable against this matrix.
+
+| Exact resource | Owner and status | Deployment, validation, and removal |
+|---|---|---|
+| `~/.codex/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied from `CODEX.md`; content verified; native unapply removes the managed file |
+| `~/.config/amp/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied from `GLOBAL_AGENTS.md`; content verified; native unapply removes the managed file |
+| `~/.config/fish/config.fish/amp` | `ai-cli`; NATIVE | Interactive Amp completion block; does not replace Fish activation; native unapply removes the owned edit |
+| `~/.config/gh/config.yml/shared` | `development`; NATIVE | Nonsecret YAML merge; scalar, alias, and schema-version readbacks; native unapply owns only managed entries |
+| `~/.config/ghostty/themes/generic-terminal` | `terminal`; NATIVE | Explicit copy-mode theme; source existence and application checked; native unapply removes the managed file |
+| `~/.config/opencode/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied shared policy; native unapply removes the managed file |
+| `~/.config/zed/settings.json/prefs` | `development-editors`; NATIVE + CHANGE | JSONC merge; existing comments, trailing commas, and unrelated keys are preservation-test requirements; native unapply owns managed entries |
+| `~/.grok/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied shared policy; native unapply removes the managed file |
+| `~/.omp/agent/AGENTS.md` | `ai-cli`; NATIVE + CHANGE | Copied shared policy; file existence verified, authenticated runtime loading remains an accepted manual boundary; native unapply removes the managed file |
+| `~/.zshenv/local-bin` | `foundation`; NATIVE | Single PATH edit; fresh-shell verification; native unapply removes the owned edit |
+| `~/.zshrc/amp` | `ai-cli`; NATIVE | Guarded completion edit; native unapply removes the owned block |
+| `~/.zshrc/claude-statusline` | `ai-cli`; APPROVED EXCEPTION | Zsh wrapper uses `%q` plus `jq --arg`; special-path/argument tests; native unapply removes the owned block |
+| `~/.zshrc/terminal` | `terminal`; NATIVE | Oh My Zsh/Starship/native activation edits; actual unapply/reapply verified |
+| `bin/claude-statusline.sh` | Active Git checkout; APPROVED EXCEPTION | Executable source is owned and updated by the reviewed checkout, not deployed as a second dotfile copy; exact hash and synthetic fixtures verified; removed only with the checkout |
+| `settings.github.credential_command` | `development-rust`; NATIVE | Uses existing `gh auth token` for release lookup without storing a token; runtime/Cargo checks; deselecting removes it from mise resolution and removes no credentials |
+| `NSGlobalDomain AppleFirstWeekday.gregorian` | `system-preferences`; NATIVE nested entry | Changes only `gregorian`; unrelated dictionary members preserved; preferences require separate explicit reversal |
+| `NSGlobalDomain AppleICUDateFormatStrings.1` | `system-preferences`; NATIVE nested entry | Changes only short-date member `1`; unrelated dictionary members preserved; preferences require separate explicit reversal |
+
 ## 3. Repository declarations
 
 | Destination | Exact declaration | Status | Validation |
@@ -237,7 +262,7 @@ No active workspace repository is declared. Real future workspace URLs must use 
 | `.omp/agent/config.yml` | NATIVE | `~/.omp/agent/config.yml/shared` native YAML merge; validate roles with `omp config` |
 | `.kimi-code/AGENTS.md` | NATIVE + CHANGE | Replaced by self-contained `GLOBAL_AGENTS.md` at `~/.kimi-code/AGENTS.md`; original was integration-only |
 | `.grok/AGENTS.md` | NATIVE + CHANGE | Shared policy at same target, preserving substantive delegation/Git policy without RTK/Caveman |
-| `.gitconfig` | NATIVE + MANUAL | Only listed nonidentity keys in `format = "ini"` merge; user and credential helpers remain manual (`gh auth setup-git`) |
+| `.gitconfig` | MANUAL + DATA-PRESERVATION FALLBACK | Automatic INI merge removed because generic continuation parsing can delete indented user settings; apply only the nine listed nonidentity keys through `git config --global`; identity and credential helpers remain manual (`gh auth setup-git`) |
 | `.config/zellij/config.kdl` | DROP | No Zellij package selected; no unowned config deployed |
 | `.config/zed/settings.json` | NATIVE + CHANGE | Renamed JSONC source; merge only approved layout/font/theme keys; `agent`/`agent_servers` dropped |
 | `.config/starship.toml` | NATIVE | Copy to `~/.config/starship.toml`; Nerd Font and single prompt owner verified |
@@ -260,7 +285,7 @@ No active workspace repository is declared. Real future workspace URLs must use 
 | `.config/jackin/workspaces/chainargos-platform.toml` | DROP | Same |
 | `.config/jackin/workspaces/chainargos-blockchain-nodes.toml` | DROP | Same |
 | `.config/jackin/config.toml` | DROP | No Jackin selected; host attach/private workspace configuration not activated |
-| `.config/git/ignore` | NATIVE | Copy to `~/.config/git/ignore` |
+| `.config/git/ignore` | MANUAL + XDG-SAFE OVERRIDE | Retained source in the active checkout; set `core.excludesFile` to that absolute source through Git itself so custom XDG paths work; no hardcoded copy is deployed |
 | `.config/ghostty/themes/generic-terminal` | NATIVE | Copy to matching Ghostty theme path |
 | `.config/ghostty/config` | NATIVE | Copy to `~/.config/ghostty/config`; Nerd Font installed |
 | `.config/gh/hosts.yml` | DROP | Authentication/account data is not shipped |
@@ -306,7 +331,7 @@ These rows preserve provenance. “NATIVE” uses the reviewed current root sour
 | `.config/opencode/AGENTS.md` | NATIVE | Current shared policy used instead of legacy text |
 | `.config/jackin/workspaces/example.toml` | DROP | Synthetic/private workspace data is not activated |
 | `.config/jackin/config.toml` | DROP | No Jackin selected |
-| `.config/git/ignore` | NATIVE | Current root source copied |
+| `.config/git/ignore` | MANUAL | Current root source is referenced by the explicit `core.excludesFile` override; the legacy file is not copied |
 | `.config/ghostty/themes/dark` | DROP | Legacy theme variant not merged; current `generic-terminal` used |
 | `.config/ghostty/config` | NATIVE | Current root Ghostty config used, not a three-way merge |
 | `.config/gh/hosts.yml` | DROP | Authentication data not shipped |
@@ -324,7 +349,7 @@ These rows preserve provenance. “NATIVE” uses the reviewed current root sour
 
 ## 6. Approved `system-preferences` entries
 
-All are optional, user-scope (`host = "any"`), and have both stored-state and behavior verification. `docs/manual-actions.md` gives each effect and reversal. Deselecting the module does not revert values.
+All 67 are optional, user-scope (`host = "any"`), and have stored-state declarations and readbacks. The fixture also checks unrelated global/nested-value preservation and selected Dock values; it does not prove every affected UI behavior. Observable hot-corner, keyboard, locale, password-grace, storage, and other application behavior remains an explicit manual validation boundary. `docs/manual-actions.md` gives effects and reversal guidance. Deselecting the module does not revert values.
 
 | Domain/key | Exact value/declaration | Status | Validation |
 |---|---|---|---|
@@ -437,4 +462,6 @@ All are optional, user-scope (`host = "any"`), and have both stored-state and be
 - Root dotfiles: **54/54** mapped individually.
 - Sanitized legacy-example dotfiles: **33/33** mapped individually with separate provenance.
 - Package/runtime/repository/preference/login-item declarations: each has an exact native entry or an explicit MANUAL/DROP/NEW disposition.
+- Current implementation: `verify-current-inventory.py` passes for **129 package declarations, five tools, 19 dotfile targets, one nested setting, 67 preferences, two repositories, two login items, and one executable**, including all hook package owners.
+- Unsafe Git INI automation is removed; the nine tuning keys and XDG-safe ignore override use Git's own CLI manually.
 - No source behavior is silently preserved through a second orchestrator.

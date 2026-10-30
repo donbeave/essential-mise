@@ -7,6 +7,23 @@ Native mise installs and configures only declared resources. The following remai
 - Set the new machine’s real Git identity deliberately. The three global Git settings used during implementation are not copied as a dotfile identity.
 - Run `gh auth login`, then `gh auth setup-git` for GitHub credential integration. `gh/hosts.yml`, SSH private hosts, and credential-helper reset semantics are not migrated.
 - Run `git lfs install` after installing Git LFS.
+- Apply the nine authorized nonidentity Git tuning settings and the ignore override with Git itself. Automatic INI merging is intentionally removed because mise's generic parser can consume indented Git settings as continuations. These commands preserve unrelated keys, repeated helpers, `includeIf`, comments, casing, and mixed indentation:
+
+  ```bash
+  config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
+  git config --global core.autocrlf input
+  git config --global core.excludesFile "$config_dir/dotfiles/development/git/ignore"
+  git config --global pull.rebase false
+  git config --global branch.autoSetupRebase never
+  git config --global fetch.prune true
+  git config --global merge.conflictStyle zdiff3
+  git config --global rerere.enabled true
+  git config --global push.autoSetupRemote true
+  git config --global init.defaultBranch main
+  git config --global alias.merge-main '!git fetch origin && git merge --no-ff origin/main'
+  ```
+
+  `core.excludesFile` deliberately points to the retained ignore source in the adopted checkout, so it works with both default and custom XDG configuration homes. Review this override before changing or removing it. No user.name, user.email, credential helper, or SSH command is set by these commands.
 - Sign in to the App Store before applying MAS modules. Purchases/claims and paid apps are not automated. A second apply may be required.
 - Sign in to 1Password, enable its Safari extension and SSH agent, and authorize the CLI. The extension itself is installed with `mas:1569813296`.
 
@@ -33,6 +50,28 @@ No fixed Dock icon list or Downloads stack is managed. Symbolic hotkeys are manu
 This module is optional. Review its dry run before applying. Stored-value matching (`mise bootstrap macos defaults status --missing`) is not proof of UI behavior; restart Dock, Finder, SystemUIServer, or the affected application and verify the result on disposable macOS.
 
 Deselecting the module does not undo preferences. Before applying, capture current values with `defaults read DOMAIN KEY` where available. Reversal below uses `defaults delete DOMAIN KEY` to return to macOS defaults or restore the captured previous value. Do not delete an entire dictionary when only one member is managed.
+
+For an exact full-domain rollback, capture every affected domain before applying:
+
+```bash
+capture_dir="$(mktemp -d /tmp/essential-mise-preferences.XXXXXX)"
+preference_domains=(NSGlobalDomain com.apple.dock com.apple.finder com.apple.spaces com.apple.WindowManager com.apple.assistant.support com.apple.Siri com.apple.screensaver com.apple.onetimepasscodes com.apple.TextInputMenu com.apple.bird)
+for domain in "${preference_domains[@]}"; do
+  defaults export "$domain" "$capture_dir/$domain.before.plist"
+done
+```
+
+This requires zsh or Bash and captures complete dictionaries, including `AppleFirstWeekday` and `AppleICUDateFormatStrings`. For an **immediate** rollback, before making any other preference changes, restore the snapshots:
+
+```bash
+for domain in "${preference_domains[@]}"; do
+  defaults import "$domain" "$capture_dir/$domain.before.plist"
+done
+```
+
+Full-domain import also replaces changes made after capture; never use it as a delayed or routine cleanup operation. For later selective reversal, use the per-key commands below. For the two nested values, use `plutil -extract AppleFirstWeekday.gregorian raw -o - "$capture_dir/NSGlobalDomain.before.plist"` and `plutil -extract AppleICUDateFormatStrings.1 raw -o - "$capture_dir/NSGlobalDomain.before.plist"` to inspect the original members, then restore only those members with `defaults write NSGlobalDomain AppleFirstWeekday -dict-add gregorian -int ORIGINAL_INTEGER` or `defaults write NSGlobalDomain AppleICUDateFormatStrings -dict-add 1 -string ORIGINAL_STRING`. If the original member was absent, use the immediate snapshot rollback instead of deleting the whole dictionary.
+
+Observable UI behavior and delayed selective restoration remain manual validation boundaries. Restart the affected process and verify the actual interaction: `killall Dock` for Dock/hot-corner values, `killall Finder` for Finder values, and `killall SystemUIServer` for menu/Space-related values. For locale, language, text-input, keyboard, screensaver, storage, Siri, and Window Manager behavior, log out and back in or restart the affected application before testing. Do not claim behavior from stored values alone.
 
 ### Dock and keyboard
 

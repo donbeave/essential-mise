@@ -16,15 +16,15 @@ artifact = "Grok Bot.app"
 os = "macos/arm64"
 
 [bootstrap.hooks.post-packages]
-description = "Real Homebrew: Amp Desktop (mise 2026.10.23 cannot evaluate cask Array#second)"
+description = "Presence-only real Homebrew: Amp Desktop; upgrades are separate"
 run = '''
 if ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1; then
   if [ -d /Applications/Amp.app ]; then
     printf 'Existing /Applications/Amp.app requires manual ownership migration before using Homebrew.\n' >&2
     exit 1
   fi
+  /opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta
 fi
-/opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta
 test -x /Applications/Amp.app/Contents/MacOS/Amp
 /usr/bin/codesign --verify --deep --strict /Applications/Amp.app
 '''

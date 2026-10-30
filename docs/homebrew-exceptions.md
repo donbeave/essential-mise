@@ -6,7 +6,9 @@ The repository uses native mise package managers wherever they work. A dependenc
 
 The user explicitly approved five AI compatibility exceptions, the Claude status-line script/wrapper, and a real-Homebrew fallback for demonstrated current-mise failures. Surge is the sixth package exception under that fallback. This is a specification change, not a claim that revision 7's native-only rule is satisfied. Hooks are installation/health-check commands, not declarative package resources. `mise bootstrap status --missing`, native package upgrades, and native prune must not be relied on for these hook-installed packages. Hooks run on every apply, so the required health checks must pass every time.
 
-| Package | Install owner | Required health check | Upgrade owner | Manual removal |
+Every formula and cask hook checks `brew list` first and invokes its install command only when that package is absent. A healthy installed-but-outdated package is left at its current version; routine applies do not invoke Homebrew installation, dependency upgrades, or cleanup for it. Initial installation can resolve and install dependencies normally. The required executable/signature health check always runs. Use the explicit upgrade command only after review; formula upgrades can change dependencies, and cask upgrades can replace application bundles and require fresh privacy consent or login-item review.
+
+| Package | Install owner when absent | Required health check | Explicit upgrade owner | Manual removal |
 |---|---|---|---|---|
 | Claude Code | `brew install --cask claude-code@latest` | `/opt/homebrew/bin/claude --version` | `brew upgrade --cask claude-code@latest` | `brew uninstall --cask claude-code@latest` |
 | Amp CLI | `brew install ampcode/tap/ampcode` | `/opt/homebrew/bin/amp --version` | `brew upgrade ampcode/tap/ampcode` | `brew uninstall ampcode/tap/ampcode` |

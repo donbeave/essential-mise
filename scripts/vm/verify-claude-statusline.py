@@ -7,13 +7,23 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
 import time
 
 script = pathlib.Path.home() / '.config/mise/bin/claude-statusline.sh'
 root = pathlib.Path('/tmp/essential-mise-claude-statusline')
 evidence = pathlib.Path('/tmp/essential-mise-evidence/claude-statusline')
 shutil.rmtree(root, ignore_errors=True)
-evidence.mkdir(parents=True, exist_ok=True)
+shutil.rmtree(evidence, ignore_errors=True)
+evidence.mkdir(parents=True)
+(evidence / 'report.txt').write_text('IN_PROGRESS\n')
+
+
+def record_failure(exception_type, exception, traceback):
+    (evidence / 'report.txt').write_text(f'FAIL\n{exception_type.__name__}: {exception}\n')
+
+
+sys.excepthook = record_failure
 home = root / 'home'
 agent_definition = home / '.claude/agents/ca-explorer.md'
 agent_definition.parent.mkdir(parents=True)

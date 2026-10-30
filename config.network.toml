@@ -4,15 +4,15 @@
 "brew-cask:whyfi" = "latest"
 
 [bootstrap.hooks.post-packages]
-description = "Real Homebrew: Surge (mise 2026.10.23 does not expand APPDIR in its binary artifact)"
+description = "Presence-only real Homebrew: Surge; upgrades are separate"
 run = '''
 if ! /opt/homebrew/bin/brew list --cask surge >/dev/null 2>&1; then
   if [ -e /Applications/Surge.app ] || [ -e "/Applications/Surge Dashboard.app" ] || [ -L "/Applications/Surge Dashboard.app" ]; then
     printf 'Existing Surge applications require manual ownership migration before using Homebrew.\n' >&2
     exit 1
   fi
+  /opt/homebrew/bin/brew install --cask surge
 fi
-/opt/homebrew/bin/brew install --cask surge
 test -x /opt/homebrew/bin/surge-cli
 test -x /opt/homebrew/sbin/surge-dhcpd
 /usr/bin/codesign --verify --deep --strict /Applications/Surge.app

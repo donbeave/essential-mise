@@ -3,6 +3,4 @@
 "brew:git-lfs" = "latest"
 
 [dotfiles]
-"~/.config/git/ignore" = { source = "dotfiles/development/git/ignore", mode = "copy" }
-"~/.gitconfig/preferences" = { source = "dotfiles/development/gitconfig.ini", merge = true, format = "ini" }
 "~/.config/gh/config.yml/shared" = { source = "dotfiles/development/gh-config.yml", merge = true }

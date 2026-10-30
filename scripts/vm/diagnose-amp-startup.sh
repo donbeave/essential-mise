@@ -4,7 +4,16 @@ set -euo pipefail
 app=/Applications/Amp.app
 binary="$app/Contents/MacOS/Amp"
 evidence=/tmp/essential-mise-evidence/amp-startup
+mount_point=''
+rm -rf "$evidence"
 mkdir -p "$evidence"
+printf 'IN_PROGRESS\n' > "$evidence/result.txt"
+record_result() {
+  local result=$?
+  if [[ -n "$mount_point" ]]; then hdiutil detach "$mount_point" || true; fi
+  if [[ "$result" -ne 0 ]]; then printf 'FAIL exit=%s\n' "$result" > "$evidence/result.txt"; fi
+}
+trap record_result EXIT
 cp "$0" "$evidence/diagnose-amp-startup.sh"
 shasum -a 256 "$0" > "$evidence/fixture.sha256"
 sw_vers > "$evidence/guest-os.txt"
@@ -22,8 +31,6 @@ shasum -a 256 "$binary" > "$evidence/installed-binary.sha256"
 cache="$(/opt/homebrew/bin/brew --cache --cask amp@beta)"
 test -f "$cache"
 hdiutil attach "$cache" -nobrowse -readonly -plist > "$evidence/dmg-attach.plist"
-mount_point=''
-trap 'if [[ -n "$mount_point" ]]; then hdiutil detach "$mount_point" || true; fi' EXIT
 mount_point="$(/usr/bin/python3 -c 'import plistlib, sys; entities = plistlib.load(open(sys.argv[1], "rb"))["system-entities"]; print(next(entity["mount-point"] for entity in entities if "mount-point" in entity))' "$evidence/dmg-attach.plist")"
 cmp "$binary" "$mount_point/Amp.app/Contents/MacOS/Amp"
 shasum -a 256 "$cache" > "$evidence/official-dmg.sha256"

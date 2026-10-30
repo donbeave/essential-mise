@@ -91,28 +91,43 @@ Guest artifacts are limited to `/tmp/essential-mise-artifact`; guest evidence is
 
 Run application scenarios only in a registered disposable VM:
 
+Run `stage0` only on a fresh clone with no Homebrew or global config; it asserts those cold preconditions, preserves the successful initial transaction, and requires the adopted configuration SHA to equal `VM_REVIEWED_COMMIT`:
+
 ```bash
 VM_REVIEWED_COMMIT=$(git rev-parse HEAD) VM_NAME=essential-mise-test-stage0 \
   scripts/vm/run-test-scenario.sh stage0
+```
+
+Continue on that configured guest in this dependency order:
+
+```bash
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh standard
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh ai
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh ai-desktop
-VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh amp-conflict
-VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh surge-conflict
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh claude-conflict
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh unapply
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh prune-review
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh js
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh java
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh rust
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh login-items
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh omp-config
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh mas-signed-out
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh optional-modules
+VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh surge-conflict
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh full-dry-run
 VM_NAME=essential-mise-test-stage0 scripts/vm/run-test-scenario.sh preferences
 ```
 
-The scenarios deliberately share one VM when they have dependencies. Use separate clones for independent clean-state tests. The stage-0 launcher uses a full reviewed commit, not mutable `main`; update that commit deliberately. Run `ai` before the full dry run to exercise the real-Homebrew hooks and eliminate package conflicts. The `optional-modules` scenario models a first, nonactivated shell, so MAS entries are skipped while non-MAS packages install; its login-shell status exposes the remaining App Store gap rather than reporting complete success. Review every log before assigning a release result; a completed scenario command is not a blanket release approval. MAS/account, paid-license, personal-credential, and authenticated-provider tests remain blocked without synthetic or explicitly approved test accounts.
+Run Amp conflict on a **separate** fresh configured guest that has not run `ai-desktop`; the scenario asserts that neither the app nor its Homebrew owner exists before creating the unmanaged marker:
+
+```bash
+VM_REVIEWED_COMMIT=$(git rev-parse HEAD) VM_NAME=essential-mise-test-amp-owner \
+  scripts/vm/run-test-scenario.sh stage0
+VM_NAME=essential-mise-test-amp-owner scripts/vm/run-test-scenario.sh amp-conflict
+```
+
+The scenarios deliberately share one VM only when their dependencies match. The stage-0 launcher uses a full reviewed commit, not mutable `main`; update that commit deliberately. Run `ai` before the full dry run to exercise the real-Homebrew hooks and eliminate package conflicts. `surge-conflict` must follow network/optional installation. The `optional-modules` scenario models a first, nonactivated shell, so MAS entries are skipped while non-MAS packages install; its login-shell status exposes the remaining App Store gap rather than reporting complete success. Review every log before assigning a release result; a completed scenario command is not a blanket release approval. MAS/account, paid-license, personal-credential, and authenticated-provider tests remain blocked without synthetic or explicitly approved test accounts.
 
 After applying the current `ai-cli` module, replay the synthetic Claude status-line and wrapper checks separately. The wrapper fixture verifies JSON encoding, shell quoting with a special-character XDG path, argument forwarding, and execution of the emitted command:
 
@@ -128,6 +143,26 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   scripts/vm/owner-auth-ssh.sh \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-wrapper.py"
 ```
+
+Replay Git preservation, custom-XDG ignore, Zed JSONC, GitHub CLI YAML, and presence-only hook lifecycle checks. Each standalone fixture clears its previous evidence and records IN_PROGRESS or FAIL instead of retaining an earlier PASS:
+
+```bash
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-configuration-safety.py
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-configuration-safety.py"
+VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-hook-lifecycle.sh
+VM_NAME=essential-mise-test-evidence \
+VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
+  scripts/vm/owner-auth-ssh.sh \
+  "/bin/bash /tmp/essential-mise-artifact/verify-hook-lifecycle.sh"
+VM_NAME=essential-mise-test-evidence \
+  scripts/vm/owner-auth-ssh.sh \
+  "/opt/homebrew/bin/python3 \$HOME/.config/mise/scripts/vm/verify-current-inventory.py"
+```
+
+The hook lifecycle fixture requires a previously installed alternate Amp CLI version in the guest Cellar; it switches to that outdated version, requires `brew outdated` to confirm the state, applies `ai-cli`, and asserts no package/link changes before restoring the original version. A missing alternate is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`.
 
 Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
 
@@ -152,7 +187,7 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "REVIEWED_COMMIT=$(git rev-parse HEAD) /bin/bash /tmp/essential-mise-artifact/isolated-validation.sh"
 ```
 
-The fixture clones the reviewed public commit inside the guest, substitutes its local repository path only in a temporary copy of `bootstrap.sh`, and records every invocation, exit code, and log under `/tmp/essential-mise-evidence/isolated-fixtures`. Temporary HOME/XDG directories are created explicitly. No real global configuration is used.
+The fixture clones the reviewed public commit inside the guest, substitutes its local repository path only in a temporary copy of `bootstrap.sh`, and records every invocation, exit code, and log under `/tmp/essential-mise-evidence/isolated-fixtures`. Temporary HOME/XDG directories are created explicitly under `/private/tmp`; no real global configuration is used. It covers existing-Homebrew empty `shellenv`, path aliases, symlinked ancestors, bare repositories, repository subdirectories, linked worktrees, wrong origins, exact adopted revisions, and a real custom-XDG update/apply/fresh-shell/unapply lifecycle. Evidence is cleared on every run and failed runs overwrite the summary with FAIL.
 
 Delete only a registered disposable VM after its test is complete:
 

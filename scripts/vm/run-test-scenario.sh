@@ -2,14 +2,14 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|surge-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences>'
+[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|surge-conflict|claude-conflict|unapply|prune-review|js|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences>'
 scenario="$1"
 case "$VM_NAME" in
   essential-mise-test-*) ;;
   *) fail 'Application scenarios require a registered disposable VM' ;;
 esac
 case "$scenario" in
-  stage0|standard|ai|ai-desktop|amp-conflict|surge-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences) ;;
+  stage0|standard|ai|ai-desktop|amp-conflict|surge-conflict|claude-conflict|unapply|prune-review|js|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences) ;;
   *) fail "Unknown test scenario: $scenario" ;;
 esac
 vm_require_name
@@ -60,6 +60,17 @@ run_logged_interactive() {
   return "$result"
 }
 
+record_adopted_state() {
+  local adopted_commit
+  adopted_commit="$(vm_ssh "git -C '$config_dir' rev-parse HEAD")"
+  [[ "$adopted_commit" == "$reviewed_commit" ]] || \
+    fail "Launcher $reviewed_commit adopted unexpected config $adopted_commit"
+  vm_ssh "git -C '$config_dir' rev-parse HEAD > '$evidence_dir/adopted-config-revision.txt'"
+  vm_ssh "git -C '$config_dir' status --porcelain > '$evidence_dir/adopted-config-status.txt'"
+  vm_ssh "test -z \"\$(git -C '$config_dir' status --porcelain)\"" || fail 'Adopted config has uncommitted changes'
+  vm_ssh "test -x \"\$HOME/.local/bin/mise\" && \$HOME/.local/bin/mise --version > '$evidence_dir/adopted-mise-version.txt'"
+}
+
 stage0_command="set -e
 reviewed_commit='$reviewed_commit'
 essential_mise_script=\"\$(/usr/bin/curl -fsSL \"https://raw.githubusercontent.com/donbeave/essential-mise/\$reviewed_commit/bootstrap.sh\")\" && test -n \"\$essential_mise_script\" && /bin/bash -c \"\$essential_mise_script\""
@@ -67,7 +78,9 @@ essential_mise_script=\"\$(/usr/bin/curl -fsSL \"https://raw.githubusercontent.c
 case "$scenario" in
   stage0)
     [[ "$reviewed_commit" =~ ^[0-9a-f]{40}$ ]] || fail 'Stage 0 requires VM_REVIEWED_COMMIT with a full reviewed commit SHA'
-    VM_AUTO_CONFIRM=1 run_logged_interactive first-run "$stage0_command"
+    run_logged cold-preconditions "test ! -e '$config_dir' && test ! -x /opt/homebrew/bin/brew && { /usr/bin/xcode-select -p >/dev/null 2>&1 && printf 'command_line_tools=present\n' || printf 'command_line_tools=absent\n'; } && printf 'homebrew=absent\nconfig=absent\n'"
+    VM_AUTO_CONFIRM=1 run_logged_interactive cold-first-run "$stage0_command"
+    record_adopted_state
     vm_ssh "printf 'env = [\"ai-cli\", \"system-preferences\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged optional-selection-rerun "$stage0_command"
     vm_ssh "git -C '$config_dir' remote set-url origin 'https://example.invalid/essential-mise.git'"
@@ -87,6 +100,8 @@ case "$scenario" in
     run_logged status "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,development bootstrap status --missing"
     vm_ssh "printf 'env = [\"foundation\", \"terminal\", \"development\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged shell-verification "cd /tmp && /bin/zsh -lic 'command -v starship && command -v bat && command -v fish && test -x /Applications/Ghostty.app/Contents/MacOS/ghostty && test \"\$(git -C \"\$HOME/.oh-my-zsh\" rev-parse HEAD)\" = 0b50afdbfd8cbd0e03be68ecec4e1b5d3f55ef0a && test \"\$(git -C \"\$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" rev-parse HEAD)\" = 85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5 && mise doctor' && /opt/homebrew/bin/fish -lc 'mise --version'"
+    run_logged gh-verification "/bin/zsh -lic 'test \"\$(gh config get git_protocol)\" = https && test \"\$(gh config get accessible_prompter)\" = disabled && test \"\$(gh config get prefer_editor_prompt)\" = disabled && test \"\$(gh config get color_labels)\" = disabled && test \"\$(gh config get version)\" = 1 && gh alias list | /usr/bin/grep -E \"co:[[:space:]]+pr checkout\"'"
+    run_logged git-automation-absent 'test ! -e "$HOME/.gitconfig/preferences" && test ! -e "$HOME/.config/git/ignore"'
     ;;
   ai)
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-tools,ai-cli bootstrap --dry-run"
@@ -102,6 +117,7 @@ case "$scenario" in
     run_logged verification "/opt/homebrew/bin/brew list --cask amp@beta && test -d /Applications/Amp.app && mdls -name kMDItemVersion /Applications/Amp.app"
     ;;
   amp-conflict)
+    run_logged cold-preconditions 'test ! -e /Applications/Amp.app && ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1'
     vm_ssh 'mkdir -p /Applications/Amp.app/Contents && printf unmanaged > /Applications/Amp.app/Contents/essential-mise-test-marker'
     if run_logged existing-app-refusal "cd '$config_dir' && \$HOME/.local/bin/mise -E ai-desktop bootstrap --only packages"; then
       outcome=unexpected-success
@@ -147,6 +163,13 @@ case "$scenario" in
     vm_ssh '/usr/bin/grep -F "brew:sl@" /tmp/essential-mise-evidence/prune-review/candidates.log'
     run_logged manual-cleanup "/opt/homebrew/bin/brew uninstall sl"
     vm_ssh '! /opt/homebrew/bin/brew list --formula | /usr/bin/grep -Fx sl'
+    ;;
+  js)
+    run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E js bootstrap --dry-run"
+    run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E js bootstrap"
+    run_logged exec-check "cd '$config_dir' && \$HOME/.local/bin/mise -E js exec -- /bin/bash -c 'node --version && bun --version'"
+    vm_ssh "printf 'env = [\"js\"]\n' > '$config_dir/miserc.local.toml'"
+    run_logged persistent "/bin/zsh -lic 'cd /tmp && node --version && bun --version && case \"\$(mise which node)\" in *\".local/share/mise/installs/node/26.9.0/\"*) ;; *) exit 1;; esac && case \"\$(mise which bun)\" in *\".local/share/mise/installs/bun/1.4.4/\"*) ;; *) exit 1;; esac'"
     ;;
   java)
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E development-java bootstrap --dry-run"
@@ -211,7 +234,7 @@ defaults export com.apple.finder /tmp/essential-mise-evidence/preferences/finder
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E system-preferences bootstrap --dry-run"
     run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E system-preferences bootstrap"
     run_logged stored-status "cd '$config_dir' && \$HOME/.local/bin/mise -E system-preferences bootstrap macos defaults status --missing"
-    run_logged behavior-verification 'set -e
+    run_logged stored-state-and-preservation 'set -e
 test "$(defaults read NSGlobalDomain EssentialMiseValidation)" = preserve
 defaults export NSGlobalDomain /tmp/essential-mise-evidence/preferences/global-after.plist
 test "$(plutil -extract AppleFirstWeekday.gregorian raw -o - /tmp/essential-mise-evidence/preferences/global-after.plist)" = 2

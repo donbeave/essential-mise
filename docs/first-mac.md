@@ -92,7 +92,19 @@ mise bootstrap
 
 Stop on a dirty/conflicting checkout. The final command applies the persistent selection; use explicit `-E` to limit it. Plain `mise bootstrap --update` is a separate package/repository metadata operation.
 
-## 5. Remove an environment
+## 5. Upgrade packages deliberately
+
+Preview and apply native package/tool upgrades separately from configuration updates:
+
+```bash
+cd "$config_dir"
+mise bootstrap --upgrade --dry-run
+mise bootstrap --upgrade
+```
+
+Exact runtime pins and the pinned Grok DMG remain unchanged unless their declarations change. This does not upgrade mise itself, update repositories, pull the adopted configuration, or restart services. The six Homebrew exceptions have separate upgrade commands in `docs/homebrew-exceptions.md`; their ordinary hooks never upgrade an installed package. Review dependency changes, replaced cask bundles, privacy permissions, and login items after an upgrade.
+
+## 6. Remove an environment
 
 Remove it from `miserc.local.toml`, keep its declaration file for cleanup, then run:
 
