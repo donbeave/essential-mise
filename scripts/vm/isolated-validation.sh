@@ -85,7 +85,7 @@ run_and_record make-symlink-parent 0 /bin/mkdir -p "$fixture_root/actual-config-
 run_and_record set-symlink-parent 0 /bin/ln -s "$fixture_root/actual-config-parent" "$fixture_root/config-link"
 run_and_record symlink-parent 1 env HOME="$first_home" MISE_CONFIG_DIR="$fixture_root/config-link/mise" PATH="$first_path" /bin/bash "$source_script"
 run_and_record symlink-parent-reason 0 /usr/bin/grep -F 'cannot traverse a symlink' "$evidence_dir/symlink-parent.log"
-run_and_record symlink-parent-no-adoption 0 /usr/bin/test ! -e "$fixture_root/actual-config-parent/mise"
+run_and_record symlink-parent-no-adoption 0 /bin/test ! -e "$fixture_root/actual-config-parent/mise"
 run_and_record make-bare-config 0 /usr/bin/git init --bare "$fixture_root/bare-config"
 run_and_record bare-origin 0 /usr/bin/git -C "$fixture_root/bare-config" remote add origin "$expected_origin"
 run_and_record bare-config 1 env HOME="$first_home" MISE_CONFIG_DIR="$fixture_root/bare-config" PATH="$first_path" /bin/bash "$source_script"
@@ -112,12 +112,12 @@ run_and_record xdg-updated-revision 0 git -C "$xdg_checkout" diff --quiet "$REVI
 printf 'env = ["foundation", "terminal"]\n' > "$xdg_checkout/miserc.local.toml"
 run_and_record xdg-preview 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" bootstrap --dry-run
 run_and_record xdg-apply 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" -E terminal bootstrap --only dotfiles
-run_and_record xdg-verify-applied 0 /usr/bin/test -f "$xdg_home/.config/ghostty/config"
+run_and_record xdg-verify-applied 0 /bin/test -f "$xdg_home/.config/ghostty/config"
 run_and_record xdg-shell-persistence 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" /bin/zsh -lic 'cd /private/tmp && mise bootstrap --dry-run'
 printf 'env = ["foundation"]\n' > "$xdg_checkout/miserc.local.toml"
 run_and_record xdg-unapply-preview 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" bootstrap unapply terminal --dry-run
 run_and_record xdg-unapply 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" bootstrap unapply terminal --yes
-run_and_record xdg-verify-removed 0 /usr/bin/test ! -e "$xdg_home/.config/ghostty/config"
+run_and_record xdg-verify-removed 0 /bin/test ! -e "$xdg_home/.config/ghostty/config"
 
 printf 'All isolated fixture assertions passed. Logs and exact exit codes are in %s\n' "$evidence_dir" | tee -a "$evidence_dir/report.txt"
 /bin/cat "$evidence_dir/report.txt"
