@@ -147,11 +147,12 @@ say '6/6 - Verify a new login and interactive zsh'
   fail 'New-shell verification failed. Open a fresh Terminal, inspect mise doctor, and rerun this command.'
 
 say 'Finished. Open a fresh Terminal window.'
+printf -v quoted_config_dir '%q' "$MISE_CONFIG_DIR"
 printf '%s\n' \
   'Preview the standard workstation:' \
-  '  mise -E foundation,terminal,development,security bootstrap --dry-run' \
+  "  mise -C $quoted_config_dir -E foundation,terminal,development,security bootstrap --dry-run" \
   'Apply it after review:' \
-  '  mise -E foundation,terminal,development,security bootstrap' \
+  "  mise -C $quoted_config_dir -E foundation,terminal,development,security bootstrap" \
   'Preview coding agents and shared tools:' \
-  '  mise -E ai-tools,ai-cli bootstrap --dry-run' \
+  "  mise -C $quoted_config_dir -E ai-tools,ai-cli bootstrap --dry-run" \
   'This script did NOT permanently select an optional environment.'

@@ -1,100 +1,152 @@
 #!/opt/homebrew/bin/python3
+import collections
+import hashlib
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import tomllib
 
-root = pathlib.Path(__file__).resolve().parents[2]
-matrix = (root / 'docs/migration-decisions.md').read_text()
-counts = {
-    'packages': 0,
-    'tools': 0,
-    'dotfiles': 0,
-    'settings': 0,
-    'preferences': 0,
-    'repositories': 0,
-    'login_items': 0,
-    'executables': 0,
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+ENVIRONMENTS = frozenset({
+    'admin',
+    'ai-cli',
+    'ai-desktop',
+    'ai-tools',
+    'browsers',
+    'design',
+    'development',
+    'development-apple',
+    'development-apps',
+    'development-containers',
+    'development-editors',
+    'development-java',
+    'development-rust',
+    'foundation',
+    'infrastructure',
+    'js',
+    'kubernetes',
+    'media',
+    'messengers',
+    'network',
+    'office',
+    'privacy',
+    'productivity',
+    'security',
+    'system-preferences',
+    'terminal',
+    'utilities',
+})
+EXPECTED_COUNTS = {
+    'environments': 27,
+    'packages': 129,
+    'unique_packages': 118,
+    'brew': 47,
+    'brew-cask': 49,
+    'mas': 21,
+    'macos-app': 1,
+    'tools': 5,
+    'dotfiles': 17,
+    'settings': 1,
+    'preferences': 67,
+    'repositories': 2,
+    'login_items': 2,
+    'executables': 2,
 }
-missing = []
-matrix_errors = []
-
-
-def code_spans(cell):
-    return re.findall(r'`([^`]+)`', cell)
-
-
-def exact_code(cell):
-    stripped = cell.strip()
-    spans = code_spans(stripped)
-    if len(spans) == 1 and stripped == f'`{spans[0]}`':
-        return spans[0]
-    return None
-
-
-def split_table_row(line):
-    cells = []
-    current = []
-    in_code = False
-    escaped = False
-    for character in line.strip():
-        if escaped:
-            current.append(character)
-            escaped = False
-            continue
-        if character == '\\':
-            current.append(character)
-            escaped = True
-            continue
-        if character == '`':
-            in_code = not in_code
-        if character == '|' and not in_code:
-            cells.append(''.join(current).strip())
-            current = []
-        else:
-            current.append(character)
-    cells.append(''.join(current).strip())
-    if cells and not cells[0]:
-        cells.pop(0)
-    if cells and not cells[-1]:
-        cells.pop()
-    return cells
-
-
-def markdown_tables(text):
-    lines = text.splitlines()
-    section = ''
-    subsection = ''
-    index = 0
-    while index < len(lines):
-        line = lines[index]
-        if line.startswith('## '):
-            section = line
-            subsection = ''
-        elif line.startswith('### '):
-            subsection = line
-        if not line.startswith('|'):
-            index += 1
-            continue
-        block = []
-        while index < len(lines) and lines[index].startswith('|'):
-            block.append(split_table_row(lines[index]))
-            index += 1
-        if len(block) >= 2 and all(re.fullmatch(r':?-{3,}:?', cell) for cell in block[1]):
-            yield section, subsection, block[0], block[2:]
-        elif section.startswith('## 2.') and all(len(row) == 4 for row in block):
-            yield section, subsection, ['Module', 'Exact declaration', 'Status', 'Validation'], block
-
-
-def add_record(records, key, value, label):
-    if key in records:
-        matrix_errors.append(f'{label}: duplicate record for {key}')
-        return
-    records[key] = value
-
-
-def parse_value(text):
-    return tomllib.loads(f'value = {text}')['value']
+EXPECTED_TOOLS = {
+    ('js', 'node'): '26.9.0',
+    ('js', 'bun'): '1.4.4',
+    ('development-rust', 'rust'): {
+        'version': '1.99.1',
+        'mr_boxington': True,
+        'components': ['llvm-tools'],
+    },
+    ('development-rust', 'mr-boxington'): {'version': '1.24.1'},
+    ('development-java', 'java'): 'oracle-graalvm-25.0.4.1.1',
+}
+EXPECTED_REPOSITORIES = {
+    ('terminal', '~/.oh-my-zsh'): {
+        'url': 'https://github.com/ohmyzsh/ohmyzsh.git',
+        'ref': '0b50afdbfd8cbd0e03be68ecec4e1b5d3f55ef0a',
+    },
+    ('terminal', '~/.oh-my-zsh/custom/plugins/zsh-autosuggestions'): {
+        'url': 'https://github.com/zsh-users/zsh-autosuggestions.git',
+        'ref': '85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5',
+    },
+}
+EXPECTED_VARIANTS = {
+    ('terminal', '~/.config/ghostty/config'): [
+        {'default': True, 'target': '{{ xdg_config_home }}/ghostty/config'},
+    ],
+    ('terminal', '~/.config/ghostty/themes/generic-terminal'): [
+        {'default': True, 'target': '{{ xdg_config_home }}/ghostty/themes/generic-terminal'},
+    ],
+    ('ai-cli', '~/.config/opencode/AGENTS.md'): [
+        {'default': True, 'target': '{{ xdg_config_home }}/opencode/AGENTS.md'},
+    ],
+}
+EXPECTED_NESTED_PREFERENCES = {
+    ('system-preferences', 'NSGlobalDomain', 'AppleFirstWeekday', ('gregorian',)): 2,
+    ('system-preferences', 'NSGlobalDomain', 'AppleICUDateFormatStrings', ('1',)): 'y-MM-dd',
+}
+EXPECTED_LOGIN_ITEMS = {
+    ('utilities', '/Applications/CleanShot X.app'),
+    ('utilities', '/Applications/Bartender 7.app'),
+}
+EXPECTED_EXECUTABLES = {'fish-config.py', 'claude-statusline.sh'}
+STATUSLINE_SHA256 = 'e0268e5e61bb07456bdbbcda5975c7189f5e89168b8cd3df6821cadc2c05917d'
+DOCK_KEYS = {
+    'autohide', 'orientation', 'tilesize', 'magnification', 'show_recents', 'mru_spaces',
+}
+KEYBOARD_KEYS = {'key_repeat', 'initial_key_repeat', 'press_and_hold'}
+BREW_INSTALL = re.compile(r'/opt/homebrew/bin/brew install(?: --cask)? [^\s;]+')
+REAL_HOMEBREW = {
+    'ai-cli': {
+        'guards': {
+            '/opt/homebrew/bin/brew install --cask claude-code@latest':
+                '/opt/homebrew/bin/brew list --cask claude-code@latest',
+            '/opt/homebrew/bin/brew install ampcode/tap/ampcode':
+                '/opt/homebrew/bin/brew list --formula ampcode',
+            '/opt/homebrew/bin/brew install can1357/tap/omp':
+                '/opt/homebrew/bin/brew list --formula omp',
+        },
+        'health': (
+            '/opt/homebrew/bin/claude --version',
+            '/opt/homebrew/bin/amp --version',
+            '/opt/homebrew/bin/omp --version',
+        ),
+    },
+    'ai-tools': {
+        'guards': {
+            '/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp':
+                '/opt/homebrew/bin/brew list --formula fff-mcp',
+        },
+        'health': ('/opt/homebrew/bin/fff-mcp --healthcheck',),
+    },
+    'ai-desktop': {
+        'guards': {
+            '/opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta':
+                '/opt/homebrew/bin/brew list --cask amp@beta',
+        },
+        'health': (
+            'test -x /Applications/Amp.app/Contents/MacOS/Amp',
+            '/usr/bin/codesign --verify --deep --strict /Applications/Amp.app',
+        ),
+    },
+    'network': {
+        'guards': {
+            '/opt/homebrew/bin/brew install --cask surge':
+                '/opt/homebrew/bin/brew list --cask surge',
+        },
+        'health': (
+            'test -x /opt/homebrew/bin/surge-cli',
+            'test -x /opt/homebrew/sbin/surge-dhcpd',
+            '/usr/bin/codesign --verify --deep --strict /Applications/Surge.app',
+        ),
+    },
+}
 
 
 def same_value(actual, expected):
@@ -112,475 +164,535 @@ def same_value(actual, expected):
     return actual == expected
 
 
-def mismatch(kind, owner, resource, detail):
-    missing.append(f'{kind}: {owner}: {resource} ({detail})')
+def as_table(value, label, errors):
+    if not isinstance(value, dict):
+        errors.append(f'{label}: expected a TOML table')
+        return {}
+    return value
 
 
-tables = list(markdown_tables(matrix))
-declarations = {}
-direct_packages = {}
-hook_records = {}
-dotfile_records = {}
-legacy_dotfile_records = {}
-setting_records = {}
-nested_preference_additions = {}
-executable_records = {}
-repository_records = {}
-preference_records = {}
-login_records = {}
+def load_configs(root, counts, errors):
+    paths = sorted(
+        path for path in root.glob('config*.toml')
+        if path.is_file() and not path.name.endswith('.local.toml')
+    )
+    actual_files = {path.name for path in paths}
+    expected_files = {'config.toml'} | {f'config.{name}.toml' for name in ENVIRONMENTS}
+    for name in sorted(expected_files - actual_files):
+        errors.append(f'config: missing {name}')
+    for name in sorted(actual_files - expected_files):
+        errors.append(f'config: unexpected {name}')
 
-for section, subsection, header, rows in tables:
-    if section.startswith('## 2.') and header == ['Module', 'Exact declaration', 'Status', 'Validation']:
-        for cells in rows:
-            if len(cells) != 4:
-                matrix_errors.append(f'package/runtime table: expected four cells, got {cells}')
-                continue
-            owner = exact_code(cells[0])
-            if owner is None:
-                matrix_errors.append(f'package/runtime table: invalid owner cell {cells[0]}')
-                continue
-            declaration = cells[1].strip()
-            literal = exact_code(declaration)
-            if literal is not None:
-                try:
-                    parsed = tomllib.loads(literal)
-                except tomllib.TOMLDecodeError as error:
-                    matrix_errors.append(f'{owner}: invalid TOML declaration {literal}: {error}')
-                    continue
-                if len(parsed) != 1:
-                    matrix_errors.append(f'{owner}: expected one declaration, got {literal}')
-                    continue
-                name, value = next(iter(parsed.items()))
-                kind = 'package' if re.match(r'^(brew|brew-cask|mas):', name) else 'tool'
-                add_record(declarations, (owner, name), {
-                    'kind': kind,
-                    'value': value,
-                    'status': cells[2],
-                    'validation': cells[3],
-                }, 'package/runtime')
-                continue
-            spans = code_spans(declaration)
-            if spans and spans[0].startswith('macos-app:'):
-                if len(spans) != 6:
-                    matrix_errors.append(f'{owner}: invalid direct-package record {declaration}')
-                    continue
-                add_record(direct_packages, (owner, spans[0]), {
-                    'version': spans[1],
-                    'url': spans[2],
-                    'sha256': spans[3],
-                    'artifact': spans[4],
-                    'os': spans[5],
-                }, 'direct package')
-                continue
-            if 'Homebrew' in declaration:
-                command = re.search(
-                    r'/opt/homebrew/bin/brew install(?P<cask> --cask)? (?P<package>[^\s;`]+)',
-                    declaration,
+    actual_environments = {
+        path.name[len('config.'):-len('.toml')]
+        for path in paths
+        if path.name.startswith('config.') and path.name != 'config.toml'
+    }
+    counts['environments'] = len(actual_environments)
+    for name in sorted(ENVIRONMENTS - actual_environments):
+        errors.append(f'environments: missing {name}')
+    for name in sorted(actual_environments - ENVIRONMENTS):
+        errors.append(f'environments: unexpected {name}')
+
+    configs = {}
+    for path in paths:
+        if path.name not in expected_files:
+            continue
+        owner = 'root' if path.name == 'config.toml' else path.name[len('config.'):-len('.toml')]
+        try:
+            data = tomllib.loads(path.read_text())
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+            errors.append(f'{path.name}: cannot parse TOML: {error}')
+            continue
+        if owner == 'root':
+            if not same_value(data, {'min_version': '2026.10.23'}):
+                errors.append(
+                    f'config.toml: expected only min_version = "2026.10.23", got {data!r}'
                 )
-                if command is not None:
-                    package = command.group('package')
-                    cask = command.group('cask') is not None
-                    exact_command = command.group(0)
-                else:
-                    matrix_errors.append(f'{owner}: invalid Homebrew hook record {declaration}')
-                    continue
-                if 'post-packages' not in declaration:
-                    matrix_errors.append(f'{owner}: Homebrew hook has no post-packages owner: {declaration}')
-                    continue
-                add_record(hook_records, (owner, package), {
-                    'hook': 'post-packages',
-                    'cask': cask,
-                    'command': exact_command,
-                }, 'Homebrew hook')
-                continue
-            matrix_errors.append(f'{owner}: unrecognized package/runtime record {declaration}')
-
-    if section.startswith('## 2.') and header == [
-        'Exact resource', 'Owner and status', 'Deployment, validation, and removal',
-    ]:
-        for cells in rows:
-            if len(cells) != 3:
-                matrix_errors.append(f'current-resource table: expected three cells, got {cells}')
-                continue
-            resource = exact_code(cells[0])
-            owner_text, separator, status = cells[1].partition(';')
-            owner = exact_code(owner_text.strip())
-            if resource is None or not separator:
-                matrix_errors.append(f'current-resource table: invalid row {cells}')
-                continue
-            record = {'status': status.strip(), 'detail': cells[2]}
-            if resource.startswith('~/'):
-                if owner is None:
-                    matrix_errors.append(f'{resource}: invalid module owner')
-                    continue
-                add_record(dotfile_records, (owner, resource), record, 'dotfile')
-            elif resource.startswith('settings.'):
-                if owner is None:
-                    matrix_errors.append(f'{resource}: invalid module owner')
-                    continue
-                add_record(setting_records, (owner, resource), record, 'setting')
-            elif resource.startswith('bin/'):
-                executable_records[resource] = {
-                    **record,
-                    'owner': owner_text.strip(),
-                }
-            elif resource.startswith('NSGlobalDomain '):
-                if owner is None:
-                    matrix_errors.append(f'{resource}: invalid module owner')
-                    continue
-                add_record(nested_preference_additions, (owner, resource), record, 'nested preference')
-            else:
-                matrix_errors.append(f'current-resource table: unknown resource identity {resource}')
-
-    if section.startswith('## 3.') and header == ['Destination', 'Exact declaration', 'Status', 'Validation']:
-        for cells in rows:
-            if len(cells) != 4:
-                matrix_errors.append(f'repository table: expected four cells, got {cells}')
-                continue
-            destination = exact_code(cells[0])
-            declaration = exact_code(cells[1])
-            if destination is None or declaration is None:
-                matrix_errors.append(f'repository table: invalid row {cells}')
-                continue
-            try:
-                value = tomllib.loads(f'value = {{ {declaration} }}')['value']
-            except tomllib.TOMLDecodeError as error:
-                matrix_errors.append(f'{destination}: invalid repository declaration: {error}')
-                continue
-            add_record(repository_records, destination, {
-                'value': value,
-                'status': cells[2],
-            }, 'repository')
-
-    if section.startswith('## 4.') and header == ['Source file', 'Status', 'Destination, reason, and validation']:
-        for cells in rows:
-            if len(cells) != 3:
-                matrix_errors.append(f'root-dotfile table: expected three cells, got {cells}')
-                continue
-            source = exact_code(cells[0])
-            if source is None:
-                matrix_errors.append(f'root-dotfile table: invalid source {cells[0]}')
-                continue
-            if 'NATIVE' not in cells[1]:
-                continue
-            for target in code_spans(cells[2]):
-                if target.startswith('~/'):
-                    add_record(legacy_dotfile_records, target, {
-                        'source': source,
-                        'status': cells[1],
-                        'detail': cells[2],
-                    }, 'legacy dotfile')
-
-    if section.startswith('## 6.') and header == ['Domain/key', 'Exact value/declaration', 'Status', 'Validation']:
-        for cells in rows:
-            if len(cells) != 4:
-                matrix_errors.append(f'preference table: expected four cells, got {cells}')
-                continue
-            identity = exact_code(cells[0])
-            value_spans = code_spans(cells[1])
-            if identity is None or not value_spans:
-                if 'MANUAL' in cells[2]:
-                    continue
-                matrix_errors.append(f'preference table: invalid row {cells}')
-                continue
-            nested = re.fullmatch(r'(\S+) (.+?)\.path = (\[.*\])', identity)
-            try:
-                if nested:
-                    domain, key, path_text = nested.groups()
-                    path = tuple(parse_value(path_text))
-                else:
-                    domain, key = identity.split(' ', 1)
-                    path = ()
-                value = parse_value(value_spans[0])
-            except (ValueError, tomllib.TOMLDecodeError) as error:
-                matrix_errors.append(f'{identity}: invalid preference record: {error}')
-                continue
-            add_record(preference_records, (domain, key, path), {
-                'value': value,
-                'status': cells[2],
-                'validation': cells[3],
-            }, 'preference')
-
-    if subsection == '### Login items' and header == ['Application', 'Exact value', 'Status', 'Validation']:
-        for cells in rows:
-            if len(cells) != 4:
-                matrix_errors.append(f'login-item table: expected four cells, got {cells}')
-                continue
-            spans = code_spans(cells[1])
-            if len(spans) != 3 or spans[1] != '[bootstrap.macos.login_items]':
-                matrix_errors.append(f'login-item table: invalid exact value {cells[1]}')
-                continue
-            try:
-                policy = tomllib.loads(spans[2])
-            except tomllib.TOMLDecodeError as error:
-                matrix_errors.append(f'{spans[0]}: invalid login-item policy: {error}')
-                continue
-            if set(policy) != {'exclusive'} or type(policy['exclusive']) is not bool:
-                matrix_errors.append(f'{spans[0]}: expected only a boolean exclusive policy')
-                continue
-            add_record(login_records, spans[0], {
-                'application': cells[0].strip(),
-                'exclusive': policy['exclusive'],
-                'status': cells[2],
-                'validation': cells[3],
-            }, 'login item')
+        else:
+            configs[owner] = data
+    return configs
 
 
-def require_declaration(owner, kind, name, value):
-    if kind == 'package' and (owner, name) in direct_packages:
-        expected = direct_packages[(owner, name)]
-        if not isinstance(value, dict):
-            mismatch(kind, owner, name, 'expected direct-package dictionary')
-            return
-        for key in ('version', 'url', 'sha256', 'artifact', 'os'):
-            if not same_value(value.get(key), expected[key]):
-                mismatch(kind, owner, name, f'{key}={value.get(key)!r}, expected {expected[key]!r}')
-        return
-    record = declarations.get((owner, name))
-    if record is None:
-        mismatch(kind, owner, name, 'no exact owner/resource record')
-        return
-    if record['kind'] != kind:
-        mismatch(kind, owner, name, f'matrix records a {record["kind"]}')
-        return
-    if not same_value(value, record['value']):
-        mismatch(kind, owner, name, f'value={value!r}, expected {record["value"]!r}')
-
-
-def require_hook(owner, hook_name, description, package, cask, command):
-    record = hook_records.get((owner, package))
-    if record is None:
-        mismatch('Homebrew hook', owner, package, 'no exact owner/resource record')
-        return
-    if record['hook'] != hook_name:
-        mismatch('Homebrew hook', owner, package, f'owner={hook_name}, expected {record["hook"]}')
-    if record['cask'] != cask:
-        mismatch('Homebrew hook', owner, package, 'formula/cask identity differs')
-    if record['command'] != command:
-        mismatch('Homebrew hook', owner, package, f'command={command!r}, expected {record["command"]!r}')
-    lifecycle = description.lower()
-    if 'presence-only' not in lifecycle or 'upgrades are separate' not in lifecycle:
-        mismatch('Homebrew hook lifecycle', owner, package, 'requires presence-only health checks and separate upgrades')
-
-
-def require_dotfile(owner, target, specification):
-    record = dotfile_records.get((owner, target))
-    owned_target = any(target == candidate for _, candidate in dotfile_records)
-    legacy = legacy_dotfile_records.get(target)
-    if record is None and owned_target:
-        mismatch('dotfile', owner, target, 'exact target belongs to another module')
-        return
-    if record is None and legacy is None:
-        mismatch('dotfile', owner, target, 'no exact owner/resource record')
-        return
-    details = ' '.join(item['detail'] for item in (record, legacy) if item is not None)
+def validate_dotfile(root, owner, target, specification, errors):
     if not isinstance(specification, dict):
-        mismatch('dotfile', owner, target, 'expected a declaration dictionary')
+        errors.append(f'dotfile {owner} {target}: expected a declaration table')
         return
-    expected_variant = {
-        ('terminal', '~/.config/ghostty/config'): '{{ xdg_config_home }}/ghostty/config',
-        ('terminal', '~/.config/ghostty/themes/generic-terminal'): '{{ xdg_config_home }}/ghostty/themes/generic-terminal',
-    }.get((owner, target))
-    if expected_variant is not None or 'variants' in specification:
-        if expected_variant is None:
-            mismatch('dotfile variants', owner, target, 'unexpected target variants')
-        elif not same_value(specification.get('variants'), [{'default': True, 'target': expected_variant}]):
-            mismatch('dotfile variants', owner, target, f'value={specification.get("variants")!r}, expected one default target {expected_variant!r}')
+    keys = set(specification)
     if 'source' in specification:
-        source = str(specification['source'])
-        if not source.startswith(f'dotfiles/{owner}/'):
-            mismatch('dotfile source', owner, target, f'owner-mismatched source {source}')
-        if record is None and legacy is not None:
-            expected_name = pathlib.PurePosixPath(legacy['source']).name
-            actual_name = pathlib.PurePosixPath(source).name
-            if actual_name != expected_name and actual_name not in legacy['detail']:
-                mismatch('dotfile source', owner, target, f'source={source}, matrix source={legacy["source"]}')
-        if specification.get('merge') is True:
-            if 'merge' not in details.lower():
-                mismatch('dotfile deployment', owner, target, 'matrix does not declare a merge')
-        elif specification.get('mode') != 'copy':
-            mismatch('dotfile deployment', owner, target, 'copy declaration does not match matrix')
-        if 'format' in specification and str(specification['format']).lower() not in details.lower():
-            mismatch('dotfile format', owner, target, f'format={specification["format"]}')
+        source = specification['source']
+        if not isinstance(source, str) or not source:
+            errors.append(f'dotfile {owner} {target}: source must be a non-empty string')
+        else:
+            source_path = pathlib.PurePosixPath(source)
+            owned_prefix = pathlib.PurePosixPath('dotfiles') / owner
+            try:
+                source_path.relative_to(owned_prefix)
+                owned = not source_path.is_absolute() and '..' not in source_path.parts
+            except ValueError:
+                owned = False
+            if not owned:
+                errors.append(
+                    f'dotfile {owner} {target}: source {source!r} is outside dotfiles/{owner}/'
+                )
+            else:
+                disk_path = root.joinpath(*source_path.parts)
+                if not disk_path.is_file():
+                    errors.append(f'dotfile {owner} {target}: missing source {source}')
+                else:
+                    try:
+                        disk_path.resolve().relative_to((root / 'dotfiles' / owner).resolve())
+                    except ValueError:
+                        errors.append(
+                            f'dotfile {owner} {target}: source {source} escapes dotfiles/{owner}/'
+                        )
+        if specification.get('mode') == 'copy':
+            allowed = {'source', 'mode', 'variants'}
+            shape = 'copy'
+        elif specification.get('merge') is True:
+            allowed = {'source', 'merge', 'format', 'variants'}
+            shape = 'merge'
+        else:
+            errors.append(f'dotfile {owner} {target}: expected copy or merge=true shape')
+            return
+        if not keys <= allowed:
+            errors.append(
+                f'dotfile {owner} {target}: invalid {shape} keys {sorted(keys - allowed)}'
+            )
+        if 'format' in specification and (
+            not isinstance(specification['format'], str) or not specification['format']
+        ):
+            errors.append(f'dotfile {owner} {target}: format must be a non-empty string')
     elif 'line' in specification:
-        if record is None or 'edit' not in record['detail'].lower():
-            mismatch('dotfile deployment', owner, target, 'no exact managed-line record')
+        if keys != {'line'} or not isinstance(specification['line'], str) or not specification['line'].strip():
+            errors.append(f'dotfile {owner} {target}: line shape must contain only a non-empty line')
     elif 'block' in specification:
-        if record is None or not any(word in record['detail'].lower() for word in ('block', 'edit', 'wrapper')):
-            mismatch('dotfile deployment', owner, target, 'no exact managed-block record')
+        if keys != {'block'} or not isinstance(specification['block'], str) or not specification['block'].strip():
+            errors.append(f'dotfile {owner} {target}: block shape must contain only a non-empty block')
     else:
-        mismatch('dotfile deployment', owner, target, 'unknown source/line/block shape')
+        errors.append(f'dotfile {owner} {target}: expected source, line, or block shape')
 
 
 def flatten_settings(owner, values, prefix='settings'):
     for key, value in values.items():
         path = f'{prefix}.{key}'
         if isinstance(value, dict):
-            flatten_settings(owner, value, path)
-            continue
-        counts['settings'] += 1
-        record = setting_records.get((owner, path))
-        if record is None:
-            mismatch('setting', owner, path, 'no exact owner/resource record')
-            continue
-        commands = code_spans(record['detail'])
-        if len(commands) != 1:
-            mismatch('setting value', owner, path, 'matrix must contain exactly one complete command')
-        elif not same_value(value, commands[0]):
-            mismatch('setting value', owner, path, f'value={value!r}, expected exact command {commands[0]!r}')
+            yield from flatten_settings(owner, value, path)
+        else:
+            yield owner, path, value
 
 
-def require_preference(owner, domain, key, path, value):
-    if owner != 'system-preferences':
-        mismatch('preference', owner, f'{domain} {key}', 'matrix owner is system-preferences')
-        return
-    identity = (domain, key, tuple(path))
-    record = preference_records.get(identity)
-    resource = f'{domain} {key}' + (f'.{".".join(path)}' if path else '')
-    if record is None:
-        mismatch('preference', owner, resource, 'no exact domain/key/path record')
-        return
-    if not same_value(value, record['value']):
-        mismatch('preference value', owner, resource, f'value={value!r}, expected {record["value"]!r}')
-    if path and (owner, resource) not in nested_preference_additions:
-        mismatch('nested preference lifecycle', owner, resource, 'no exact owner/preservation record')
-
-
-def require_repository(owner, destination, value):
-    record = repository_records.get(destination)
-    if record is None:
-        mismatch('repository', owner, destination, 'no exact destination record')
-        return
-    if not same_value(value, record['value']):
-        mismatch('repository declaration', owner, destination, f'value={value!r}, expected {record["value"]!r}')
-
-
-def normalized_name(value):
-    return re.sub(r'[^a-z0-9]', '', value.lower())
-
-
-def require_login_item(owner, path):
-    record = login_records.get(path)
-    if record is None:
-        mismatch('login item', owner, path, 'no exact path record')
-        return
-    expected_owners = {
-        record_owner
-        for (record_owner, name), declaration in declarations.items()
-        if declaration['kind'] == 'package'
-        and 'path verified' in declaration['validation'].lower()
-        and normalized_name(name.split(':', 1)[-1]) == normalized_name(record['application'])
-    }
-    if owner not in expected_owners:
-        mismatch('login item owner', owner, path, f'expected module(s) {sorted(expected_owners)}')
-
-
-def require_login_policy(owner, paths, exclusive):
-    if type(exclusive) is not bool:
-        mismatch('login item policy', owner, 'exclusive', f'expected boolean, got {exclusive!r}')
-        return
-    expected = {
-        login_records[path]['exclusive']
-        for path in paths
-        if path in login_records
-    }
-    if len(expected) > 1:
-        matrix_errors.append(f'{owner}: login-item rows disagree on exclusive policy')
-    elif expected and exclusive not in expected:
-        mismatch('login item policy', owner, 'exclusive', f'value={exclusive!r}, expected {expected.pop()!r}')
-
-
-dock_keys = {
-    'autohide', 'orientation', 'tilesize', 'magnification', 'show_recents', 'mru_spaces',
-}
-keyboard_keys = {'key_repeat', 'initial_key_repeat', 'press_and_hold'}
-
-for config in sorted(root.glob('config*.toml')):
-    owner = 'root' if config.name == 'config.toml' else config.name[len('config.'):-len('.toml')]
-    data = tomllib.loads(config.read_text())
-    bootstrap = data.get('bootstrap', {})
-    for name, value in bootstrap.get('packages', {}).items():
-        counts['packages'] += 1
-        require_declaration(owner, 'package', name, value)
-    for name, value in data.get('tools', {}).items():
-        counts['tools'] += 1
-        require_declaration(owner, 'tool', name, value)
-    for target, specification in data.get('dotfiles', {}).items():
-        counts['dotfiles'] += 1
-        require_dotfile(owner, target, specification)
-    flatten_settings(owner, data.get('settings', {}))
-    for domain, values in bootstrap.get('macos', {}).get('defaults', {}).items():
-        for key, value in values.items():
+def collect_preferences(owner, macos, counts, nested, errors):
+    defaults = as_table(macos.get('defaults', {}), f'{owner} bootstrap.macos.defaults', errors)
+    for domain, values in defaults.items():
+        values = as_table(values, f'{owner} defaults {domain}', errors)
+        for key in values:
             counts['preferences'] += 1
-            require_preference(owner, domain, key, (), value)
-    for entry in bootstrap.get('macos', {}).get('defaults_entries', []):
-        counts['preferences'] += 1
-        require_preference(owner, entry['domain'], entry['key'], entry['path'], entry['value'])
-    for key, value in bootstrap.get('macos', {}).get('dock', {}).items():
-        assert key in dock_keys, key
-        counts['preferences'] += 1
-        mapped = {'show_recents': 'show-recents', 'mru_spaces': 'mru-spaces'}.get(key, key)
-        require_preference(owner, 'com.apple.dock', mapped, (), value)
-    for key, value in bootstrap.get('macos', {}).get('keyboard', {}).items():
-        assert key in keyboard_keys, key
-        counts['preferences'] += 1
-        mapped = {
-            'key_repeat': 'KeyRepeat',
-            'initial_key_repeat': 'InitialKeyRepeat',
-            'press_and_hold': 'ApplePressAndHoldEnabled',
-        }[key]
-        require_preference(owner, 'NSGlobalDomain', mapped, (), value)
-    for destination, value in bootstrap.get('repos', {}).items():
-        counts['repositories'] += 1
-        require_repository(owner, destination, value)
-    login_items = bootstrap.get('macos', {}).get('login_items', {})
-    if login_items:
-        if not isinstance(login_items, dict) or set(login_items) != {'apps', 'exclusive'}:
-            mismatch('login item configuration', owner, 'bootstrap.macos.login_items', 'expected only apps and exclusive')
-            continue
-        paths = login_items['apps']
-        if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
-            mismatch('login item configuration', owner, 'apps', 'expected a list of application paths')
-            continue
-        for path in paths:
-            counts['login_items'] += 1
-            require_login_item(owner, path)
-        require_login_policy(owner, paths, login_items['exclusive'])
-    for hook_name, hook in bootstrap.get('hooks', {}).items():
-        commands = hook.get('run', [])
-        if isinstance(commands, str):
-            commands = [commands]
-        for command in commands:
-            for match in re.finditer(
-                r'/opt/homebrew/bin/brew install(?P<cask> --cask)? (?P<package>[^\s;]+)',
-                command,
-            ):
-                require_hook(
-                    owner,
-                    hook_name,
-                    hook.get('description', ''),
-                    match.group('package'),
-                    match.group('cask') is not None,
-                    match.group(0),
-                )
+            if not isinstance(key, str) or not key:
+                errors.append(f'{owner} defaults {domain}: preference key must be non-empty')
 
-for executable in sorted((root / 'bin').glob('*')):
-    if executable.is_file():
-        counts['executables'] += 1
-        resource = str(executable.relative_to(root))
-        if resource not in executable_records:
-            mismatch('executable', 'Active Git checkout', resource, 'no exact resource record')
+    dock = as_table(macos.get('dock', {}), f'{owner} bootstrap.macos.dock', errors)
+    for key in dock:
+        counts['preferences'] += 1
+        if key not in DOCK_KEYS:
+            errors.append(f'{owner} dock: unexpected preference {key}')
 
-for kind, count in counts.items():
-    print(f'{kind}={count}')
-if matrix_errors:
-    print('Malformed migration-matrix records:', file=sys.stderr)
-    for item in sorted(set(matrix_errors)):
-        print(item, file=sys.stderr)
-if missing:
-    print('Missing or mismatched exact migration-matrix records:', file=sys.stderr)
-    for item in sorted(set(missing)):
-        print(item, file=sys.stderr)
-if matrix_errors or missing:
-    raise SystemExit(1)
-print('current_inventory=PASS')
+    keyboard = as_table(macos.get('keyboard', {}), f'{owner} bootstrap.macos.keyboard', errors)
+    for key in keyboard:
+        counts['preferences'] += 1
+        if key not in KEYBOARD_KEYS:
+            errors.append(f'{owner} keyboard: unexpected preference {key}')
+
+    entries = macos.get('defaults_entries', [])
+    if not isinstance(entries, list):
+        errors.append(f'{owner} bootstrap.macos.defaults_entries: expected an array')
+        return
+    for index, entry in enumerate(entries):
+        label = f'{owner} defaults_entries[{index}]'
+        entry = as_table(entry, label, errors)
+        if not entry:
+            continue
+        counts['preferences'] += 1
+        if set(entry) != {'domain', 'key', 'path', 'value'}:
+            errors.append(f'{label}: expected exactly domain, key, path, and value')
+            continue
+        domain, key, path = entry['domain'], entry['key'], entry['path']
+        if not all(isinstance(value, str) and value for value in (domain, key)):
+            errors.append(f'{label}: domain and key must be non-empty strings')
+            continue
+        if not isinstance(path, list) or not all(isinstance(part, str) and part for part in path):
+            errors.append(f'{label}: path must be an array of non-empty strings')
+            continue
+        nested[(owner, domain, key, tuple(path))] = entry['value']
+
+
+def hook_commands(value, label, errors):
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list) and all(isinstance(command, str) for command in value):
+        return value
+    errors.append(f'{label}: run must be a string or an array of strings')
+    return []
+
+
+def has_presence_guard(commands, install, guard):
+    guard_text = f'if ! {guard} >/dev/null 2>&1; then'
+    for command in commands:
+        start = command.find(guard_text)
+        while start >= 0:
+            line_start = command.rfind('\n', 0, start) + 1
+            if not command[line_start:start].strip():
+                install_at = command.find(install, start + len(guard_text))
+                if install_at >= 0:
+                    remainder = command[install_at + len(install):]
+                    if re.search(r'(?m)^\s*fi\s*$|;\s*fi\s*(?:\n|$)', remainder):
+                        return True
+            start = command.find(guard_text, start + 1)
+    return False
+
+
+def validate_homebrew(hooks, errors):
+    actual_installs = collections.Counter()
+    for (owner, hook_name), hook in hooks.items():
+        for command in hook['commands']:
+            for match in BREW_INSTALL.finditer(command):
+                actual_installs[(owner, hook_name, match.group(0))] += 1
+
+    expected_installs = collections.Counter({
+        (owner, 'post-packages', install): 1
+        for owner, specification in REAL_HOMEBREW.items()
+        for install in specification['guards']
+    })
+    for (owner, hook_name, install), count in sorted((actual_installs - expected_installs).items()):
+        errors.append(f'Homebrew: unexpected {owner} {hook_name} command {install!r} (x{count})')
+    for (owner, hook_name, install), count in sorted((expected_installs - actual_installs).items()):
+        errors.append(f'Homebrew: missing {owner} {hook_name} command {install!r} (x{count})')
+
+    for owner, specification in REAL_HOMEBREW.items():
+        hook = hooks.get((owner, 'post-packages'))
+        if hook is None:
+            errors.append(f'{owner} post-packages: missing real-Homebrew hook')
+            continue
+        description = hook['description']
+        if not isinstance(description, str) or not all(
+            phrase in description.lower()
+            for phrase in ('presence-only', 'upgrades are separate')
+        ):
+            errors.append(
+                f'{owner} post-packages: description must state presence-only and upgrades are separate'
+            )
+        lines = {
+            line.strip()
+            for command in hook['commands']
+            for line in command.splitlines()
+        }
+        for health_check in specification['health']:
+            if health_check not in lines:
+                errors.append(f'{owner} post-packages: missing health check {health_check!r}')
+        for install, guard in specification['guards'].items():
+            if (owner, 'post-packages', install) not in actual_installs:
+                continue
+            if not has_presence_guard(hook['commands'], install, guard):
+                errors.append(f'{owner}: {install}: missing active presence guard ({guard})')
+
+
+def compare_exact(label, actual, expected, errors):
+    for key in sorted(set(actual) - set(expected)):
+        errors.append(f'{label}: unexpected {key!r}')
+    for key in sorted(set(expected) - set(actual)):
+        errors.append(f'{label}: missing {key!r}')
+    for key in sorted(set(actual) & set(expected)):
+        if not same_value(actual[key], expected[key]):
+            errors.append(f'{label} {key!r}: got {actual[key]!r}, expected {expected[key]!r}')
+
+
+def validate(root):
+    counts = dict.fromkeys(EXPECTED_COUNTS, 0)
+    errors = []
+    for name in ('miserc.local.toml', 'config.workspaces.local.toml'):
+        tracked = subprocess.run(
+            ['git', '-C', str(root), 'ls-files', '--error-unmatch', '--', name],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if tracked.returncode == 0:
+            errors.append(f'committed local configuration is forbidden: {name}')
+
+    configs = load_configs(root, counts, errors)
+    packages_by_owner = {}
+    package_identities = set()
+    actual_tools = {}
+    actual_variants = {}
+    actual_settings = []
+    actual_nested_preferences = {}
+    actual_repositories = {}
+    actual_login_items = []
+    hooks = {}
+
+    for owner, data in sorted(configs.items()):
+        bootstrap = as_table(data.get('bootstrap', {}), f'{owner} bootstrap', errors)
+        packages = as_table(bootstrap.get('packages', {}), f'{owner} bootstrap.packages', errors)
+        packages_by_owner[owner] = set(packages)
+        for name, value in packages.items():
+            counts['packages'] += 1
+            kind, separator, identity = name.partition(':')
+            if not separator or not identity or kind not in {'brew', 'brew-cask', 'mas', 'macos-app'}:
+                errors.append(f'{owner} package {name!r}: invalid native package identity')
+                continue
+            package_identities.add(name)
+            if kind == 'macos-app':
+                required = {'version', 'url', 'sha256', 'artifact', 'os'}
+                if not isinstance(value, dict) or set(value) != required or not all(
+                    isinstance(value[key], str) and value[key] for key in required
+                ):
+                    errors.append(
+                        f'{owner} package {name}: expected non-empty version/url/sha256/artifact/os fields'
+                    )
+            elif not isinstance(value, str) or not value:
+                errors.append(f'{owner} package {name}: expected a non-empty version string')
+
+        tools = as_table(data.get('tools', {}), f'{owner} tools', errors)
+        for name, value in tools.items():
+            counts['tools'] += 1
+            actual_tools[(owner, name)] = value
+
+        dotfiles = as_table(data.get('dotfiles', {}), f'{owner} dotfiles', errors)
+        for target, specification in dotfiles.items():
+            counts['dotfiles'] += 1
+            validate_dotfile(root, owner, target, specification, errors)
+            if isinstance(specification, dict) and 'variants' in specification:
+                actual_variants[(owner, target)] = specification['variants']
+
+        settings = as_table(data.get('settings', {}), f'{owner} settings', errors)
+        for setting_owner, path, value in flatten_settings(owner, settings):
+            counts['settings'] += 1
+            actual_settings.append((setting_owner, path))
+            if not isinstance(value, str) or not value:
+                errors.append(f'setting {setting_owner} {path}: expected a non-empty command string')
+
+        macos = as_table(bootstrap.get('macos', {}), f'{owner} bootstrap.macos', errors)
+        collect_preferences(owner, macos, counts, actual_nested_preferences, errors)
+
+        repositories = as_table(bootstrap.get('repos', {}), f'{owner} bootstrap.repos', errors)
+        for destination, value in repositories.items():
+            counts['repositories'] += 1
+            actual_repositories[(owner, destination)] = value
+
+        login_items = macos.get('login_items', {})
+        if login_items:
+            login_items = as_table(
+                login_items, f'{owner} bootstrap.macos.login_items', errors
+            )
+            if set(login_items) != {'apps', 'exclusive'}:
+                errors.append(f'{owner} login items: expected only apps and exclusive')
+            if login_items.get('exclusive') is not False:
+                errors.append(f'{owner} login items: exclusive must be false')
+            apps = login_items.get('apps', [])
+            if not isinstance(apps, list) or not all(isinstance(path, str) for path in apps):
+                errors.append(f'{owner} login items: apps must be an array of paths')
+            else:
+                for path in apps:
+                    counts['login_items'] += 1
+                    actual_login_items.append((owner, path))
+
+        raw_hooks = as_table(bootstrap.get('hooks', {}), f'{owner} bootstrap.hooks', errors)
+        for hook_name, value in raw_hooks.items():
+            label = f'{owner} {hook_name}'
+            hook = as_table(value, label, errors)
+            hooks[(owner, hook_name)] = {
+                'description': hook.get('description', ''),
+                'commands': hook_commands(hook.get('run', []), label, errors),
+            }
+
+    unique_kinds = collections.Counter(name.split(':', 1)[0] for name in package_identities)
+    counts['unique_packages'] = len(package_identities)
+    for kind in ('brew', 'brew-cask', 'mas', 'macos-app'):
+        counts[kind] = unique_kinds[kind]
+
+    for owner in ('terminal', 'development-editors'):
+        if 'brew-cask:font-jetbrains-mono-nerd-font' not in packages_by_owner.get(owner, set()):
+            errors.append(f'{owner}: missing shared prerequisite brew-cask:font-jetbrains-mono-nerd-font')
+    for owner in ('ai-tools', 'ai-cli'):
+        if 'brew:jq' not in packages_by_owner.get(owner, set()):
+            errors.append(f'{owner}: missing shared prerequisite brew:jq')
+    for owner, packages in sorted(packages_by_owner.items()):
+        if any(name.startswith('mas:') for name in packages) and 'brew:mas' not in packages:
+            errors.append(f'{owner}: missing shared prerequisite brew:mas for MAS packages')
+
+    compare_exact('runtime', actual_tools, EXPECTED_TOOLS, errors)
+    compare_exact('repository', actual_repositories, EXPECTED_REPOSITORIES, errors)
+    compare_exact('dotfile variant', actual_variants, EXPECTED_VARIANTS, errors)
+    compare_exact(
+        'nested preference', actual_nested_preferences, EXPECTED_NESTED_PREFERENCES, errors
+    )
+    compare_exact(
+        'nested setting',
+        dict.fromkeys(actual_settings, True),
+        {('development-rust', 'settings.github.credential_command'): True},
+        errors,
+    )
+
+    for item in sorted(set(actual_login_items) - EXPECTED_LOGIN_ITEMS):
+        errors.append(f'login items: unexpected {item[0]} {item[1]}')
+    for item in sorted(EXPECTED_LOGIN_ITEMS - set(actual_login_items)):
+        errors.append(f'login items: missing {item[0]} {item[1]}')
+
+    validate_homebrew(hooks, errors)
+
+    bin_directory = root / 'bin'
+    try:
+        actual_executables = {
+            path.name for path in bin_directory.iterdir() if path.is_file() or path.is_symlink()
+        }
+    except OSError as error:
+        actual_executables = set()
+        errors.append(f'bin: cannot inspect executables: {error}')
+    counts['executables'] = len(actual_executables)
+    for name in sorted(actual_executables - EXPECTED_EXECUTABLES):
+        errors.append(f'bin: unexpected executable {name}')
+    for name in sorted(EXPECTED_EXECUTABLES - actual_executables):
+        errors.append(f'bin: missing executable {name}')
+    for name in sorted(EXPECTED_EXECUTABLES & actual_executables):
+        path = bin_directory / name
+        try:
+            if not path.is_file() or path.stat().st_mode & 0o111 == 0:
+                errors.append(f'bin/{name}: expected an executable regular file')
+        except OSError as error:
+            errors.append(f'bin/{name}: cannot inspect: {error}')
+    statusline = bin_directory / 'claude-statusline.sh'
+    if statusline.is_file():
+        actual_hash = hashlib.sha256(statusline.read_bytes()).hexdigest()
+        if actual_hash != STATUSLINE_SHA256:
+            errors.append(
+                f'bin/claude-statusline.sh: SHA256 {actual_hash}, expected {STATUSLINE_SHA256}'
+            )
+
+    for name, expected in EXPECTED_COUNTS.items():
+        if counts[name] != expected:
+            errors.append(f'count {name}: got {counts[name]}, expected {expected}')
+    return counts, errors
+
+
+def copy_inputs(source, destination):
+    destination.mkdir()
+    for name in ['config.toml'] + [f'config.{owner}.toml' for owner in sorted(ENVIRONMENTS)]:
+        shutil.copy2(source / name, destination / name)
+    for name in ('bin', 'dotfiles'):
+        shutil.copytree(source / name, destination / name)
+
+
+def replace_once(path, old, new):
+    text = path.read_text()
+    if text.count(old) != 1:
+        raise RuntimeError(f'mutation anchor occurs {text.count(old)} times in {path.name}')
+    path.write_text(text.replace(old, new, 1))
+
+
+def self_test(root):
+    mutations = [
+        (
+            'remove_ai_cli_jq',
+            'config.ai-cli.toml',
+            '"brew:jq" = "latest"\n',
+            '',
+            'ai-cli: missing shared prerequisite brew:jq',
+        ),
+        (
+            'add_unknown_login_item',
+            'config.utilities.toml',
+            'apps = ["/Applications/CleanShot X.app", "/Applications/Bartender 7.app"]',
+            'apps = ["/Applications/CleanShot X.app", "/Applications/Bartender 7.app", "/Applications/Unknown.app"]',
+            'login items: unexpected utilities /Applications/Unknown.app',
+        ),
+        (
+            'hardcode_opencode_variant',
+            'config.ai-cli.toml',
+            '{{ xdg_config_home }}/opencode/AGENTS.md',
+            '~/.config/opencode/AGENTS.md',
+            "dotfile variant ('ai-cli', '~/.config/opencode/AGENTS.md')",
+        ),
+        (
+            'remove_ghostty_variant',
+            'config.terminal.toml',
+            ', variants = [{ default = true, target = "{{ xdg_config_home }}/ghostty/config" }]',
+            '',
+            "dotfile variant: missing ('terminal', '~/.config/ghostty/config')",
+        ),
+        (
+            'change_runtime_pin',
+            'config.js.toml',
+            'node = "26.9.0"',
+            'node = "26.9.1"',
+            "runtime ('js', 'node')",
+        ),
+        (
+            'remove_presence_guard',
+            'config.ai-tools.toml',
+            'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi',
+            '/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp',
+            'ai-tools: /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp: missing active presence guard',
+        ),
+    ]
+    passed = True
+    try:
+        with tempfile.TemporaryDirectory(prefix='verify-current-inventory-') as temporary:
+            temporary_root = pathlib.Path(temporary)
+            baseline = temporary_root / 'baseline'
+            copy_inputs(root, baseline)
+            (baseline / 'miserc.local.toml').write_text('env = ["foundation"]\n')
+            (baseline / 'config.workspaces.local.toml').write_text('[bootstrap.repos]\n')
+            _, baseline_errors = validate(baseline)
+            if baseline_errors:
+                print('baseline=FAIL', file=sys.stderr)
+                for error in baseline_errors:
+                    print(f'  {error}', file=sys.stderr)
+                return 1
+            print('baseline=PASS')
+
+            for name, filename, old, new, expected_error in mutations:
+                case_root = temporary_root / name
+                copy_inputs(root, case_root)
+                replace_once(case_root / filename, old, new)
+                _, errors = validate(case_root)
+                if not errors:
+                    print(f'mutation_{name}=NOT_REJECTED')
+                    passed = False
+                elif not any(expected_error in error for error in errors):
+                    print(f'mutation_{name}=REJECTED_FOR_WRONG_REASON')
+                    for error in errors:
+                        print(f'  {error}', file=sys.stderr)
+                    passed = False
+                else:
+                    print(f'mutation_{name}=REJECTED')
+    except (OSError, RuntimeError) as error:
+        print(f'self-test setup failed: {error}', file=sys.stderr)
+        return 1
+    if not passed:
+        print('self_test=FAIL', file=sys.stderr)
+        return 1
+    print('self_test=PASS')
+    return 0
+
+
+def main():
+    arguments = sys.argv[1:]
+    if arguments == ['--self-test']:
+        return self_test(ROOT)
+    if arguments:
+        print(f'usage: {pathlib.Path(sys.argv[0]).name} [--self-test]', file=sys.stderr)
+        return 1
+    counts, errors = validate(ROOT)
+    for name in EXPECTED_COUNTS:
+        print(f'{name}={counts[name]}')
+    if errors:
+        print('current_inventory=FAIL', file=sys.stderr)
+        for error in sorted(set(errors)):
+            print(error, file=sys.stderr)
+        return 1
+    print('current_inventory=PASS')
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

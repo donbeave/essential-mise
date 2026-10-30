@@ -142,7 +142,12 @@ run_and_record xdg-apply 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PA
 run_and_record xdg-verify-applied 0 /bin/test -f "$xdg_config/ghostty/config"
 run_and_record xdg-verify-theme 0 /bin/test -f "$xdg_config/ghostty/themes/generic-terminal"
 run_and_record xdg-verify-no-default-ghostty 0 /bin/test ! -e "$xdg_home/.config/ghostty/config"
-run_and_record xdg-fish-consumption 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" /opt/homebrew/bin/fish -ic 'mise --version'
+xdg_fish_path="$xdg_home/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+run_and_record xdg-fish-runtime-absent 1 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_fish_path" /bin/bash -c 'command -v bun'
+run_and_record xdg-install-js 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" -E js bootstrap --yes
+run_and_record xdg-fish-consumption 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" MISE_ENV=js PATH="$xdg_fish_path" /opt/homebrew/bin/fish -ic 'command -v bun && bun --version'
+run_and_record xdg-fish-runtime-path 0 /usr/bin/grep -F "$xdg_home/.local/share/mise/installs/bun/1.4.4/" "$evidence_dir/xdg-fish-consumption.log"
+run_and_record xdg-fish-runtime-version 0 /usr/bin/grep -F '1.4.4' "$evidence_dir/xdg-fish-consumption.log"
 run_and_record xdg-shell-persistence 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" /bin/zsh -lic 'cd /private/tmp && mise bootstrap --dry-run'
 printf 'env = ["foundation"]\n' > "$xdg_checkout/miserc.local.toml"
 run_and_record xdg-unapply-preview 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" bootstrap unapply terminal --dry-run

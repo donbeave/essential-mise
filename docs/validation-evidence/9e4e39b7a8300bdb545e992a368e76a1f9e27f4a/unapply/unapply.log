@@ -1,8 +1,0 @@
-mise 15 declaration(s) in [bootstrap.packages] are not removed by unapply: mise bootstrap packages prune --manager <manager>
-mise 2 declaration(s) in [bootstrap.repos] are not removed by unapply: remove the checkout
-remove  dotfile:/Users/admin/.config/ghostty/config
-remove  dotfile:/Users/admin/.config/ghostty/themes/generic-terminal
-remove  dotfile:~/.config/starship.toml
-remove  edit:~/.zshrc/terminal
-mise edits: unapplied ~/.zshrc (block:terminal)
-mise files: unapplied /Users/admin/.config/ghostty/config, /Users/admin/.config/ghostty/themes/generic-terminal, ~/.config/starship.toml

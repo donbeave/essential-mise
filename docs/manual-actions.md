@@ -4,10 +4,10 @@ Native mise installs and configures only declared resources. The following remai
 
 ## Accounts, identity, and credentials
 
-- Set the new machine’s real Git identity deliberately. The three global Git settings used during implementation are not copied as a dotfile identity.
+- Set the new machine’s real Git identity deliberately. No `user.name` or `user.email` is deployed.
 - Run `gh auth login`, then `gh auth setup-git` for GitHub credential integration. `gh/hosts.yml`, SSH private hosts, and credential-helper reset semantics are not migrated.
 - Run `git lfs install` after installing Git LFS.
-- Apply the nine authorized nonidentity Git tuning settings and the ignore override with Git itself. Automatic INI merging is intentionally removed because mise's generic parser can consume indented Git settings as continuations. These commands preserve unrelated keys, repeated helpers, `includeIf`, comments, casing, and mixed indentation:
+- Apply the nine nonidentity Git tuning settings and the ignore override with Git itself. Generic INI merging is not used because it can consume indented Git settings as continuations. These commands preserve unrelated keys, repeated helpers, `includeIf`, comments, casing, and mixed indentation:
 
   ```bash
   config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
@@ -23,7 +23,7 @@ Native mise installs and configures only declared resources. The following remai
   git config --global alias.merge-main '!git fetch origin && git merge --no-ff origin/main'
   ```
 
-  `core.excludesFile` deliberately points to the retained ignore source in the adopted checkout, so it works with both default and custom XDG configuration homes. Review this override before changing or removing it. No user.name, user.email, credential helper, or SSH command is set by these commands.
+  `core.excludesFile` points to the ignore source in the adopted checkout, so it works with default and custom XDG configuration homes. Review this override before changing or removing it. These commands do not set identity, credential helpers, or SSH commands.
 - Sign in to the App Store before applying MAS modules. Purchases/claims and paid apps are not automated. A second apply may be required.
 - Sign in to 1Password, enable its Safari extension and SSH agent, and authorize the CLI. The extension itself is installed with `mas:1569813296`.
 
@@ -34,20 +34,21 @@ Native mise installs and configures only declared resources. The following remai
 - Browser/VPN/proxy profiles, Surge endpoints/secrets, WARP mode, Little Snitch extension/rules, and privileged network changes are manual.
 - Surge uses real Homebrew because mise 2026.10.23 cannot expand the cask binary's `$APPDIR` source. Its hook refuses unmanaged existing Surge applications; migrate those manually. Native mise status, upgrade, and prune do not manage the hook-installed package. See [Homebrew exceptions](homebrew-exceptions.md).
 - `agent-browser install` and browser runtime initialization are manual after package installation.
-- Amp CLI and OMP use real Homebrew because mise 2026.10.23 leaves Amp's binary non-executable and cannot execute OMP's `with_env` completion helper; see [Homebrew exceptions](homebrew-exceptions.md). Their accounts and any provider opt-in are manual. Verify OMP loads `~/.omp/agent/AGENTS.md`, then use `omp config` and `omp models` to validate roles, enabled models, and route overrides; missing authentication is not success. Drop stale settings.
-- Amp Desktop uses real Homebrew because mise cannot evaluate the cask's `Array#second` DSL. For an existing unmanaged `/Applications/Amp.app`, the module refuses to continue until you migrate ownership manually. An existing installation already owned by the same Homebrew cask can remain. Two independent guests reproduced Amp's `_dyld_start` GUI stall. Scoped v1 explicitly retains automatic package installation for inventory completeness and accepts that the GUI is currently unusable on macOS 27.2; GUI setup is MANUAL/DROP, and package installation is not a working-app claim. Clean installation and existing-app refusal were tested without automatic adoption.
-- FFF uses real Homebrew because mise 2026.10.23 installs its raw binary without execute permission. The native tap was removed; an idempotent Homebrew hook installs it and requires `fff-mcp --healthcheck` to pass. Native mise status, upgrade, and prune are not used to manage these hook-installed packages.
+- Amp CLI and OMP use real Homebrew because mise 2026.10.23 leaves Amp's binary non-executable and cannot execute OMP's `with_env` completion helper; see [Homebrew exceptions](homebrew-exceptions.md). Their accounts and provider opt-in are manual. Verify OMP loads `~/.omp/agent/AGENTS.md`, then use `omp config` and `omp models` to validate roles, enabled models, and route overrides; missing authentication is not success.
+- OpenCode instructions follow `XDG_CONFIG_HOME`. If `OPENCODE_CONFIG_DIR` is set, OpenCode uses that user-owned directory instead; unset the override or maintain its `AGENTS.md` separately.
+- Amp Desktop uses real Homebrew because mise cannot evaluate the cask's `Array#second` DSL. An existing unmanaged `/Applications/Amp.app` must be migrated manually; an installation already owned by the same cask can remain. The package is retained despite a known macOS 27.2 `_dyld_start` GUI stall. A working GUI is not claimed and no security bypass is permitted.
+- FFF uses real Homebrew because mise 2026.10.23 installs its raw binary without execute permission. The hook requires `fff-mcp --healthcheck` to pass. Native mise status, upgrade, and prune do not manage the hook-installed package.
 - Superwhisper configuration is fully manual. No mode JSON, recordings, or `~/superwhisper` directory is deployed.
 
 ## Privacy and privileged host behavior
 
-TCC, SIP, Full Disk Access, Safari protected settings, TIS/HIToolbox input sources, OTP handlers, appearance-key deletion, privileged LaunchDaemons, sysctl/pmset/systemsetup, Gatekeeper, Developer Mode, network time, software-update policy, login-window, MDM, and mobileconfig installation are manual or intentionally dropped.
+TCC, SIP, Full Disk Access, Safari protected settings, TIS/HIToolbox input sources, OTP handlers, appearance-key deletion, privileged LaunchDaemons, sysctl/pmset/systemsetup, Gatekeeper, Developer Mode, network time, software-update policy, login-window, MDM, and mobileconfig installation are manual or intentionally not automated.
 
 No fixed Dock icon list or Downloads stack is managed. Symbolic hotkeys are manual: a clean Mac may not have the existing dictionary/parameters, so writing only `enabled` would be incomplete.
 
 ## `system-preferences` review and reversal
 
-This module is optional. Review its dry run before applying. Stored-value matching (`mise bootstrap macos defaults status --missing`) is not proof of UI behavior; restart Dock, Finder, SystemUIServer, or the affected application and verify the result on disposable macOS.
+This module is optional. Review its dry run before applying. Stored-value matching (`mise -C "$config_dir" bootstrap macos defaults status --missing`) is not proof of UI behavior; restart Dock, Finder, SystemUIServer, or the affected application and verify the result on disposable macOS.
 
 Deselecting the module does not undo preferences. Before applying, capture current values with `defaults read DOMAIN KEY` where available. Reversal below uses `defaults delete DOMAIN KEY` to return to macOS defaults or restore the captured previous value. Do not delete an entire dictionary when only one member is managed.
 

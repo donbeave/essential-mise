@@ -1,9 +1,0 @@
-mise bootstrap: system packages
-mise brew-cask: 3 package(s) already installed
-mise brew: 1 package(s) already installed
-mise bootstrap: login items
-mise login items: already set
-mise bootstrap: tools
-mise all tools are installed
-bootstrap: follow-up if applied
-  - mas: 1 package(s) skipped (mas not found)

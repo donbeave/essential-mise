@@ -1,4 +1,0 @@
-project_selector_precedence=PASS
-project_resource_isolation=PASS
-project_env_isolation=PASS
-workspace_ignore_and_activation=PASS

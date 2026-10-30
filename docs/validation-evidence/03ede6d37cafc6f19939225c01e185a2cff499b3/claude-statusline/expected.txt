@@ -1,2 +1,0 @@
-~/Projects/ChainArgos/redesign-review │ Opus 5.5 medium │ 35% (345k/1.0M)
-↳ explorer │ sonnet low │ 91k

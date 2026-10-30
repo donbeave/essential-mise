@@ -1,5 +1,0 @@
-configuration_revision=9e4e39b7a8300bdb545e992a368e76a1f9e27f4a
-fixture_revision=9e4e39b7a8300bdb545e992a368e76a1f9e27f4a
-mise_version=2026.10.23 macos-arm64 (2026-10-29)
-release_guest=essential-mise-test-release
-isolated_guest=essential-mise-test-audit

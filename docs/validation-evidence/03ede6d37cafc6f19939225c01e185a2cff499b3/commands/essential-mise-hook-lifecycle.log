@@ -1,7 +1,0 @@
-spawn /usr/bin/ssh -tt -i /Users/donbeave/.config/essential-mise/vm/id_ed25519 -o BatchMode=no -o IdentitiesOnly=yes -o PreferredAuthentications=publickey,password -o NumberOfPasswordPrompts=2 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/Users/donbeave/.config/essential-mise/vm/known_hosts -o LogLevel=ERROR -o ConnectTimeout=10 admin@192.168.64.16 stty sane; /bin/bash /tmp/essential-mise-artifact/verify-hook-lifecycle.sh
-
-outdated_package_preserved=PASS
-
-no_dependency_changes=PASS
-
-health_check=PASS

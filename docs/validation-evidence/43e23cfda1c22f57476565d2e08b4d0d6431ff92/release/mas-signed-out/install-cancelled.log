@@ -1,4 +1,0 @@
-spawn /usr/bin/ssh -tt -i /Users/donbeave/.config/essential-mise/vm/id_ed25519 -o BatchMode=no -o IdentitiesOnly=yes -o PreferredAuthentications=publickey,password -o NumberOfPasswordPrompts=2 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/Users/donbeave/.config/essential-mise/vm/known_hosts -o LogLevel=ERROR -o ConnectTimeout=10 admin@192.168.64.16 stty sane; /opt/homebrew/bin/mas install 1037126344
-Password:
-<redacted> Failed to install app for ADAM ID 1037126344
-Error Domain=ISErrorDomain Code=-128 "Unknown Error." UserInfo={NSLocalizedDescription=Unknown Error.}

@@ -1,7 +1,0 @@
-From https://github.com/donbeave/essential-mise
- * branch            main       -> FETCH_HEAD
-Updating 94890d7..6c76795
-Fast-forward
- bootstrap.sh         | 2 +-
- scripts/vm/README.md | 7 ++++++-
- 2 files changed, 7 insertions(+), 2 deletions(-)

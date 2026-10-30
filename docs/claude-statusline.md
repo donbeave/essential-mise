@@ -1,12 +1,10 @@
 # Claude Code status line
 
-`bin/claude-statusline.sh` is the unchanged status-line script, installed as an executable. It requires Bash, `jq`, and macOS `stat -f`.
+`ai-cli` installs `bin/claude-statusline.sh` as an executable and adds an alias-safe zsh function. The script requires Bash, `jq`, and macOS `stat -f`.
 
-This is a narrowly user-approved status-line exception, not an implementation of revision 7's old excluded status-line graph. The new wrapper uses `refreshInterval = 5`, so Claude re-runs the command every five seconds and can remove a subagent row after its ten-minute idle threshold even when the main session is idle. The absolute token figure is input-token usage (input plus cache creation/read), which matches Claude Code's documented `used_percentage` formula; it intentionally does not include output tokens and is not presented as an output-inclusive total.
+Claude reruns the command every five seconds. The display includes the current directory, model and effort, input-token context usage, and running subagents. Finished, interrupted, and idle subagents are hidden. The absolute token figure includes input plus cache creation/read tokens; output tokens are intentionally excluded.
 
 ## zsh wrapper
-
-The `ai-cli` module adds this native block to `~/.zshrc`:
 
 ```zsh
 function claude {
@@ -18,41 +16,15 @@ function claude {
 }
 ```
 
-Every argument is forwarded through `command claude`, so existing flags and subcommands are not replaced. The `function claude` declaration is alias-safe: an existing `claude` alias is preserved, sourcing reaches later startup commands, and the function still takes precedence for interactive launches. Zsh still expands that alias at call sites, so its arguments are forwarded too; the fixture verifies this deliberately. The absolute script path follows the adopted config directory, including custom `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` values. Zsh `%q` shell-quotes the executable path and `jq --arg` JSON-encodes the complete command, so whitespace and shell/JSON metacharacters are preserved. `BASH_COMPAT=3.2` is required because Homebrew Bash 5.3 otherwise expands the script's replacement tilde to the account's real home instead of leaving `~`; the script itself was not changed to work around that behavior.
+The function preserves an existing alias and forwards alias-supplied and explicit arguments. Zsh `%q` shell-quotes the adopted script path and `jq --arg` JSON-encodes it, so custom XDG paths containing whitespace or shell/JSON metacharacters remain intact. `BASH_COMPAT=3.2` preserves the script's literal `~` display with Homebrew Bash 5.3.
 
-## Package owner
+Claude Code itself is installed through the real-Homebrew `claude-code@latest` exception; see [Homebrew exceptions](homebrew-exceptions.md). Package installation and synthetic rendering do not establish authenticated interactive behavior. Complete account setup and verify the live status line manually.
 
-Claude Code is installed through real Homebrew with `/opt/homebrew/bin/brew install --cask claude-code@latest`. The earlier focused evidence verified `2.1.312 (Claude Code)`; the `9e4e39b…` apply records `2.1.314 (Claude Code)`. The `@latest` cask can advance between evidence runs. The older `claude-code` cask's missing `bin/claude` target is documented in [Homebrew exceptions](homebrew-exceptions.md).
-
-## Verification
-
-The sample payload exercised `workspace.current_dir`, `model.display_name`, `effort.level`, `context_window.used_percentage`, `context_window.context_window_size`, `context_window.current_usage`, and `transcript_path`. Synthetic subagents covered running, finished, interrupted, and idle states. Sanitized output was exactly:
+A sanitized sample is:
 
 ```text
 ~/Projects/ChainArgos/redesign-review │ Opus 5.5 medium │ 35% (345k/1.0M)
 ↳ explorer │ sonnet low │ 91k
 ```
 
-The test passed with one running subagent, finished/interrupted/idle agents hidden, and green/yellow/red context thresholds at 35%, 50%, and 80%. After applying the current `ai-cli` module, replay it inside a registered guest and collect `/tmp/essential-mise-evidence/claude-statusline` before restarting that guest:
-
-```bash
-VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-statusline.py
-VM_NAME=essential-mise-test-evidence \
-VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
-  scripts/vm/owner-auth-ssh.sh \
-  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-statusline.py"
-```
-
-Replay the wrapper test separately. It extracts the actual function from `~/.zshrc`, sources it after a preexisting `claude` alias, verifies that the alias remains defined and later startup commands run, uses an XDG path containing spaces, quotes, a dollar sign, and a backslash, captures a mock `claude` invocation, and executes the decoded status-line command through `/bin/sh`:
-
-```bash
-VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-claude-wrapper.py
-VM_NAME=essential-mise-test-evidence \
-VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
-  scripts/vm/owner-auth-ssh.sh \
-  "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-wrapper.py"
-```
-
-The current wrapper passed special-path shell quoting, JSON encoding, argument forwarding, and synthetic rendering. An earlier interactive launch of Claude Code 2.1.312 established that `--settings` merges with observed project model settings rather than discarding them. No real account was used; authenticated interactive rendering remains unverified because that test stopped at the login screen.
-
-The existing `claude-code@latest` cask was reused safely, and repeated preview/apply runs converged with no second owner. The original conflicting `claude-code` declaration was removed. The standalone verifier also clears old evidence, writes FAIL when the script is deliberately unavailable, removes the earlier zero-exit artifacts, and passes independently after recovery. Exact logs, fixture sources, exit codes, and hashes are preserved under `validation-evidence/e81fe5902edf6f04e3925cae8f128ab50e0216da/release/` and `validation-evidence/03ede6d37cafc6f19939225c01e185a2cff499b3/`.
+Reusable synthetic rendering and wrapper checks are documented in [Disposable Tart/Cua verification](../scripts/vm/README.md). Guest output is collected outside the repository.

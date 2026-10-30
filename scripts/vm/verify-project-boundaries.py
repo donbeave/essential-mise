@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import os
 import pathlib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -86,9 +87,31 @@ workspace_preview = run('workspace-selected', [mise, '-E', 'workspaces', 'bootst
 assert 'essential-mise-synthetic-workspace' in workspace_preview
 workspace_unselected = run('workspace-unselected', [mise, 'bootstrap', '--dry-run'], unrelated, workspace_env)
 assert 'essential-mise-synthetic-workspace' not in workspace_unselected
+
+launcher_config = root / 'launcher config with spaces'
+run('add-launcher-worktree', ['git', '-C', source_config, 'worktree', 'add', '--detach', launcher_config, 'HEAD'], source_config)
+launcher_env = {**env, 'MISE_CONFIG_DIR': str(launcher_config)}
+launcher_output = run(
+    'bootstrap-next-steps',
+    ['/bin/bash', source_config / 'bootstrap.sh'],
+    project,
+    launcher_env,
+)
+next_step_lines = [line.strip() for line in launcher_output.splitlines() if line.startswith('  mise ')]
+assert len(next_step_lines) == 3, next_step_lines
+for index, line in enumerate(next_step_lines):
+    command = shlex.split(line)
+    assert command[:2] == ['mise', '-C'], command
+    assert command[2] == str(launcher_config), command
+    if '--dry-run' not in command:
+        command.append('--dry-run')
+    preview = run(f'next-step-scope-{index}', command, project, launcher_env)
+    assert 'essential-mise-project-only' not in preview
+
 report = (
     'project_selector_precedence=PASS\nproject_resource_isolation=PASS\n'
     'project_env_isolation=PASS\nworkspace_ignore_and_activation=PASS\n'
+    'bootstrap_next_step_scope=PASS\n'
 )
 (evidence / 'report.txt').write_text(report)
 print(report, end='')

@@ -1,3 +1,0 @@
-git_repeated_cli_preservation=PASS
-custom_xdg_ignore=PASS
-zed_jsonc_preservation=PASS

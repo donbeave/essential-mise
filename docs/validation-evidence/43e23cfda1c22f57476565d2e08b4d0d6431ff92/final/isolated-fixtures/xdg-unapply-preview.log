@@ -1,3 +1,0 @@
-mise 15 declaration(s) in [bootstrap.packages] are not removed by unapply: mise bootstrap packages prune --manager <manager>
-mise 2 declaration(s) in [bootstrap.repos] are not removed by unapply: remove the checkout
-mise nothing to remove for terminal

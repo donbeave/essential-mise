@@ -1,1 +1,0 @@
-installed executable is byte-identical to the official DMG

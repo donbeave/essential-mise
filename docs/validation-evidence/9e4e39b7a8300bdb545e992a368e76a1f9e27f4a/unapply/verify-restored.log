@@ -1,3 +1,0 @@
-[[ -r "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
-# >>> mise:activate >>> managed by mise — do not edit between markers
-# <<< mise:activate <<<

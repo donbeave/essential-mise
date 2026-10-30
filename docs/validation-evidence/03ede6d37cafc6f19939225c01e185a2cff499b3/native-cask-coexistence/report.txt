@@ -1,2 +1,0 @@
-existing_homebrew_owner_preserved=PASS
-native_apply_and_convergence=PASS

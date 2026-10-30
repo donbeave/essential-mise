@@ -1,1 +1,0 @@
-/Applications/Amp.app/Contents/MacOS/Amp: Mach-O 64-bit executable arm64

@@ -1,2 +1,0 @@
-[36m~/Projects/ChainArgos/redesign-review[0m [2m│[0m [35mOpus 5.5[0m medium [2m│[0m [31m80%[0m [2m(345k/1.0M)[0m
-[2m↳[0m [33mexplorer[0m [2m│[0m sonnet low [2m│[0m 91k

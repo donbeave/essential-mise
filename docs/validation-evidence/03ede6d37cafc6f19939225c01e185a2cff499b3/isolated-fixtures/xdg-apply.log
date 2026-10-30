@@ -1,7 +1,0 @@
-mise bootstrap: dotfiles
-mise files: copied /private/tmp/essential-mise-isolated-validation/xdg-custom/mise/dotfiles/terminal/ghostty/config to ~/.config/ghostty/config
-mise files: copied /private/tmp/essential-mise-isolated-validation/xdg-custom/mise/dotfiles/terminal/ghostty/generic-terminal to ~/.config/ghostty/themes/generic-terminal
-mise files: copied /private/tmp/essential-mise-isolated-validation/xdg-custom/mise/dotfiles/terminal/starship.toml to ~/.config/starship.toml
-mise files: applied ~/.config/ghostty/config, ~/.config/ghostty/themes/generic-terminal, ~/.config/starship.toml
-mise bootstrap: dotfile edits
-mise edits: applied ~/.zshrc (block:terminal)

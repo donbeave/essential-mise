@@ -11,7 +11,7 @@ brew install openai/tools/tart
 tart --version
 ```
 
-The scripts require macOS `expect`, Python 3, and a full Xcode installation is not required. They use 4 guest CPUs, 8192 MB RAM, a 100 GB disk, NAT networking, no host directory shares, and no clipboard sharing. NAT provides connectivity, not complete network isolation.
+The scripts require macOS `expect` and Python 3; a full Xcode installation is not required. The isolated lifecycle also invokes `/opt/homebrew/bin/fish`, which can be installed with `brew install fish`. Test guests use 4 CPUs, 8192 MB RAM, a 100 GB disk, NAT networking, no host directory shares, and no clipboard sharing. NAT provides connectivity, not complete network isolation.
 
 Create a dedicated SSH identity and the shared synthetic guest-owner credential file. Every test guest uses username `admin` and password `admin`; never use personal credentials or generate unique guest passwords. The credential file is not part of the repository, must have mode 600, and is never printed by the scripts:
 
@@ -108,7 +108,7 @@ VM_NAME=essential-mise-test-stage0 \
   scripts/vm/collect-evidence.sh /tmp/essential-mise-evidence/stage0
 ```
 
-Guest artifacts are limited to `/tmp/essential-mise-artifact`; guest evidence is collected from `/tmp/essential-mise-evidence`. Collect it before stopping or rebooting a guest because temporary evidence may be removed during the guest lifecycle. Collection replaces only destinations carrying its ownership marker, rather than merging stale logs, and refuses unrelated nonempty directories. Scenario logs include exact command exit codes, the reviewed/config revisions, fixture checksum, mise/Tart versions, and guest OS/build.
+Guest artifacts are limited to `/tmp/essential-mise-artifact`; guest evidence is collected from `/tmp/essential-mise-evidence`. Collect it before stopping or rebooting a guest because temporary evidence may be removed during the guest lifecycle. Keep generated logs, screenshots, and fixture output outside the repository rather than committing an evidence archive. Collection replaces only destinations carrying its ownership marker, rather than merging stale logs, and refuses unrelated nonempty directories. Scenario logs include exact command exit codes, the reviewed/config revisions, fixture checksum, mise/Tart versions, and guest OS/build.
 
 Run application scenarios only in a registered disposable VM:
 
@@ -166,7 +166,7 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-claude-wrapper.py"
 ```
 
-Replay Git preservation, custom-XDG ignore, and Zed JSONC checks, then verify actual GitHub CLI, Ghostty, and Fish behavior under custom XDG separately. Each standalone fixture clears its previous evidence and records IN_PROGRESS or FAIL instead of retaining an earlier PASS:
+Replay Git preservation, custom-XDG ignore, and Zed JSONC checks, then verify actual GitHub CLI, Ghostty, OpenCode, and Fish behavior under custom XDG separately. Each standalone fixture clears its previous evidence and records IN_PROGRESS or FAIL instead of retaining an earlier PASS:
 
 ```bash
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-configuration-safety.py
@@ -187,6 +187,9 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
 VM_NAME=essential-mise-test-evidence \
   scripts/vm/owner-auth-ssh.sh \
   "/opt/homebrew/bin/python3 \$HOME/.config/mise/scripts/vm/verify-current-inventory.py"
+VM_NAME=essential-mise-test-evidence \
+  scripts/vm/owner-auth-ssh.sh \
+  "/opt/homebrew/bin/python3 \$HOME/.config/mise/scripts/vm/verify-current-inventory.py --self-test"
 VM_NAME=essential-mise-test-evidence scripts/vm/transfer-app.sh scripts/vm/verify-native-cask-coexistence.sh
 VM_NAME=essential-mise-test-evidence \
 VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
@@ -199,7 +202,11 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "/usr/bin/python3 /tmp/essential-mise-artifact/verify-project-boundaries.py"
 ```
 
-The hook lifecycle fixture records structured outdated/formula metadata. It accepts Homebrew's own outdated result, or requires both livecheck and current formula metadata to prove the linked Amp CLI is behind; upstream discovery alone is insufficient. It then applies `ai-cli` and asserts no formula or link changes without downgrading or restoring anything. If those sources do not prove an outdated installation, it is BLOCKED, not PASS. Configuration-safety evidence is under `/tmp/essential-mise-evidence/configuration-safety`, and hook evidence is under `/tmp/essential-mise-evidence/hook-lifecycle`. XDG application evidence is under `/tmp/essential-mise-evidence/xdg-applications`; it covers every GitHub CLI scalar, alias, and schema readback, `GH_CONFIG_DIR`, Ghostty effective config/theme validation, Fish activation and Amp completions, repeat convergence, preservation, and native/helper removal. The native-cask fixture requires Ghostty to be absent, installs it explicitly through real Homebrew, then verifies native terminal apply/second-run preserves that ownership and converges. Project-boundary evidence under `/tmp/essential-mise-evidence/project-boundaries` covers selector precedence, project-local resource/environment isolation, and ignored synthetic workspace activation using only explicitly trusted synthetic fixture files.
+The hook lifecycle fixture records structured outdated/formula metadata and proves the linked Amp CLI is behind before asserting that ordinary apply leaves its formula and link unchanged. If that cannot be established, it is BLOCKED, not PASS. Configuration-safety output is under `/tmp/essential-mise-evidence/configuration-safety`, and hook output is under `/tmp/essential-mise-evidence/hook-lifecycle`.
+
+XDG application output is under `/tmp/essential-mise-evidence/xdg-applications`. It covers every GitHub CLI scalar, alias, and schema readback; `GH_CONFIG_DIR`; Ghostty effective configuration and theme validation; default/custom-XDG OpenCode agent instruction discovery and native unapply; repeat convergence; and preservation. Fish must resolve a preinstalled pinned Bun that was absent from its initial PATH. Neutralizing the activation body while preserving its markers and mise executable must remove that resolution. Amp completion has an equivalent external-completion exclusion and negative control.
+
+The inventory checker validates source invariants without reading documentation; `--self-test` proves representative temporary mutations fail. The native-cask fixture checks Homebrew-owned Ghostty through ordinary native apply/reapply. Project-boundary output covers selector precedence, project resource/environment isolation, synthetic workspace activation, and all emitted stage-0 next-step commands run from a trusted project through a linked configuration worktree whose path contains spaces.
 
 Replay Amp startup diagnostics in a separate registered guest, then collect evidence before stopping it:
 
@@ -224,7 +231,7 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   "REVIEWED_COMMIT=$(git rev-parse HEAD) /bin/bash /tmp/essential-mise-artifact/isolated-validation.sh"
 ```
 
-The fixture clones the reviewed public commit inside the guest, substitutes its local repository path only in a temporary copy of `bootstrap.sh`, and records every invocation, exit code, and log under `/tmp/essential-mise-evidence/isolated-fixtures`. Temporary HOME/XDG directories are created explicitly under `/private/tmp`; no real global configuration is used. It covers existing-Homebrew empty `shellenv`, path aliases, symlinked ancestors, bare repositories, repository subdirectories, linked worktrees, wrong origins, exact adopted revisions, and a real custom-XDG update/apply/fresh-shell/unapply lifecycle. Evidence is cleared on every run and failed runs overwrite the summary with FAIL.
+The fixture clones the reviewed public commit inside the guest, substitutes its local repository path only in a temporary copy of `bootstrap.sh`, and records every invocation, exit code, and log under `/tmp/essential-mise-evidence/isolated-fixtures`. Temporary HOME/XDG directories are created explicitly under `/private/tmp`; no real global configuration is used. It covers existing-Homebrew empty `shellenv`, path aliases, symlinked ancestors, bare repositories, repository subdirectories, linked worktrees, wrong origins, exact adopted revisions, and a custom-XDG update/apply/unapply lifecycle. Its Fish check installs the pinned JS tools, starts with Bun absent from PATH, and requires interactive activation to resolve the exact mise-managed Bun. Evidence is cleared on every run and failed runs overwrite the summary with FAIL.
 
 Delete only a registered disposable VM after its test is complete:
 

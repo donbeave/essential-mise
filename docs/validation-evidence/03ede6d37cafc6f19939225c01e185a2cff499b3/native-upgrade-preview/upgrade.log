@@ -1,6 +1,0 @@
-mise bootstrap: tools
-mise all tools are installed
-mise bootstrap: upgrading tools
-mise Newer versions are available but do not match the configured version ranges:
-  node 26.9.0 → 26.13.0 (~/.config/mise/config.js.toml)
-Run `mise outdated --bump` to view all, or `mise upgrade --bump` to update the configuration and upgrade.

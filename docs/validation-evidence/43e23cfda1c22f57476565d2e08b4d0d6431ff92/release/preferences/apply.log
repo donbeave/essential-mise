@@ -1,7 +1,0 @@
-mise bootstrap: system defaults
-mise defaults: 65 value(s) already set
-mise defaults: wrote NSGlobalDomain AppleFirstWeekday["gregorian"] = 2, NSGlobalDomain AppleICUDateFormatStrings["1"] = y-MM-dd
-mise bootstrap: tools
-mise all tools are installed
-bootstrap: follow-up
-  - relaunch apps that read changed macOS defaults (for example: `killall Dock`, `killall Finder`, `killall SystemUIServer`)
