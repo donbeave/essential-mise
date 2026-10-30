@@ -91,7 +91,7 @@ case "$scenario" in
     run_logged cli-verification "/bin/zsh -lic 'claude --version'"
     ;;
   unapply)
-    run_logged unapply "cd '$config_dir' && \$HOME/.local/bin/mise bootstrap unapply terminal"
+    run_logged unapply "cd '$config_dir' && \$HOME/.local/bin/mise bootstrap unapply terminal --yes"
     run_logged verify-removed 'test ! -e "$HOME/.config/ghostty/config" && test ! -e "$HOME/.config/starship.toml" && ! /usr/bin/grep -F "source \"\$ZSH/oh-my-zsh.sh\"" "$HOME/.zshrc" && test -d "$HOME/.oh-my-zsh"'
     run_logged reapply "cd '$config_dir' && \$HOME/.local/bin/mise -E terminal bootstrap"
     run_logged verify-restored 'test -f "$HOME/.config/ghostty/config" && test -f "$HOME/.config/starship.toml" && /usr/bin/grep -F "source \"\$ZSH/oh-my-zsh.sh\"" "$HOME/.zshrc"'
