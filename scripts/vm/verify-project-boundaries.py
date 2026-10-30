@@ -9,7 +9,7 @@ import sys
 home = pathlib.Path.home()
 mise = home / '.local/bin/mise'
 source_config = home / '.config/mise'
-root = pathlib.Path('/tmp/essential-mise-project-boundaries')
+root = pathlib.Path('/private/tmp/essential-mise-project-boundaries')
 evidence = pathlib.Path('/tmp/essential-mise-evidence/project-boundaries')
 shutil.rmtree(root, ignore_errors=True)
 shutil.rmtree(evidence, ignore_errors=True)
