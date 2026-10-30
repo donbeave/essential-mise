@@ -2,14 +2,14 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|full-dry-run|preferences>'
+[[ $# -eq 1 ]] || fail 'Usage: VM_NAME=essential-mise-test-NAME run-test-scenario.sh <stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences>'
 scenario="$1"
 case "$VM_NAME" in
   essential-mise-test-*) ;;
   *) fail 'Application scenarios require a registered disposable VM' ;;
 esac
 case "$scenario" in
-  stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|full-dry-run|preferences) ;;
+  stage0|standard|ai|ai-desktop|amp-conflict|claude-conflict|unapply|prune-review|java|rust|login-items|omp-config|mas-signed-out|optional-modules|full-dry-run|preferences) ;;
   *) fail "Unknown test scenario: $scenario" ;;
 esac
 vm_require_name
@@ -140,21 +140,30 @@ case "$scenario" in
     ;;
   omp-config)
     run_logged config "/opt/homebrew/bin/omp config"
+    run_logged config-scope "/opt/homebrew/bin/omp config --scope global --json > '$evidence_dir/config-scope.json'"
+    run_logged model-roles "/opt/homebrew/bin/yq -oj '.modelRoles' '$config_dir/dotfiles/ai-cli/omp/config.yml' > '$evidence_dir/expected-model-roles.json' && /usr/bin/python3 -c 'import json; actual = json.load(open(\"$evidence_dir/config-scope.json\"))[\"modelRoles\"][\"value\"]; expected = json.load(open(\"$evidence_dir/expected-model-roles.json\")); assert actual == expected, (actual, expected)'"
     run_logged models "/opt/homebrew/bin/omp models"
+    run_logged unauthenticated-check "/usr/bin/python3 -c 'from pathlib import Path; text = Path(\"$evidence_dir/models.log\").read_text(); assert \"No models available. Set API keys in environment variables.\" in text; print(\"UNVERIFIED: no provider credentials; routes and authenticated models not tested\")'"
     run_logged instructions 'test -f "$HOME/.omp/agent/AGENTS.md"'
     ;;
   mas-signed-out)
     run_logged cli "/opt/homebrew/bin/mas list"
     run_logged metadata "/opt/homebrew/bin/mas info 1037126344"
-    if run_logged account "/opt/homebrew/bin/mas account"; then
-      outcome=unexpected-success
-    else
-      outcome=expected-refusal
-    fi
-    [[ "$outcome" == expected-refusal ]] || fail 'MAS account unexpectedly succeeded without sign-in'
+    run_logged config "/opt/homebrew/bin/mas config"
+    run_logged verify-not-installed 'test ! -d "/Applications/Apple Configurator.app"'
+    ;;
+  optional-modules)
+    optional_environments='security,js,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin'
+    run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap --dry-run"
+    run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap"
+    run_logged second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap"
+    run_logged status "cd '$config_dir' && /bin/zsh -lic 'mise -E $optional_environments bootstrap status'"
+    run_logged status-json "/bin/zsh -lic 'mise -E $optional_environments bootstrap status --json' > '$evidence_dir/status.json'"
+    run_logged package-verification "/usr/bin/python3 -c 'import json; data = json.load(open(\"$evidence_dir/status.json\")); packages = [package for name in (\"brew\", \"brew-cask\") for package in data[\"packages\"][name][\"packages\"]]; assert all(package[\"state\"] == \"installed\" for package in packages), packages; assert data[\"packages\"][\"mas\"][\"available\"]; print(\"Non-MAS packages installed; MAS applications require sign-in\")'"
+    run_logged cli-verification "/bin/zsh -lic 'mise -E js exec -- node --version && mise -E js exec -- bun --version && kubectl version --client && kubectx --help >/dev/null && helm version && tofu --version && ansible --version && linode-cli --version && gomplate --version && op --version'"
     ;;
   full-dry-run)
-    run_logged all-environments "cd '$config_dir' && \$HOME/.local/bin/mise -C /tmp -E foundation,terminal,development,security,js,development-rust,development-java,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin,ai-tools,ai-cli,ai-desktop,system-preferences bootstrap --dry-run"
+    run_logged all-environments "/bin/zsh -lic 'cd /tmp && MISE_CONFIG_DIR=\"$config_dir\" mise -E foundation,terminal,development,security,js,development-rust,development-java,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin,ai-tools,ai-cli,ai-desktop,system-preferences bootstrap --dry-run'"
     ;;
   preferences)
     vm_ssh 'set -e
