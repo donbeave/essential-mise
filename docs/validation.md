@@ -45,11 +45,11 @@ These hooks are not declarative package resources. `mise bootstrap status --miss
 
 The Claude status-line script is a separate approved exception and remains byte-for-byte unchanged. Its displayed absolute usage is input-token usage, matching the documented `used_percentage` formula; output tokens are intentionally not added.
 
-## Remaining release blockers
+## Accepted scoped-v1 limitations
 
-- **App Store:** 21 MAS applications are still missing, including Apple Configurator (`mas:1037126344`). Signed-out metadata and the sign-in/cancel flow are verified, but signed-in installation, purchases/claims, and rerun behavior are blocked without a synthetic Apple Account. Personal accounts are not permitted.
-- **Amp Desktop GUI:** `1.0,998` installs with a valid signature and an executable byte-identical to the official DMG. Independent guests reproduce a main-thread `_dyld_start` stall with no window. GUI setup is **MANUAL / DROP** on macOS 27.2; no signing or security bypass is introduced.
-- **Authenticated AI behavior:** OMP provider routes, authenticated models, and runtime instruction loading are unverified. Authenticated interactive Claude status-line rendering is also unverified.
+- **App Store:** 21 MAS applications are still missing, including Apple Configurator (`mas:1037126344`). Signed-out metadata and the sign-in/cancel flow are verified. Signed-in installation, purchases/claims, and reruns are explicitly accepted as manual, unverified v1 boundaries because no authorized synthetic Apple Account is available; personal accounts are not permitted. The standard workstation is not fully release-tested.
+- **Amp Desktop GUI:** `1.0,998` installs with a valid signature and an executable byte-identical to the official DMG. Independent guests reproduce a main-thread `_dyld_start` stall with no window. The project explicitly retains automatic package installation for inventory completeness and accepts this known nonfunctional-GUI limitation on macOS 27.2. GUI setup is **MANUAL / DROP**; no signing or security bypass is introduced.
+- **Authenticated AI behavior:** OMP provider routes, authenticated models, and runtime instruction loading are explicitly accepted manual verification boundaries. Authenticated interactive Claude status-line rendering is likewise an accepted manual verification boundary; no success is claimed.
 - **Application onboarding:** accounts, licenses, paid purchases, privacy consents, privileged extensions, browser/VPN profiles, and app-specific setup remain manual as documented.
 
-The repository must remain PRE-RELEASE until these boundaries are resolved or explicitly accepted. A successful package installation, dry run, CLI version, or screenshot alone is not release approval.
+These are deliberate scoped-v1 decisions, not untriaged product questions or evidence of working behavior. The repository remains PRE-RELEASE because unrestricted public-release approval is separate and the complete standard workstation has not passed an end-to-end release gate. A successful package installation, dry run, CLI version, or screenshot alone is not release approval.

@@ -1,6 +1,6 @@
 # First Mac setup
 
-**PRE-RELEASE:** this workflow has passed isolated checks, not a complete fresh-Mac release test. Use a reviewed commit SHA for any real installation; `main` is mutable.
+**PRE-RELEASE:** cold stage 0 and the recorded guest scenarios have passed, but the complete standard workstation has not passed an end-to-end release gate. Use a reviewed commit-pinned launcher for any real installation; only that script is pinned, while adoption and `main` remain mutable.
 
 ## Supported starting point
 

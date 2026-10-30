@@ -73,6 +73,8 @@ Every module is documented in [docs/environments.md](docs/environments.md).
 
 The user subsequently approved six narrowly scoped real-Homebrew package exceptions (Claude Code, Amp CLI, OMP, FFF MCP, Amp Desktop, and Surge) and the exact Claude status-line script/wrapper. These explicit changes supersede revision 7's native-only and excluded-status-line rules; they are not claims of native-only compliance. Each exception requires a demonstrated incompatibility and a documented owner, health check, upgrade path, and removal path in [Homebrew exceptions](docs/homebrew-exceptions.md). Native mise remains the declaration default. `AGENTS.md` distinguishes the user's Homebrew-first package-source preference from declaration ownership and permits another source only when Homebrew is unavailable or outdated.
 
+Scoped v1 explicitly retains Amp Desktop in `ai-desktop` to satisfy the requested Amp inventory, while accepting that its package currently installs but does not launch on macOS 27.2. This is package provisioning only, not a working-GUI claim. Signed-in MAS installation, purchases/claims, and reruns are accepted as manual, unverified v1 boundaries; the standard workstation is not described as fully tested. Authenticated OMP routing/instruction loading and interactive Claude status-line rendering are also accepted manual verification boundaries. These decisions preserve the complete declarations without converting failed or unverified behavior into success, and they are not unrestricted public-release approval.
+
 ### Claude Code status line
 
 `ai-cli` installs an executable status-line script and a zsh wrapper. Every `claude` launch from zsh passes it through `--settings`; the script shows the directory, model and effort, context usage, and currently running subagents. See [Claude Code status line](docs/claude-statusline.md) for the exact wrapper, output, and verification evidence.
@@ -113,7 +115,7 @@ Packages, repositories, and preferences require separate handling. A real prune 
 
 The development checkout is only for implementation/testing/publication. Once adopted, `$MISE_CONFIG_DIR` is the authoritative active config; edit and commit there.
 
-Actual fresh-Mac installation, third-party taps/casks, App Store flows, FFF, OMP model routing, shell behavior, login items, and macOS preference behavior require the disposable-Mac release tests in [docs/validation.md](docs/validation.md). Proven native-package incompatibilities use documented real-Homebrew hooks; other unsupported behavior is marked MANUAL or DROP, not hidden in custom installers.
+[Validation](docs/validation.md) records actual fresh-Mac installation, third-party packages, FFF, shell behavior, login items, and macOS preference tests, plus the accepted MAS, Amp GUI, and authenticated-service boundaries. Proven native-package incompatibilities use documented real-Homebrew hooks; other unsupported behavior is marked MANUAL or DROP, not hidden in custom installers.
 
 - [Environments](docs/environments.md)
 - [Real Homebrew compatibility exceptions](docs/homebrew-exceptions.md)

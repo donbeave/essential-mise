@@ -48,7 +48,7 @@ env = ["foundation", "terminal", "development", "security"]
 | `network` | Surge, Cloudflare WARP, Tunnelblick, WhyFi | Surge uses a documented real-Homebrew hook because mise cannot expand its `$APPDIR` binary artifact. Proxy/VPN endpoints, secrets, extensions, and privileged setup are manual |
 | `admin` | Transmit, Apple Remote Desktop, Disk Aid, iStatistica Pro, Apple Configurator (`mas:1037126344`) | Apple Configurator is NEW; device enrollment, MDM, and admin approval are manual |
 
-Every MAS-owning module also declares `brew:mas` so it is independent. App Store sign-in, purchases/claims, and a possible second apply are manual.
+Every MAS-owning module also declares `brew:mas` so it is independent. App Store sign-in, purchases/claims, actual signed-in installation, and reruns are manual, unverified v1 boundaries. The standard workstation is not described as fully tested.
 
 ## AI support and applications
 
@@ -56,7 +56,7 @@ Every MAS-owning module also declares `brew:mas` so it is independent. App Store
 |---|---|---|
 | `ai-tools` | ripgrep (`rg`), fd, fzf, ast-grep (`sg`), semgrep, jq, yq, dasel, sd, git-delta, eza, zoxide, tree, tokei, hyperfine, shellcheck, shfmt, universal-ctags, rtk, agent-browser; fff-mcp through real Homebrew | Shared utilities only; no agent-owned settings or Ruby prerequisite. Browser runtime initialization is manual. FFF uses real Homebrew because mise leaves its raw binary non-executable |
 | `ai-cli` | Claude Code, Codex, Cursor CLI, Antigravity CLI, Kimi Code, OpenCode, Grok Build, Amp CLI, OMP, jq, Claude status line | No desktop packages or references to unselected RTK/FFF/Caveman. Amp CLI and OMP use documented real-Homebrew hooks because mise leaves Amp's binary non-executable and cannot execute OMP's `with_env` helper. Includes self-contained agent instructions, Amp completions, and a zsh wrapper that passes the adopted status-line script through Claude `--settings` with `BASH_COMPAT=3.2` for Bash 5.3 compatibility |
-| `ai-desktop` | Claude, ChatGPT, Cursor, Antigravity, Kimi, OpenCode Desktop, Grok Bot, ZCode, CodexBar, Amp Desktop via real Homebrew | No CLI packages or settings. Amp Desktop uses `ampcode/tap/amp@beta` because mise cannot evaluate the cask's `Array#second` DSL; existing unmanaged apps are refused. See [Homebrew exceptions](homebrew-exceptions.md) |
+| `ai-desktop` | Claude, ChatGPT, Cursor, Antigravity, Kimi, OpenCode Desktop, Grok Bot, ZCode, CodexBar, Amp Desktop via real Homebrew | No CLI packages or settings. Amp Desktop uses `ampcode/tap/amp@beta` because mise cannot evaluate the cask's `Array#second` DSL; existing unmanaged apps are refused. Its package is intentionally retained despite a confirmed macOS 27.2 `_dyld_start` stall; a working GUI is not claimed. See [Homebrew exceptions](homebrew-exceptions.md) |
 
 Use `mise -E ai-tools,ai-cli bootstrap` for the complete terminal coding-agent setup. `ai-tools` is optional and is never implicitly selected by either application module. Amp CLI, OMP, and FFF use real-Homebrew hooks for documented mise incompatibilities, so no separate Ruby prerequisite is needed. Preview first, apply, then run `mise -E ai-tools,ai-cli bootstrap status --missing`.
 
