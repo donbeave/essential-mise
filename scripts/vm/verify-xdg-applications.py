@@ -198,7 +198,7 @@ assert neutralized != original_fish
 assert neutralized.count('# >>> mise:activate >>>') == 1
 try:
     fish_path.write_text(neutralized)
-    run('fish-activation-neutralized', [fish, '-ic', 'command -v bun'], fish_env, timeout=30, expected=1)
+    run('fish-activation-neutralized', [fish, '-ic', 'command -v bun'], fish_env, timeout=30, expected=127)
 finally:
     fish_path.write_text(original_fish)
 run('fish-activation-restored', ['/usr/bin/python3', config_dir / 'bin/fish-config.py', 'status', 'activate'])
