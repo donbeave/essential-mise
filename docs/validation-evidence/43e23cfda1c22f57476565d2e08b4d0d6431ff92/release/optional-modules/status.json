@@ -1,0 +1,559 @@
+{
+  "secrets": [],
+  "packages": {
+    "brew-cask": {
+      "available": true,
+      "packages": [
+        {
+          "package": "1password",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "8.12.42",
+          "auto_updates": true
+        },
+        {
+          "package": "1password-cli",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "2.41.1"
+        },
+        {
+          "package": "jetbrains-toolbox",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "3.9,3.9.0.88839",
+          "auto_updates": true
+        },
+        {
+          "package": "yaak",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "2026.9.0",
+          "auto_updates": true
+        },
+        {
+          "package": "tableplus",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "27.2.0,840",
+          "auto_updates": true
+        },
+        {
+          "package": "orbstack",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "2.2.5,21124",
+          "auto_updates": true
+        },
+        {
+          "package": "sublime-text",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "4215",
+          "auto_updates": true
+        },
+        {
+          "package": "visual-studio-code",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.144.0",
+          "auto_updates": true
+        },
+        {
+          "package": "zed",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.26.2",
+          "auto_updates": true
+        },
+        {
+          "package": "font-jetbrains-mono-nerd-font",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "3.5.1"
+        },
+        {
+          "package": "cleanshot",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "5.0.2",
+          "auto_updates": true
+        },
+        {
+          "package": "bartender",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "7.1.0",
+          "auto_updates": true
+        },
+        {
+          "package": "homebrew-app",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "0.6.0"
+        },
+        {
+          "package": "zoom",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "7.2.2.88465",
+          "auto_updates": true
+        },
+        {
+          "package": "google-chrome",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "156.0.8078.80",
+          "auto_updates": true
+        },
+        {
+          "package": "google-chrome@dev",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "158.0.8117.2",
+          "auto_updates": true
+        },
+        {
+          "package": "firefox@developer-edition",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "160.0b2",
+          "auto_updates": true
+        },
+        {
+          "package": "tor-browser",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "16.0",
+          "auto_updates": true
+        },
+        {
+          "package": "little-snitch",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "6.5",
+          "auto_updates": true
+        },
+        {
+          "package": "notion",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "7.41.1",
+          "auto_updates": true
+        },
+        {
+          "package": "grammarly-desktop",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.205.1.0",
+          "auto_updates": true
+        },
+        {
+          "package": "speechify-voice-ai",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "3.22.0,633",
+          "auto_updates": true
+        },
+        {
+          "package": "superwhisper",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "3.1.0",
+          "auto_updates": true
+        },
+        {
+          "package": "raindropio",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "5.7.9",
+          "auto_updates": true
+        },
+        {
+          "package": "microsoft-word",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "16.114.26102720",
+          "auto_updates": true
+        },
+        {
+          "package": "microsoft-excel",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "16.114.26102720",
+          "auto_updates": true
+        },
+        {
+          "package": "sketch",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "2026.3.1,234013",
+          "auto_updates": true
+        },
+        {
+          "package": "vlc",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "3.0.24",
+          "auto_updates": true
+        },
+        {
+          "package": "transmission",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "4.1.4",
+          "auto_updates": true
+        },
+        {
+          "package": "handbrake-app",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.11.2",
+          "auto_updates": true
+        },
+        {
+          "package": "plex-media-server",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.43.5.11079,b3b13e506",
+          "auto_updates": true
+        },
+        {
+          "package": "cloudflare-warp",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "2026.8.2115.0",
+          "auto_updates": true
+        },
+        {
+          "package": "tunnelblick",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "10.0.2,6590",
+          "auto_updates": true
+        },
+        {
+          "package": "whyfi",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.4.4,24",
+          "auto_updates": true
+        },
+        {
+          "package": "transmit",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "5.11.7",
+          "auto_updates": true
+        }
+      ]
+    },
+    "brew": {
+      "available": true,
+      "packages": [
+        {
+          "package": "mas",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "7.0.0"
+        },
+        {
+          "package": "kubernetes-cli",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.37.2"
+        },
+        {
+          "package": "kubectx",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "0.11.0"
+        },
+        {
+          "package": "helm",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "4.3.1"
+        },
+        {
+          "package": "opentofu",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.13.2"
+        },
+        {
+          "package": "ansible",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "14.5.0_2"
+        },
+        {
+          "package": "linode-cli",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "5.70.0"
+        },
+        {
+          "package": "gomplate",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "5.3.1"
+        }
+      ]
+    },
+    "mas": {
+      "available": true,
+      "packages": [
+        {
+          "package": "1569813296",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "6476452351",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "429449079",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "497799835",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "470158793",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "747648890",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "310633997",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "803453959",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "836500024",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "1462114288",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "6475002485",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "1055273043",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "6740486871",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "1350225911",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "1289583905",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "1466185689",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "897118787",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "409907375",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "1007358832",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "1447778660",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        },
+        {
+          "package": "1037126344",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "missing",
+          "installed_version": ""
+        }
+      ]
+    }
+  },
+  "accounts": [],
+  "files": [],
+  "services": [],
+  "user_services": [],
+  "firewall": [],
+  "compose": [],
+  "repos": [],
+  "dotfiles": {
+    "files": [],
+    "edits": [
+      {
+        "path": "~/.config/zed/settings.json",
+        "edit": "merge:prefs",
+        "state": "applied"
+      }
+    ]
+  },
+  "mise_shell_activate": [],
+  "macos_login_items": {
+    "available": true,
+    "exclusive": false,
+    "entries": [
+      {
+        "path": "/Applications/CleanShot X.app",
+        "state": "set"
+      },
+      {
+        "path": "/Applications/Bartender 7.app",
+        "state": "set"
+      }
+    ]
+  },
+  "macos_defaults": {
+    "entries": []
+  },
+  "launchd": {
+    "agents": []
+  },
+  "systemd": {
+    "units": []
+  },
+  "login_shell": null,
+  "tools": [
+    {
+      "tool": "node",
+      "requested_version": "26.9.0",
+      "resolved_version": "26.9.0",
+      "state": "installed",
+      "installed": true
+    },
+    {
+      "tool": "bun",
+      "requested_version": "1.4.4",
+      "resolved_version": "1.4.4",
+      "state": "installed",
+      "installed": true
+    }
+  ],
+  "plugin_deps": []
+}

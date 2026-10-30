@@ -87,7 +87,7 @@ VM_NAME=essential-mise-test-stage0 \
   scripts/vm/collect-evidence.sh /tmp/essential-mise-evidence/stage0
 ```
 
-Guest artifacts are limited to `/tmp/essential-mise-artifact`; guest evidence is collected from `/tmp/essential-mise-evidence`. Collect it before stopping or rebooting a guest because temporary evidence may be removed during the guest lifecycle. Scenario logs include exact command exit codes, the reviewed/config revisions, fixture checksum, mise/Tart versions, and guest OS/build.
+Guest artifacts are limited to `/tmp/essential-mise-artifact`; guest evidence is collected from `/tmp/essential-mise-evidence`. Collect it before stopping or rebooting a guest because temporary evidence may be removed during the guest lifecycle. Collection replaces only destinations carrying its ownership marker, rather than merging stale logs, and refuses unrelated nonempty directories. Scenario logs include exact command exit codes, the reviewed/config revisions, fixture checksum, mise/Tart versions, and guest OS/build.
 
 Run application scenarios only in a registered disposable VM:
 

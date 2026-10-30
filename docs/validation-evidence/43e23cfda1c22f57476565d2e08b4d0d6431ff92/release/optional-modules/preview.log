@@ -1,0 +1,22 @@
+mise bootstrap: system packages
+mise brew-cask: 35 package(s) already installed
+mise brew: 8 package(s) already installed
+mise bootstrap: post-packages hooks
+sh -o errexit -c 'if ! /opt/homebrew/bin/brew list --cask surge >/dev/null 2>&1; then
+  if [ -e /Applications/Surge.app ] || [ -e "/Applications/Surge Dashboard.app" ] || [ -L "/Applications/Surge Dashboard.app" ]; then
+    printf '\''Existing Surge applications require manual ownership migration before using Homebrew.\n'\'' >&2
+    exit 1
+  fi
+fi
+/opt/homebrew/bin/brew install --cask surge
+test -x /opt/homebrew/bin/surge-cli
+test -x /opt/homebrew/sbin/surge-dhcpd
+/usr/bin/codesign --verify --deep --strict /Applications/Surge.app'
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: login items
+mise login items: already set
+mise bootstrap: tools
+mise all tools are installed
+bootstrap: follow-up if applied
+  - mas: 21 package(s) skipped (mas not found)

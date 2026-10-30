@@ -1,0 +1,9 @@
+CuaDriver daemon already running — checking its permissions…
+Requesting any missing Accessibility and Screen Recording grants now. macOS may show a prompt or add CuaDriver to System Settings.
+
+Accessibility and Screen Recording are granted.
+macOS may now ask CuaDriver to bypass the system private window picker and directly access your screen and audio. This is the expected consent for exact screenshots and recordings without a picker. Cua Driver's current recorder captures screen video only; it does not enable system-audio capture. This consent does not authorize browser profiles, browser data, or CDP attachment.
+Choose Allow to request and verify direct capture now…
+
+✅ CuaDriver has Accessibility, Screen Recording, and direct capture access. You're set.
+macOS verified the explicit request but does not report whether consent was newly granted or already present.

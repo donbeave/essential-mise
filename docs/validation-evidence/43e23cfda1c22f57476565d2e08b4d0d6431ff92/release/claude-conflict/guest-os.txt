@@ -1,0 +1,2 @@
+product_version=27.2
+build_version=26B123

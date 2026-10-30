@@ -1,0 +1,25 @@
+Cua Driver daemon listening on /Users/admin/Library/Caches/cua-driver/cua-driver.sock
+
+──────────────────────────────────────────────────────────────
+ cua-driver needs your permission before desktop tools can run
+──────────────────────────────────────────────────────────────
+
+ Missing TCC grant(s) for the Cua Driver app identity:
+   • Accessibility
+       lets cua-driver read the accessibility tree of running apps and send clicks / keystrokes via AX RPC.
+   • Screen Recording
+       lets cua-driver capture per-window screenshots so agents can see the current UI state alongside the tree.
+
+ Opening System Settings → Privacy & Security now.
+ Grant each item, then this prompt will auto-continue.
+
+ Skip this gate (CI / headless): re-run with
+   cua-driver serve --no-permissions-gate
+ or set CUA_DRIVER_RS_PERMISSIONS_GATE to 0/false/no/off
+ (case-insensitive) in the environment.
+
+[cua-driver] still waiting on: Accessibility, Screen Recording (open System Settings → Privacy & Security to grant)
+[cua-driver] still waiting on: Accessibility, Screen Recording (open System Settings → Privacy & Security to grant)
+[cua-driver] still waiting on: Accessibility, Screen Recording (open System Settings → Privacy & Security to grant)
+[cua-driver] still waiting on: Accessibility, Screen Recording (open System Settings → Privacy & Security to grant)
+[cua-driver] still waiting on: Accessibility, Screen Recording (open System Settings → Privacy & Security to grant)

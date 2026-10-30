@@ -1,0 +1,22 @@
+spawn /usr/bin/ssh -tt -i /Users/donbeave/.config/essential-mise/vm/id_ed25519 -o BatchMode=no -o IdentitiesOnly=yes -o PreferredAuthentications=publickey,password -o NumberOfPasswordPrompts=2 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/Users/donbeave/.config/essential-mise/vm/known_hosts -o LogLevel=ERROR -o ConnectTimeout=10 admin@192.168.64.16 stty sane; /bin/zsh -lic 'mise -E js exec -- node --version && mise -E js exec -- bun --version && kubectl version --client && kubectx --help >/dev/null && helm version && tofu --version && ansible --version && linode-cli --version && gomplate --version && op --version'
+[ERROR] - (starship::print): Under a 'dumb' terminal (TERM=dumb).
+v26.9.0
+1.4.4
+Client Version: v1.37.2
+Kustomize Version: v5.8.1
+version.BuildInfo{Version:"v4.3.1", GitCommit:"c0d08d0d6d9424d4a14febb5e8a3e51b0dd00dff", GitTreeState:"dirty", GoVersion:"go1.27.2", KubeClientVersion:"v1.37"}
+OpenTofu v1.13.2
+on darwin_arm64
+ansible [core 2.21.5]
+  config file = None
+  configured module search path = ['/Users/admin/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /opt/homebrew/Cellar/ansible/14.5.0_2/libexec/lib/python3.15/site-packages/ansible
+  ansible collection location = /Users/admin/.ansible/collections:/usr/share/ansible/collections
+  executable location = /opt/homebrew/bin/ansible
+  python version = 3.15.2 (main, Oct 25 2026, 16:57:51) [Clang 21.0.0 (clang-2100.3.34.2)] (/opt/homebrew/Cellar/ansible/14.5.0_2/libexec/bin/python)
+  jinja version = 3.1.6
+  pyyaml version = 6.0.3 (with libyaml v0.2.5)
+linode-cli v5.70.0
+Built from spec version 4.229.1
+gomplate version 5.3.1
+2.41.1

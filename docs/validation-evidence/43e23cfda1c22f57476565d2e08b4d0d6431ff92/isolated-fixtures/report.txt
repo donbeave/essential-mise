@@ -1,0 +1,18 @@
+fixture_root=/tmp/essential-mise-isolated-validation
+source_repo=/tmp/essential-mise-isolated-validation/repository
+reviewed_commit=43e23cfda1c22f57476565d2e08b4d0d6431ff92
+first-run exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+set-expected-origin exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+optional-selection-rerun exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+set-wrong-origin exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+wrong-origin exit=1 expected=1 mise=2026.10.23 macos-arm64 (2026-10-29)
+restore-origin exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+xdg-first-run exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+xdg-set-expected-origin exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+xdg-fetch exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+xdg-diff-stat exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+xdg-diff exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+xdg-pull exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+xdg-preview exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+xdg-unapply-preview exit=0 expected=0 mise=2026.10.23 macos-arm64 (2026-10-29)
+All isolated fixture assertions passed. Logs and exact exit codes are in /tmp/essential-mise-evidence/isolated-fixtures

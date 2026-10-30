@@ -1,0 +1,12 @@
+{
+  "Memory" : 8192,
+  "MACAddress" : "be:7c:de:46:79:12",
+  "Disk" : 100,
+  "Running" : false,
+  "DiskFormat" : "raw",
+  "OS" : "darwin",
+  "CPU" : 4,
+  "Size" : "81.890",
+  "State" : "stopped",
+  "Display" : "1512x982"
+}

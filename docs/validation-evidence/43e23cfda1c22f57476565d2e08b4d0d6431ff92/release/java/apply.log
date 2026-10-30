@@ -1,0 +1,8 @@
+mise bootstrap: system packages
+mise brew: 2 package(s) already installed
+mise brew-cask: 1 package(s) already installed
+mise bootstrap: tools
+mise by @jdx – installing 1 tool
+mise ⇢ java@oracle-graalvm-25.0.4.1.1  1ms · already installed
+mise ████████████████ 1/1 · installed 0 tools · 1 already installed in 1ms
+mise all tools are installed

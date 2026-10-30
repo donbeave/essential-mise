@@ -1,0 +1,13 @@
+mise bootstrap: system packages
+mise brew-cask: 2 package(s) already installed
+mise brew: 15 package(s) already installed
+mise bootstrap: repos
+mise repos: 2 repo(s) already current
+mise bootstrap: dotfiles
+mise files: all files are applied
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: shell activation
+mise edits: all edits are applied
+mise bootstrap: tools
+mise all tools are installed

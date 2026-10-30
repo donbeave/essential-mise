@@ -1,0 +1,7 @@
+packages     brew-cask:cleanshot            5.0.2  installed (auto-updates)
+packages     brew-cask:bartender            7.1.0  installed (auto-updates)
+packages     brew-cask:homebrew-app         0.6.0  installed
+packages     brew:mas                       7.0.0  installed
+packages     mas:470158793                         missing
+login items  /Applications/CleanShot X.app         set
+login items  /Applications/Bartender 7.app         set

@@ -1,0 +1,25 @@
+{
+  "current_space_id": 1,
+  "windows": [
+    {
+      "app_name": "Calculator",
+      "bounds": {
+        "height": 408.0,
+        "width": 230.0,
+        "x": 306.0,
+        "y": 849.0
+      },
+      "current_space_id": 1,
+      "is_on_screen": true,
+      "layer": 0,
+      "on_current_space": true,
+      "pid": 358,
+      "space_ids": [
+        1
+      ],
+      "title": "Calculator",
+      "window_id": 33,
+      "z_index": 12
+    }
+  ]
+}

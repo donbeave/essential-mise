@@ -1,0 +1,143 @@
+spawn /usr/bin/ssh -tt -i /Users/donbeave/.config/essential-mise/vm/id_ed25519 -o BatchMode=no -o IdentitiesOnly=yes -o PreferredAuthentications=publickey,password -o NumberOfPasswordPrompts=2 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/Users/donbeave/.config/essential-mise/vm/known_hosts -o LogLevel=ERROR -o ConnectTimeout=10 admin@192.168.64.17 stty sane; set -e
+reviewed_commit='138f832c4a5701aab24173d4d9eace5d0525891f'
+essential_mise_script="$(/usr/bin/curl -fsSL "https://raw.githubusercontent.com/donbeave/essential-mise/$reviewed_commit/bootstrap.sh")" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
+
+==> 1/6 - Apple Command Line Tools (Git)
+
+==> 2/6 - Homebrew
+
+==> 3/6 - mise (v2026.10.23)
+mise: installing mise...
+
+                                                                           0.0%
+                                                                           1.2%
+#######                                                                   10.5%
+#######################                                                   32.6%
+#####################################                                     52.7%
+###################################################                       71.1%
+###################################################################       93.8%
+######################################################################## 100.0%
+mise: installed successfully to /Users/admin/.local/bin/mise
+mise: run the following to activate mise in your shell:
+echo "eval \"\$(/Users/admin/.local/bin/mise activate zsh)\"" >> "/Users/admin/.zshrc"
+
+mise: run `mise doctor` to verify this is set up correctly
+
+==> 4/6 - Existing configuration detected; skipping adoption
+
+==> 5/6 - Foundation only (zsh activation)
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: shell activation
+mise edits: all edits are applied
+mise bootstrap: tools
+mise all tools are installed
+
+==> 6/6 - Verify a new login and interactive zsh
+[ERROR] - (starship::print): Under a 'dumb' terminal (TERM=dumb).
+              _                                        __              
+   ____ ___  (_)_______        ___  ____        ____  / /___ _________
+  / __ `__ \/ / ___/ _ \______/ _ \/ __ \______/ __ \/ / __ `/ ___/ _ \
+ / / / / / / (__  )  __/_____/  __/ / / /_____/ /_/ / / /_/ / /__/  __/
+/_/ /_/ /_/_/____/\___/      \___/_/ /_/     / .___/_/\__,_/\___/\___/
+                                            /_/                 by @jdx
+2026.10.23 macos-arm64 (2026-10-29)
+mise hint keep mise updated automatically with mise settings self_update.auto=true
+version: 2026.10.23 macos-arm64 (2026-10-29)
+activated: yes
+shims_on_path: yes
+self_update_available: yes
+
+build_info:
+  Target: aarch64-apple-darwin
+  Features: openssl, rustls-native-roots, self_update
+  Built: Thu, 29 Oct 2026 09:30:08 +0000
+  Rust Version: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+  Profile: release
+
+shell:
+  /bin/zsh
+  zsh 5.9 (arm64-apple-darwin26.0)
+
+aqua:
+  baked in registry: aquaproj/aqua-registry@f6554f4f96583e57af233683604d1c457f449f63
+  baked in registry tools: 2341
+
+dirs:
+  cache: ~/Library/Caches/mise
+  config: ~/.config/mise
+  data: ~/.local/share/mise
+  shims: ~/.local/share/mise/shims
+  system_shims: /usr/local/share/mise/shims
+  state: ~/.local/state/mise
+
+config_files:
+  ~/.config/mise/config.toml
+  ~/.config/mise/config.foundation.toml
+
+env_files:
+  (none)
+
+ignored_config_files: (none)
+
+backends:
+  aqua
+  asdf
+  cargo
+  conda
+  core
+  dotnet
+  forgejo
+  gem
+  github
+  gitlab
+  go
+  npm
+  packslip
+  pypi
+  spinel
+  spm
+  http
+  s3
+  ubi
+  vfox
+
+plugins:
+
+toolset:
+
+path:
+  ~/.local/share/mise/shims
+  ~/.local/share/mise/command-wrappers/bin
+  /opt/homebrew/bin
+  /opt/homebrew/sbin
+  /usr/local/bin
+  /System/Cryptexes/App/usr/bin
+  /usr/bin
+  /bin
+  /usr/sbin
+  /sbin
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin
+  /var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin
+  /pkg/env/global/bin
+  ~/.local/bin
+
+env_vars:
+  MISE_VERSION=v2026.10.23
+  MISE_CONFIG_DIR=~/.config/mise
+  MISE_SHELL=zsh
+
+settings:
+  github.credential_command  'if command -v gh >/dev/null 2>&1; then gh auth token --hostname "$MISE_CREDENTIAL_HOST"; elif [ -x /opt/homebrew/bin/gh ]; then /opt/homebrew/bin/gh auth token --hostname "$MISE_CREDENTIAL_HOST"; elif [ -x /usr/local/bin/gh ]; then /usr/local/bin/gh auth token --hostname "$MISE_CREDENTIAL_HOST"; else exit 1; fi' ~/.config/mise/config.development-rust.toml
+
+No problems found
+
+==> Finished. Open a fresh Terminal window.
+Preview the standard workstation:
+  mise -E foundation,terminal,development,security bootstrap --dry-run
+Apply it after review:
+  mise -E foundation,terminal,development,security bootstrap
+Preview coding agents and shared tools:
+  mise -E ai-tools,ai-cli bootstrap --dry-run
+This script did NOT permanently select an optional environment.

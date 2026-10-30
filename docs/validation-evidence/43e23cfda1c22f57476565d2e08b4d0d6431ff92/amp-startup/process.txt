@@ -1,0 +1,2 @@
+  PID  PPID STAT  %CPU ELAPSED COMM
+ 1190     1 S      0.0   00:12 /Applications/Amp.app/Contents/MacOS/Amp
