@@ -21,7 +21,7 @@ Stage 0:
 3. Installs official Homebrew when absent and initializes its environment. A successful empty `shellenv` result is valid when Homebrew is already initialized.
 4. Installs and verifies mise `2026.10.23` through the official installer.
 5. Adopts the public configuration only when the target is absent or empty. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
-6. Applies only `foundation`, then verifies a fresh login/interactive zsh.
+6. Applies only `foundation`, installing the `mas` CLI and configuring shell activation, then verifies a fresh login/interactive zsh.
 
 The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths (which cannot be represented safely in `MISE_CEILING_PATHS`), bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and applies only `foundation`, even if optional modules are selected.
 
@@ -42,7 +42,7 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,de
 MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,development,security bootstrap
 ```
 
-If App Store sign-in is unavailable, first apply `foundation,terminal,development`, sign in, then rerun the complete standard set. `security` includes a Mac App Store declaration and requires an available `mas` executable. Purchases and claims are not automated.
+If App Store sign-in is unavailable, first apply `foundation,terminal,development`, sign in, then rerun the complete standard set. Stage 0's `foundation` environment installs the `mas` executable before `security` declares its Mac App Store package. Purchases and claims are not automated.
 
 For first-time persistent selection, create `$config_dir/miserc.local.toml`:
 
@@ -137,7 +137,7 @@ For native package cleanup, preview candidates explicitly and consult the [mise 
 MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli bootstrap packages prune --dry-run
 ```
 
-Do not apply a broad prune automatically. Keep the Nerd Font while either `terminal` or `development-editors` remains, jq while either AI module remains, and `mas` while any App Store module remains. Hook-owned Amp CLI, FFF, and OMP are not owned by native status, upgrade, or prune and can appear as incorrect prune candidates. Remove the six Homebrew exceptions only with their explicit owner-specific commands in [Homebrew exceptions](homebrew-exceptions.md), and review every native candidate individually.
+Do not apply a broad prune automatically. Keep the Nerd Font while either `terminal` or `development-editors` remains, jq while either AI module remains, and `mas` whenever `foundation` or any App Store module remains. Hook-owned Amp CLI, FFF, and OMP are not owned by native status, upgrade, or prune and can appear as incorrect prune candidates. Remove the six Homebrew exceptions only with their explicit owner-specific commands in [Homebrew exceptions](homebrew-exceptions.md), and review every native candidate individually.
 
 ## 6. Troubleshooting
 

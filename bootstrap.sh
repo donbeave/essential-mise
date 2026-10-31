@@ -140,13 +140,13 @@ if [[ "$first_adoption" -eq 0 ]]; then
   esac
 fi
 
-say '5/6 - Foundation only (zsh activation)'
+say '5/6 - Foundation only (mas CLI and zsh activation)'
 export MISE_CEILING_PATHS="$MISE_CONFIG_DIR"
 cd "$MISE_CONFIG_DIR"
 "$MISE_BIN" -E foundation bootstrap
 
 say '6/6 - Verify a new login and interactive zsh'
-/bin/zsh -lic 'command -v git >/dev/null && command -v brew >/dev/null && command -v mise >/dev/null && mise --version && mise -E foundation doctor' || \
+/bin/zsh -lic 'command -v git >/dev/null && command -v brew >/dev/null && command -v mise >/dev/null && command -v mas >/dev/null && mise --version && mas --version && mise -E foundation doctor' || \
   fail 'New-shell verification failed. Open a fresh Terminal, inspect mise doctor, and rerun this command.'
 
 say 'Finished. Open a fresh Terminal window.'

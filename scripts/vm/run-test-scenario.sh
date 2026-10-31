@@ -116,7 +116,7 @@ case "$scenario" in
     fi
     vm_ssh "git -C '$config_dir' remote set-url origin 'https://github.com/donbeave/essential-mise.git'"
     [[ "$outcome" == expected-refusal ]] || fail 'Stage 0 accepted an unexpected origin'
-    run_logged shell-verification "/bin/zsh -lic 'cd /tmp && command -v git && command -v brew && command -v mise && mise --version && mise -E foundation doctor'"
+    run_logged shell-verification "/bin/zsh -lic 'cd /tmp && command -v git && command -v brew && command -v mise && command -v mas && mise --version && mas --version && mise -E foundation doctor'"
     ;;
   standard)
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,development bootstrap --dry-run"

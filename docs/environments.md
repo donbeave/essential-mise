@@ -14,7 +14,7 @@ env = ["foundation", "terminal", "development", "security"]
 
 | Module | Purpose and contents | Prerequisites and boundaries |
 |---|---|---|
-| `foundation` | `~/.local/bin` in `~/.zshenv`; native zsh activation | No packages or optional configuration |
+| `foundation` | `mas` CLI; `~/.local/bin` in `~/.zshenv`; native zsh activation | Installs the default App Store CLI; no optional configuration |
 | `terminal` | Stable Ghostty, JetBrainsMono Nerd Font, Starship, bat, watch, just, xh, wget, Bash, Nushell, Fish, git-standup, msedit, buf, gogcli; pinned Oh My Zsh and zsh-autosuggestions | Starship is the only prompt renderer; Oh My Zsh self-update is disabled; Ghostty follows `XDG_CONFIG_HOME` through native variants; Fish activation uses an additive XDG-aware block |
 | `development` | GitHub CLI and Git LFS | Nonsecret GitHub CLI settings and the `co` alias use `gh` itself, preserving unrelated keys and honoring `GH_CONFIG_DIR`/custom XDG. Git tuning uses the manual `git config` commands in [Manual actions](manual-actions.md); identity, `git lfs install`, and `gh auth setup-git` are manual |
 | `security` | 1Password, 1Password CLI, and 1Password for Safari (`mas:1569813296`) | App Store sign-in, account unlock, SSH agent, extension enablement, and CLI auth are manual |
@@ -48,7 +48,7 @@ env = ["foundation", "terminal", "development", "security"]
 | `network` | Surge, Cloudflare WARP, Tunnelblick, WhyFi | Surge uses a real-Homebrew hook because mise cannot expand its `$APPDIR` binary artifact. Proxy/VPN endpoints, secrets, extensions, and privileged setup are manual |
 | `admin` | Transmit, Apple Remote Desktop, Disk Aid, iStatistica Pro, Apple Configurator (`mas:1037126344`) | Device enrollment, MDM, and administrator approval are manual |
 
-Every MAS-owning module also declares `brew:mas` so it is independent. App Store sign-in, purchases/claims, actual signed-in installation, and reruns are manual and unverified. The standard workstation is not described as fully tested.
+`foundation` installs `brew:mas` during stage 0, before any optional App Store module. Every MAS-owning module also declares it so standalone module selection remains independent. App Store sign-in, purchases/claims, actual signed-in installation, and reruns are manual and unverified. The standard workstation is not described as fully tested.
 
 ## AI support and applications
 

@@ -1,3 +1,6 @@
+[bootstrap.packages]
+"brew:mas" = "latest"
+
 [dotfiles]
 "~/.zshenv/local-bin" = { line = 'export PATH="$HOME/.local/bin:$PATH"' }
 

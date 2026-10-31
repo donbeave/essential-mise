@@ -20,7 +20,7 @@ Review the current `bootstrap.sh`, then run:
 essential_mise_script="$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
 ```
 
-This always downloads the latest launcher from `main`, and adoption uses the repository's default `main` branch. Stage 0 prepares Command Line Tools, Homebrew, pinned mise, the adopted checkout, and `foundation` shell activation only. It does not permanently select optional modules. See [First Mac setup](docs/first-mac.md) for prompts, recovery, and the App Store flow.
+This always downloads the latest launcher from `main`, and adoption uses the repository's default `main` branch. Stage 0 prepares Command Line Tools, Homebrew, pinned mise, and the adopted checkout, then applies only `foundation` to install the `mas` CLI and activate the shell. It does not permanently select optional modules. See [First Mac setup](docs/first-mac.md) for prompts, recovery, and the App Store flow.
 
 Set the configuration path in each new shell, then preview and apply the standard workstation:
 

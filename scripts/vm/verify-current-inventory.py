@@ -42,7 +42,7 @@ ENVIRONMENTS = frozenset({
 })
 EXPECTED_COUNTS = {
     'environments': 27,
-    'packages': 129,
+    'packages': 130,
     'unique_packages': 118,
     'brew': 47,
     'brew-cask': 49,
@@ -580,6 +580,8 @@ def validate(root):
     for kind in ('brew', 'brew-cask', 'mas', 'macos-app'):
         counts[kind] = unique_kinds[kind]
 
+    if 'brew:mas' not in packages_by_owner.get('foundation', set()):
+        errors.append('foundation: missing default brew:mas')
     for owner in ('terminal', 'development-editors'):
         if 'brew-cask:font-jetbrains-mono-nerd-font' not in packages_by_owner.get(owner, set()):
             errors.append(f'{owner}: missing shared prerequisite brew-cask:font-jetbrains-mono-nerd-font')
@@ -661,6 +663,13 @@ def replace_once(path, old, new):
 
 def self_test(root):
     mutations = [
+        (
+            'remove_foundation_mas',
+            'config.foundation.toml',
+            '"brew:mas" = "latest"\n',
+            '',
+            'foundation: missing default brew:mas',
+        ),
         (
             'remove_ai_cli_jq',
             'config.ai-cli.toml',
