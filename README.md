@@ -10,7 +10,7 @@ A modular [mise bootstrap](https://mise.jdx.dev/bootstrap.html) configuration fo
 - Internet access and an administrator account for Command Line Tools and Homebrew prompts.
 - App Store sign-in for Mac App Store applications. Accounts, licenses, privacy consent, and application onboarding remain manual.
 
-The configuration targets **mise 2026.10.23**. `config.toml` contains only its minimum version; no optional environment is selected by default.
+The configuration requires **mise 2026.10.23 or newer**. The launcher keeps compatible newer installations and never downgrades mise. `config.toml` contains only its minimum version; no optional environment is selected by default.
 
 ## Set up a new Mac
 
@@ -20,7 +20,7 @@ Review the current `bootstrap.sh`, then run:
 /bin/bash -c "$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)"
 ```
 
-This always downloads the latest launcher from `main`, and adoption uses the repository's default `main` branch. Stage 0 prepares Command Line Tools, Homebrew, pinned mise, the adopted checkout, and the `foundation` environment. It then lists every optional category with a number. Enter numbers separated by spaces or commas to install them, or press Return to skip. Selections are installed once and are not permanently selected. See [First Mac setup](docs/first-mac.md) for prompts, recovery, and the App Store flow.
+This always downloads the latest launcher from `main`, and adoption uses the repository's default `main` branch. Stage 0 prepares Command Line Tools, Homebrew, a compatible mise, the adopted checkout, and the `foundation` environment. It then lists every optional category with a number. Enter numbers separated by spaces or commas to install them, or press Return to skip. Selections are installed once and are not permanently selected. See [First Mac setup](docs/first-mac.md) for prompts, recovery, and the App Store flow.
 
 Set the configuration path in each new shell, then preview and apply the standard workstation:
 

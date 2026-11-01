@@ -19,7 +19,7 @@ Stage 0:
 1. Checks the platform, macOS version, and non-root user.
 2. Installs or verifies Apple Command Line Tools and Git. Finish Apple's dialog when prompted.
 3. Installs official Homebrew when absent and initializes its environment. A successful empty `shellenv` result is valid when Homebrew is already initialized.
-4. Installs and verifies mise `2026.10.23` through the official installer.
+4. Installs mise `2026.10.23` through the official installer when mise is absent or older. Compatible newer installations are preserved without downgrade.
 5. Adopts the public configuration when the target is absent or empty. A nonempty non-Git target is permanently deleted without a backup before adoption. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
 6. Applies `foundation`, installing the `mas` CLI and configuring shell activation.
 7. Lists all optional categories with numbers. Enter numbers separated by spaces or commas to install them, or press Return to skip. Noninteractive runs skip automatically.

@@ -33,6 +33,19 @@ run_official_installer() {
   tmp_script=''
 }
 
+version_at_least() {
+  local current="$1" minimum="$2" index
+  local -a current_parts minimum_parts
+  IFS=. read -r -a current_parts <<< "$current"
+  IFS=. read -r -a minimum_parts <<< "$minimum"
+  for index in 0 1 2; do
+    [[ "${current_parts[$index]:-0}" =~ ^[0-9]+$ && "${minimum_parts[$index]:-0}" =~ ^[0-9]+$ ]] || return 1
+    (( 10#${current_parts[$index]:-0} > 10#${minimum_parts[$index]:-0} )) && return 0
+    (( 10#${current_parts[$index]:-0} < 10#${minimum_parts[$index]:-0} )) && return 1
+  done
+  return 0
+}
+
 [[ "$(/usr/bin/uname -s)" == 'Darwin' ]] || fail 'This script runs only on macOS.'
 [[ "$(/usr/bin/uname -m)" == 'arm64' ]] || fail 'Use a native Apple Silicon Terminal; Intel and Rosetta are not supported.'
 [[ "$(/usr/bin/id -u)" != '0' ]] || fail 'Run as your normal macOS user; installers request elevated access only when necessary.'
@@ -74,14 +87,21 @@ if [[ ! -f "$HOME/.zprofile" ]] || ! /usr/bin/grep -Fqx "$brew_shellenv_line" "$
   printf '\n# Homebrew (essential-mise stage 0)\n%s\n' "$brew_shellenv_line" >> "$HOME/.zprofile"
 fi
 
-say "3/7 - mise ($MISE_VERSION)"
-export MISE_VERSION
-run_official_installer 'https://mise.run' /bin/sh
+say "3/7 - mise (minimum $MISE_VERSION)"
+installed_mise_version=''
+if [[ -x "$MISE_BIN" ]]; then
+  installed_mise_version="$("$MISE_BIN" --version | /usr/bin/awk '{print $1}')"
+fi
+if [[ -z "$installed_mise_version" ]] || ! version_at_least "$installed_mise_version" "${MISE_VERSION#v}"; then
+  export MISE_VERSION
+  run_official_installer 'https://mise.run' /bin/sh
+fi
 [[ -x "$MISE_BIN" ]] || fail "mise installer did not produce $MISE_BIN"
 export PATH="$HOME/.local/bin:$PATH"
 installed_mise_version="$("$MISE_BIN" --version | /usr/bin/awk '{print $1}')"
-[[ "$installed_mise_version" == "${MISE_VERSION#v}" ]] || \
-  fail "Expected mise ${MISE_VERSION#v}, found $installed_mise_version"
+version_at_least "$installed_mise_version" "${MISE_VERSION#v}" || \
+  fail "Expected mise ${MISE_VERSION#v} or newer, found $installed_mise_version"
+printf 'Using mise %s; no downgrade needed.\n' "$installed_mise_version"
 
 export MISE_CONFIG_DIR="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
 [[ "$MISE_CONFIG_DIR" == /* ]] || fail "MISE_CONFIG_DIR must be absolute: $MISE_CONFIG_DIR"

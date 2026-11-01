@@ -96,6 +96,15 @@ run_and_record set-expected-origin 0 git -C "$first_config" remote set-url origi
 initialized_path="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
 run_and_record existing-homebrew-empty-shellenv 0 env HOME="$first_home" PATH="$initialized_path" /bin/bash -c 'test -z "$(/opt/homebrew/bin/brew shellenv)"'
 run_and_record existing-homebrew-rerun 0 env HOME="$first_home" PATH="$initialized_path" /bin/bash "$source_script"
+run_and_record existing-mise-not-reinstalled 1 /usr/bin/grep -F 'mise: installing mise...' "$evidence_dir/existing-homebrew-rerun.log"
+run_and_record wrap-newer-mise-binary 0 /bin/mv "$first_home/.local/bin/mise" "$first_home/.local/bin/mise-real"
+run_and_record write-newer-mise-wrapper 0 /bin/bash -c "printf '#!/bin/bash\nif [[ \"\$1\" == --version ]]; then\n  printf \"2999.1.1 test\\n\"\nelse\n  exec \"\$HOME/.local/bin/mise-real\" \"\$@\"\nfi\n' > '$first_home/.local/bin/mise'"
+run_and_record executable-newer-mise-wrapper 0 /bin/chmod +x "$first_home/.local/bin/mise"
+run_and_record newer-mise-rerun 0 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script"
+run_and_record newer-mise-preserved 0 /usr/bin/grep -F 'Using mise 2999.1.1; no downgrade needed.' "$evidence_dir/newer-mise-rerun.log"
+run_and_record newer-mise-installer-skipped 1 /usr/bin/grep -F 'mise: installing mise...' "$evidence_dir/newer-mise-rerun.log"
+run_and_record remove-newer-mise-wrapper 0 /bin/rm "$first_home/.local/bin/mise"
+run_and_record restore-mise-binary 0 /bin/mv "$first_home/.local/bin/mise-real" "$first_home/.local/bin/mise"
 printf 'env = ["ai-cli", "system-preferences"]\n' > "$first_config/miserc.local.toml"
 run_and_record optional-selection-rerun 0 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script"
 run_and_record set-wrong-origin 0 git -C "$first_config" remote set-url origin https://example.invalid/essential-mise.git
