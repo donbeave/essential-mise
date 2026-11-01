@@ -2,8 +2,6 @@
 set -euo pipefail
 
 REPO='donbeave/essential-mise'
-EXPECTED_ORIGIN='github.com/donbeave/essential-mise'
-MISE_VERSION='v2026.10.23'
 MISE_BIN="$HOME/.local/bin/mise"
 BREW_BIN='/opt/homebrew/bin/brew'
 tmp_script=''
@@ -36,19 +34,6 @@ run_official_installer() {
   "$interpreter" "$tmp_script" || fail "Installer failed: $url"
   /bin/rm -f "$tmp_script"
   tmp_script=''
-}
-
-version_at_least() {
-  local current="$1" minimum="$2" index
-  local -a current_parts minimum_parts
-  IFS=. read -r -a current_parts <<< "$current"
-  IFS=. read -r -a minimum_parts <<< "$minimum"
-  for index in 0 1 2; do
-    [[ "${current_parts[$index]:-0}" =~ ^[0-9]+$ && "${minimum_parts[$index]:-0}" =~ ^[0-9]+$ ]] || return 1
-    (( 10#${current_parts[$index]:-0} > 10#${minimum_parts[$index]:-0} )) && return 0
-    (( 10#${current_parts[$index]:-0} < 10#${minimum_parts[$index]:-0} )) && return 1
-  done
-  return 0
 }
 
 [[ "$(/usr/bin/uname -s)" == 'Darwin' ]] || fail 'This script runs only on macOS.'
@@ -87,26 +72,18 @@ fi
 eval "$brew_shellenv"
 command -v brew >/dev/null 2>&1 || fail 'brew is not available after shellenv initialization.'
 [[ "$("$BREW_BIN" --prefix)" == '/opt/homebrew' ]] || fail 'Homebrew prefix is not /opt/homebrew.'
-brew_shellenv_line='eval "$(/opt/homebrew/bin/brew shellenv)"'
+brew_shellenv_line="eval \"\$($BREW_BIN shellenv)\""
 if [[ ! -f "$HOME/.zprofile" ]] || ! /usr/bin/grep -Fqx "$brew_shellenv_line" "$HOME/.zprofile"; then
   printf '\n# Homebrew (essential-mise stage 0)\n%s\n' "$brew_shellenv_line" >> "$HOME/.zprofile"
 fi
 
-say "3/7 - mise (minimum $MISE_VERSION)"
-installed_mise_version=''
-if [[ -x "$MISE_BIN" ]]; then
-  installed_mise_version="$("$MISE_BIN" --version | /usr/bin/awk '{print $1}')"
-fi
-if [[ -z "$installed_mise_version" ]] || ! version_at_least "$installed_mise_version" "${MISE_VERSION#v}"; then
-  export MISE_VERSION
-  run_official_installer 'https://mise.run' /bin/sh
-fi
+say '3/7 - mise (latest stable)'
+unset MISE_VERSION
+run_official_installer 'https://mise.run' /bin/sh
 [[ -x "$MISE_BIN" ]] || fail "mise installer did not produce $MISE_BIN"
 export PATH="$HOME/.local/bin:$PATH"
-installed_mise_version="$("$MISE_BIN" --version | /usr/bin/awk '{print $1}')"
-version_at_least "$installed_mise_version" "${MISE_VERSION#v}" || \
-  fail "Expected mise ${MISE_VERSION#v} or newer, found $installed_mise_version"
-printf 'Using mise %s; no downgrade needed.\n' "$installed_mise_version"
+export MISE_QUIET=1
+"$MISE_BIN" self-update --yes --no-plugins --minimum-release-age 0s || fail 'Failed to upgrade mise to the latest stable release.'
 
 export MISE_CONFIG_DIR="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
 [[ "$MISE_CONFIG_DIR" == /* ]] || fail "MISE_CONFIG_DIR must be absolute: $MISE_CONFIG_DIR"
