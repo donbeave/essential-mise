@@ -8,10 +8,15 @@ MISE_BIN="$HOME/.local/bin/mise"
 BREW_BIN='/opt/homebrew/bin/brew'
 tmp_script=''
 work_dir=''
+sudo_keepalive_pid=''
 
 say() { printf '\n==> %s\n' "$*"; }
 fail() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 cleanup() {
+  if [[ -n "$sudo_keepalive_pid" ]]; then
+    /bin/kill "$sudo_keepalive_pid" 2>/dev/null || true
+    wait "$sudo_keepalive_pid" 2>/dev/null || true
+  fi
   if [[ -n "$tmp_script" ]]; then
     /bin/rm -f "$tmp_script"
   fi
@@ -235,7 +240,16 @@ fi
 
 if [[ -n "$selected_environments" ]]; then
   say "Installing selected categories: $selected_environments"
+  printf 'Some installers require administrator access. Enter your macOS password when prompted.\n'
+  /usr/bin/sudo -v || fail 'Administrator authentication is required for selected category installation.'
+  while /usr/bin/sudo -n -v; do
+    /bin/sleep 60
+  done &
+  sudo_keepalive_pid=$!
   "$MISE_BIN" -E "$selected_environments" bootstrap || fail 'Selected category installation failed.'
+  /bin/kill "$sudo_keepalive_pid" 2>/dev/null || true
+  wait "$sudo_keepalive_pid" 2>/dev/null || true
+  sudo_keepalive_pid=''
 else
   printf 'No optional categories selected.\n'
 fi

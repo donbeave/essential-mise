@@ -22,7 +22,7 @@ Stage 0:
 4. Installs mise `2026.10.23` through the official installer when mise is absent or older. Compatible newer installations are preserved without downgrade.
 5. Adopts the public configuration when the target is absent or empty. A nonempty non-Git target is permanently deleted without a backup before adoption. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
 6. Applies `foundation`, installing the `mas` CLI and configuring shell activation.
-7. Lists all optional categories with numbers. Enter numbers separated by spaces or commas to install them, or press Return to skip. Noninteractive runs skip automatically.
+7. Lists all optional categories with numbers. Enter numbers separated by spaces or commas to install them, or press Return to skip. Noninteractive runs skip automatically. Before installation, the script requests the macOS administrator password in a clear prompt and keeps sudo authorization active for installers such as Zoom.
 8. Verifies a fresh login/interactive zsh.
 
 The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths (which cannot be represented safely in `MISE_CEILING_PATHS`), bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and prompts for optional categories again. Selections are installed once without changing the persistent environment selection.
