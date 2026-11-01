@@ -1,27 +1,27 @@
-# jackin (jackin-project/jackin)
+# jackin (jackin-project/jackin and its role repositories)
+
+Covers `jackin-project/jackin`, `jackin-project/jackin-sentinel`, `jackin-project/jackin-agent-smith`, `jackin-project/jackin-the-architect`, and the console component library `tailrocks/terminal-components-baseline`.
 
 ## What it is
-Runs AI coding agents (Claude Code, Codex, Amp, …) in parallel, each in its own container with scoped mounts, credentials and tools; operator TUI console; native macOS app (Swift, `native/`). ~165-crate Cargo workspace: `apps/` (`jackin` CLI/console, `jackin-capsule` in-container daemon), `core/`, `adapters/` (docker via bollard, image, usage FFI), `services/` (`jackin-runtime-*`, `jackin-usage-*`), `ui/` (tui, console, launch), `tools/` (`jackin-xtask`, `jackin-lints` dylint). Vocabulary in `CONTEXT.md`.
+Jackin is being rebuilt from zero on NVIDIA OpenShell, on the branch `feature/openshell-native` in all five repositories. Jackin is a Rust CLI and terminal console. It builds role images with Docker BuildKit and runs Codex in OpenShell sandboxes. OpenShell is the only execution engine. Codex is the only agent. Accounts and usage cover every AI coding provider. The console is identical to the `jackin-preview` demo of terminal-components-baseline. The code on `main` (last commit `470fc5d6`) is a reference only.
 
 ## Stack
-Rust 1.99.x, edition 2024; clap 4, ratatui 0.30, crossterm 0.29, termrock/termpane, portable-pty; tokio (pinned), tonic/hyper, reqwest+rustls (openssl banned); anyhow + thiserror; tracing + OpenTelemetry; rusqlite, turso. Docs site in `docs/` is TanStack Start + Fumadocs on Bun.
+Rust 1.99.1 with mr-boxington (`mbx`) 1.29.1 through mise, edition 2024. OpenShell 0.1.6 (`openshell-sdk` git dependency, `openshell` CLI for connect, exec with a TTY, upload, and download). Codex CLI 0.166.0. Console on `junie-tui` from terminal-components-baseline (ratatui 0.30, crossterm 0.29), visual tests with tuiscotti. Never `termrock`. Docs site in `docs/` is TanStack Start and Fumadocs on Bun.
 
 ## Gates
-- Cargo is wrapped by mbx (mr-boxington) via mise. Toolchain from `rust-toolchain.toml`.
-- Fast: `mise exec -- mbx +<toolchain> xtask ci --fast`. Merge-ready: `mise exec -- mbx +<toolchain> xtask ci`. Partitions: `--only lint|policy|tests|powerset|docs|snapshots|e2e`. Docker tests: `--e2e` / nextest profile `docker-e2e`.
-- Format fix: `mise exec -- mbx +<toolchain> fmt`.
-- `hk check --all` for hooks (fmt, clippy, deny, gitleaks, rumdl, jactionlint, Swift linters).
+The Gates table in `jackin/rewrite/PLAN.md` is the authority: G-FAST `mise exec -- mbx +1.99.1 xtask ci --fast`, G-FULL `xtask ci` (with `--no-docs` until task P12.1), G-E2E `xtask e2e` against a real gateway, G-ROLE `jackin role check .` in a role repository. Before task P2.3 exists, use `mise exec -- mbx +1.99.1 check --workspace --locked`. terminal-components-baseline uses its own nextest and tuiscotti suite.
 
 ## Rules that change how agents work
-- Clippy `all` deny, `pedantic`/`cargo` warn; denied: `unwrap_used`, `expect_used`, `panic`, `todo`, `print_stdout/stderr`, `dbg_macro`, `allow_attributes`, `await_holding_lock`, `mod_module_files`, `undocumented_unsafe_blocks`. Suppress only with `#[expect(lint, reason = …)]`, within `ratchet.toml` caps (also 1850-line file cap).
-- `unsafe_code` deny; allowed only in designated FFI crates (`jackin-process-directory`, capsule `process_isolation`) with `#[expect(unsafe_code, reason = …)]`.
-- `clippy.toml` disallows blocking calls (`Command::output`, `thread::sleep`, `File::open`) off designated threads; dylint `render_thread_purity` keeps the TUI render path pure.
-- Container-path literals only in `jackin-core/src/container_paths.rs`; exceptions in `container-path-allowlist.toml`.
-- No code comments (including SAFETY/TODO). nextest only. Test plans and red/green proof need an independent subagent.
-- Commits: Conventional Commits, `git commit -s`, push after every commit, never commit on `main`, ask before creating a branch, sync main with `--no-ff` merge, no force-push.
+- Read `jackin/rewrite/DESIGN.md` (decisions D01 to D28) and the task in `jackin/rewrite/PLAN.md` before any work. The shared rules in each jackin `AGENTS.md` are identical across the four jackin repositories.
+- No Docker execution: only `jackin-image` starts `docker`, and only for BuildKit builds. Agents run containers only through the opt-in Docker capability (D24).
+- No code comments except SPDX headers, shebang lines, parser directives, and generated files. Clap help text goes in `#[command(about)]` and `#[arg(help)]` attributes.
+- All old tests are deleted. New tests need a plan approved by `test-reviewer` and a red and green record. nextest only.
+- Never change an approved tuiscotti baseline in terminal-components-baseline. Never move its `visual-baseline` tag. Its own `AGENTS.md` applies there.
+- The program runs fully autonomous: never ask a human. Record decisions in `jackin/rewrite/decisions.tsv`.
+- Commits: Conventional Commits, `git commit -s`, push after each commit, only on `feature/openshell-native` (or local worktree branches merged into it), no force-push, never merge to `main`.
 
 ## Ownership and generated files
-`.github/workflows/*` is generated by Velnor Actions from `.velnor/config.toml`; never hand-edit — fix upstream in tailrocks/velnor-new, then `velnor-actions generate` (see `.github/AGENTS.md`).
+`.github/workflows/*` is generated by Velnor Actions from `.velnor/config.toml`. Never hand-edit it. Fix upstream in tailrocks/velnor-new, then run `velnor-actions generate`.
 
 ## Where decisions live
-`CONTEXT.md`, `docs/content/reference/security-implementation.mdx` (threat model), `plans/`, and `docs/openshell-v2/` — the OpenShell-only rewrite: `SPEC.md` (authority), `CONTRACTS.md` (C00–C16), `PLAN.md`, `TASKS.md`, `task-graph.json`, `SUBAGENTS.md` (task packet, one writer per file, review packet `APPROVE`/`CHANGES_REQUIRED`/`BLOCKED`), pinned upstream in `compatibility.lock.toml` (github.com/NVIDIA/OpenShell).
+`jackin/rewrite/`: `DESIGN.md` (authority), `PLAN.md` (tasks, gates, sentinel journey), `GOAL.md` (the `/goal` prompt), `decisions.tsv` (trail), `research/`, `evidence/`, `blockers/`. `compatibility.lock.toml` holds the OpenShell pin once task P0.1 writes it.

@@ -4,7 +4,7 @@ Facts about specific repositories that generic subagents need but should not car
 
 | Remote (`git remote get-url origin`) | Note |
 |---|---|
-| `jackin-project/jackin` | `jackin.md` |
+| `jackin-project/jackin`, `jackin-project/jackin-sentinel`, `jackin-project/jackin-agent-smith`, `jackin-project/jackin-the-architect`, `tailrocks/terminal-components-baseline` | `jackin.md` |
 | `tailrocks/velnor-new` | `velnor-new.md` |
 | `ChainArgos/platform`, `ChainArgos/ui-design-system`, `ChainArgos/documentation-portal` | `chainargos-frontend.md` |
 
