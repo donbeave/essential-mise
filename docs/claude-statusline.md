@@ -18,7 +18,7 @@ Claude Code is installed through the real-Homebrew `claude-code@latest` exceptio
 
 ## Start in bypass-permissions mode
 
-`ai-cli` also adds a `claude-yolo` alias for `claude --dangerously-skip-permissions`. It goes through the wrapper, so it keeps the status line and every setting in `~/.claude/settings.json`; the permission deny rules there still apply in this mode. Add arguments as usual, for example `claude-yolo --model opus`.
+`claude-yolo` is one of the zsh aliases in [Yolo aliases](yolo.md). It runs `claude --dangerously-skip-permissions`, so it goes through this wrapper: the status line and every setting in `~/.claude/settings.json` stay in effect, including the permission deny rules. Add arguments as usual, for example `claude-yolo --model opus`.
 
 ## Bypass it temporarily
 

@@ -54,6 +54,14 @@ function claude {
   BASH_COMPAT=3.2 command claude --settings "$settings" "$@"
 }
 ''' }
-"~/.zshrc/claude-yolo" = { block = '''
+"~/.zshrc/yolo" = { block = '''
 alias claude-yolo='claude --dangerously-skip-permissions'
+alias codex-yolo='codex --yolo'
+alias cursor-yolo='cursor-agent --yolo'
+alias agy-yolo='agy --dangerously-skip-permissions'
+alias kimi-yolo='kimi --auto'
+alias opencode-yolo='opencode --auto'
+alias grok-yolo='grok --yolo'
+alias amp-yolo='amp --dangerously-allow-all'
+alias omp-yolo='omp --approval-mode=yolo'
 ''' }
