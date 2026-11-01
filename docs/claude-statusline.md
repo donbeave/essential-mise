@@ -16,6 +16,10 @@ The wrapper preserves an existing alias and forwards alias-supplied and explicit
 
 Claude Code is installed through the real-Homebrew `claude-code@latest` exception; see [Homebrew exceptions](homebrew-exceptions.md).
 
+## Start in bypass-permissions mode
+
+`ai-cli` also adds a `claude-yolo` alias for `claude --dangerously-skip-permissions`. It goes through the wrapper, so it keeps the status line and every setting in `~/.claude/settings.json`; the permission deny rules there still apply in this mode. Add arguments as usual, for example `claude-yolo --model opus`.
+
 ## Bypass it temporarily
 
 Prefix a launch with `command` to bypass the zsh function and its status-line `--settings` without changing any files:

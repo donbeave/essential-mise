@@ -54,3 +54,6 @@ function claude {
   BASH_COMPAT=3.2 command claude --settings "$settings" "$@"
 }
 ''' }
+"~/.zshrc/claude-yolo" = { block = '''
+alias claude-yolo='claude --dangerously-skip-permissions'
+''' }
