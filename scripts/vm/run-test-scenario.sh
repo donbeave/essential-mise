@@ -124,7 +124,7 @@ case "$scenario" in
     run_logged second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,development bootstrap"
     run_logged status "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,development bootstrap status --missing"
     vm_ssh "printf 'env = [\"foundation\", \"terminal\", \"development\"]\n' > '$config_dir/miserc.local.toml'"
-    run_logged shell-verification "cd /tmp && /bin/zsh -lic 'command -v starship && command -v bat && command -v fish && test -x /Applications/Ghostty.app/Contents/MacOS/ghostty && test \"\$(git -C \"\$HOME/.oh-my-zsh\" rev-parse HEAD)\" = 0b50afdbfd8cbd0e03be68ecec4e1b5d3f55ef0a && test \"\$(git -C \"\$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" rev-parse HEAD)\" = 85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5 && mise doctor' && /opt/homebrew/bin/fish -lc 'mise --version'"
+    run_logged shell-verification "cd /tmp && /bin/zsh -lic 'command -v starship && command -v bat && command -v fish && test -x /Applications/Ghostty.app/Contents/MacOS/ghostty && test \"\$(git -C \"\$HOME/.oh-my-zsh\" rev-parse HEAD)\" = \"\$(git -C \"\$HOME/.oh-my-zsh\" rev-parse origin/master)\" && test \"\$(git -C \"\$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" rev-parse HEAD)\" = \"\$(git -C \"\$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" rev-parse origin/master)\" && mise doctor' && /opt/homebrew/bin/fish -lc 'mise --version'"
     run_logged gh-verification "/bin/zsh -lic 'test \"\$(gh config get git_protocol)\" = https && test \"\$(gh config get accessible_prompter)\" = disabled && test \"\$(gh config get prefer_editor_prompt)\" = disabled && test \"\$(gh config get color_labels)\" = disabled && test \"\$(gh config get version)\" = 1 && gh alias list | /usr/bin/grep -E \"co:[[:space:]]+pr checkout\"'"
     run_logged git-automation-absent 'test ! -e "$HOME/.gitconfig/preferences" && test ! -e "$HOME/.config/git/ignore"'
     ;;
@@ -195,7 +195,7 @@ case "$scenario" in
     run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E js bootstrap"
     run_logged exec-check "cd '$config_dir' && \$HOME/.local/bin/mise -E js exec -- /bin/bash -c 'node --version && bun --version'"
     vm_ssh "printf 'env = [\"js\"]\n' > '$config_dir/miserc.local.toml'"
-    run_logged persistent "/bin/zsh -lic 'cd /tmp && node --version && bun --version && case \"\$(mise which node)\" in *\".local/share/mise/installs/node/26.9.0/\"*) ;; *) exit 1;; esac && case \"\$(mise which bun)\" in *\".local/share/mise/installs/bun/1.4.4/\"*) ;; *) exit 1;; esac'"
+    run_logged persistent "/bin/zsh -lic 'cd /tmp && node --version && bun --version && case \"\$(mise which node)\" in *\".local/share/mise/installs/node/\"*) ;; *) exit 1;; esac && case \"\$(mise which bun)\" in *\".local/share/mise/installs/bun/\"*) ;; *) exit 1;; esac'"
     ;;
   java)
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E development-java bootstrap --dry-run"
@@ -204,7 +204,7 @@ case "$scenario" in
     run_logged build-tools "/bin/zsh -lic 'mvn -version && gradle -version'"
     vm_ssh "printf 'env = [\"development-java\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged persistent "/bin/zsh -lic 'cd /tmp && java -version && case \"\$(mise which java)\" in *\".local/share/mise/installs/\"*) ;; *) exit 1;; esac && { /opt/homebrew/bin/brew list --versions openjdk || true; }'"
-    run_logged persistent-build-tools "/bin/zsh -lic 'cd /tmp && gradle --stop && mvn -version && gradle -version && mvn -version | /usr/bin/grep -F \"vendor: Oracle Corporation\" && mvn -version | /usr/bin/grep -F \".local/share/mise/installs/java/oracle-graalvm-\" && gradle -version | /usr/bin/grep -F \"(Oracle Corporation 25.0.4.1.1\" && gradle -version | /usr/bin/grep -F \".local/share/mise/installs/java/oracle-graalvm-\"'"
+    run_logged persistent-build-tools "/bin/zsh -lic 'cd /tmp && gradle --stop && mvn -version && gradle -version && mvn -version | /usr/bin/grep -F \"vendor: Oracle Corporation\" && mvn -version | /usr/bin/grep -F \".local/share/mise/installs/java/oracle-graalvm-\" && gradle -version | /usr/bin/grep -F \".local/share/mise/installs/java/oracle-graalvm-\"'"
     ;;
   rust)
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E development-rust bootstrap --dry-run"

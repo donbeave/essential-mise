@@ -10,7 +10,7 @@ run = [
   "/opt/homebrew/bin/gh config set prompt enabled",
   "/opt/homebrew/bin/gh config set prefer_editor_prompt disabled",
   "/opt/homebrew/bin/gh config set pager ''",
-  "/opt/homebrew/bin/gh alias set co 'pr checkout' --clobber",
+  "if ! /opt/homebrew/bin/gh alias list | /usr/bin/grep -Eq '^co:[[:space:]]+pr checkout$'; then /opt/homebrew/bin/gh alias set co 'pr checkout' --clobber; fi",
   "/opt/homebrew/bin/gh config set http_unix_socket ''",
   "/opt/homebrew/bin/gh config set browser ''",
   "/opt/homebrew/bin/gh config set color_labels disabled",
@@ -29,5 +29,5 @@ run = [
   "test \"$(/opt/homebrew/bin/gh config get accessible_prompter)\" = disabled",
   "test \"$(/opt/homebrew/bin/gh config get spinner)\" = enabled",
   "test \"$(/opt/homebrew/bin/gh config get version)\" = 1",
-  "/opt/homebrew/bin/gh alias list | /usr/bin/grep -E '^co:[[:space:]]+pr checkout$'",
+  "/opt/homebrew/bin/gh alias list | /usr/bin/grep -Eq '^co:[[:space:]]+pr checkout$'",
 ]

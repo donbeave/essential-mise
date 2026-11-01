@@ -60,7 +60,7 @@ fi
 /usr/bin/xcode-select -p >/dev/null 2>&1 || fail 'Command Line Tools are not ready. Finish installation, then rerun.'
 /usr/bin/git --version >/dev/null 2>&1 || fail 'Git is not ready. Finish Command Line Tools installation, then rerun.'
 
-say '2/7 - Homebrew'
+say '2/7 - Homebrew (latest)'
 if [[ ! -x "$BREW_BIN" ]]; then
   run_official_installer 'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh' /bin/bash
 fi
@@ -72,6 +72,7 @@ fi
 eval "$brew_shellenv"
 command -v brew >/dev/null 2>&1 || fail 'brew is not available after shellenv initialization.'
 [[ "$("$BREW_BIN" --prefix)" == '/opt/homebrew' ]] || fail 'Homebrew prefix is not /opt/homebrew.'
+"$BREW_BIN" update || fail 'Failed to update Homebrew and its package metadata.'
 brew_shellenv_line="eval \"\$($BREW_BIN shellenv)\""
 if [[ ! -f "$HOME/.zprofile" ]] || ! /usr/bin/grep -Fqx "$brew_shellenv_line" "$HOME/.zprofile"; then
   printf '\n# Homebrew (essential-mise stage 0)\n%s\n' "$brew_shellenv_line" >> "$HOME/.zprofile"
@@ -128,8 +129,7 @@ if [[ -e "$MISE_CONFIG_DIR" ]] && { [[ ! -d "$MISE_CONFIG_DIR" ]] || [[ -n "$(/b
   if [[ "$inside" == 'true' || "$bare" == 'true' ]]; then
     say '4/7 - Existing configuration detected; skipping adoption'
   else
-    say '4/7 - Removing existing non-Git configuration'
-    /bin/rm -rf "$MISE_CONFIG_DIR" || fail "Cannot remove existing configuration: $MISE_CONFIG_DIR"
+    fail "Existing configuration is not a Git worktree: $MISE_CONFIG_DIR. Move it aside before adopting this configuration."
   fi
 fi
 if [[ ! -e "$MISE_CONFIG_DIR" ]] || { [[ -d "$MISE_CONFIG_DIR" ]] && [[ -z "$(/bin/ls -A "$MISE_CONFIG_DIR")" ]]; }; then
@@ -153,7 +153,7 @@ fi
 say '5/7 - Foundation (mas CLI and zsh activation)'
 export MISE_CEILING_PATHS="$MISE_CONFIG_DIR"
 cd "$MISE_CONFIG_DIR"
-"$MISE_BIN" -E foundation bootstrap
+"$MISE_BIN" -E foundation bootstrap --upgrade --update
 
 say '6/7 - Optional categories'
 environment_names=(
@@ -206,6 +206,8 @@ if [[ -n "$selection" ]]; then
   IFS=' ' read -r -a choices <<< "${selection//,/ }"
   for choice in "${choices[@]}"; do
     [[ "$choice" =~ ^[0-9]+$ ]] || fail "Invalid category number: $choice"
+    choice="${choice#"${choice%%[!0]*}"}"
+    [[ -n "$choice" && ${#choice} -le 2 ]] || fail "Category number is out of range: ${choice:-0}"
     (( choice >= 1 && choice <= ${#environment_names[@]} )) || fail "Category number is out of range: $choice"
     environment="${environment_names[$((choice - 1))]}"
     case ",$selected_environments," in
@@ -223,7 +225,7 @@ if [[ -n "$selected_environments" ]]; then
     /bin/sleep 60
   done &
   sudo_keepalive_pid=$!
-  "$MISE_BIN" -E "$selected_environments" bootstrap || fail 'Selected category installation failed.'
+  "$MISE_BIN" -E "$selected_environments" bootstrap --upgrade --update || fail 'Selected category installation failed.'
   /bin/kill "$sudo_keepalive_pid" 2>/dev/null || true
   wait "$sudo_keepalive_pid" 2>/dev/null || true
   sudo_keepalive_pid=''
@@ -231,11 +233,12 @@ else
   printf 'No optional categories selected.\n'
 fi
 
-say '7/7 - Verify a new login and interactive zsh'
+say '7/7 - Verify a new login and interactive zsh (foundation)'
 /bin/zsh -lic 'command -v git >/dev/null && command -v brew >/dev/null && command -v mise >/dev/null && command -v mas >/dev/null && mise --version && mas --version && mise -E foundation doctor' || \
   fail 'New-shell verification failed. Open a fresh Terminal, inspect mise doctor, and rerun this command.'
 
 say 'Finished. Open a fresh Terminal window.'
 if [[ -n "$selected_environments" ]]; then
   printf 'Selected categories were installed once; no optional environment was permanently selected.\n'
+  printf 'The shell doctor checks foundation only. See the setup guide for checking selected resources; native status does not check hook-installed packages.\n'
 fi

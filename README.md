@@ -10,7 +10,7 @@ A modular [mise bootstrap](https://mise.jdx.dev/bootstrap.html) configuration fo
 - Internet access and an administrator account for Command Line Tools and Homebrew prompts.
 - App Store sign-in for Mac App Store applications. Accounts, licenses, privacy consent, and application onboarding remain manual.
 
-The configuration requires **mise 2026.10.23 or newer**. The launcher keeps compatible newer installations and never downgrades mise. `config.toml` contains only its minimum version; no optional environment is selected by default.
+The configuration requires **mise 2026.10.23 or newer**. The launcher updates mise to the latest stable release and never downgrades it. `config.toml` also enables automatic mise self-updates; no optional environment is selected by default.
 
 ## Set up a new Mac
 
@@ -66,7 +66,7 @@ The first installs the declared Node/Bun stack; the second uses it for one comma
 ## Maintain or remove
 
 - [Update the adopted checkout, upgrade packages, and troubleshoot](docs/first-mac.md#4-update-and-upgrade)
-- [Upgrade or remove the six Homebrew exceptions](docs/homebrew-exceptions.md)
+- [Manage the six Homebrew exceptions](docs/homebrew-exceptions.md)
 - [Remove modules and their owner-specific configuration](docs/first-mac.md#5-remove-a-module)
 
 Deselecting a module does not uninstall it. Native unapply, Fish-block removal, application-owned settings, package removal, and macOS preference reversal are distinct operations. Do not run a broad native formula prune while hook-owned Amp CLI, FFF, or OMP must remain installed.

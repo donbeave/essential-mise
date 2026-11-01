@@ -15,7 +15,7 @@ env = ["foundation", "terminal", "development", "security"]
 | Module | Purpose and contents | Prerequisites and boundaries |
 |---|---|---|
 | `foundation` | `mas` CLI; `~/.local/bin` in `~/.zshenv`; native zsh activation | Installs the default App Store CLI; no optional configuration |
-| `terminal` | Stable Ghostty, JetBrainsMono Nerd Font, Starship, bat, watch, just, xh, wget, Bash, Nushell, Fish, git-standup, msedit, buf, gogcli; pinned Oh My Zsh and zsh-autosuggestions | Starship is the only prompt renderer; Oh My Zsh self-update is disabled; Ghostty follows `XDG_CONFIG_HOME` through native variants; Fish activation uses an additive XDG-aware block |
+| `terminal` | Stable Ghostty, JetBrainsMono Nerd Font, Starship, bat, watch, just, xh, wget, Bash, Nushell, Fish, git-standup, msedit, buf, gogcli; Oh My Zsh and zsh-autosuggestions | Starship is the only prompt renderer; Oh My Zsh self-update is disabled; Ghostty follows `XDG_CONFIG_HOME` through native variants; Fish activation uses an additive XDG-aware block |
 | `development` | GitHub CLI and Git LFS | Nonsecret GitHub CLI settings and the `co` alias use `gh` itself, preserving unrelated keys and honoring `GH_CONFIG_DIR`/custom XDG. Git tuning uses the manual `git config` commands in [Manual actions](manual-actions.md); identity, `git lfs install`, and `gh auth setup-git` are manual |
 | `security` | 1Password, 1Password CLI, and 1Password for Safari (`mas:1569813296`) | App Store sign-in, account unlock, SSH agent, extension enablement, and CLI auth are manual |
 
@@ -23,9 +23,9 @@ env = ["foundation", "terminal", "development", "security"]
 
 | Module | Contents | Prerequisites and boundaries |
 |---|---|---|
-| `js` | Node `26.9.0`, Bun `1.4.4` | Install once, invoke once with `-E ... exec`, or persist in `miserc.local.toml` |
-| `development-rust` | Rust `1.99.1` with clippy, rustfmt, rust-analyzer, rust-src, `llvm-tools`, and native `mr_boxington`; mr-boxington `1.24.1`; cargo-nextest, cargo-llvm-cov, cargo-deny, and bacon | Uses native Cargo command-wrapper behavior; `gh auth` may be required for release lookup |
-| `development-java` | Oracle GraalVM `25.0.4.1.1`, Gradle, Maven, VisualVM | Homebrew OpenJDK may also be installed; verify GraalVM, `mvn`, and `gradle` in a fresh shell |
+| `js` | Latest Node and Bun | Install once, invoke once with `-E ... exec`, or persist in `miserc.local.toml` |
+| `development-rust` | Latest Rust with clippy, rustfmt, rust-analyzer, rust-src, `llvm-tools`, and native `mr_boxington`; latest mr-boxington, cargo-nextest, cargo-llvm-cov, cargo-deny, and bacon | Uses native Cargo command-wrapper behavior; `gh auth` may be required for release lookup |
+| `development-java` | Latest Oracle GraalVM, Gradle, Maven, VisualVM | Homebrew OpenJDK may also be installed; verify GraalVM, `mvn`, and `gradle` in a fresh shell |
 | `development-apps` | JetBrains Toolbox, Yaak, TablePlus, DevHub, Patterns | Toolbox IDEs/settings and MAS sign-in are manual |
 | `development-containers` | OrbStack | VM/runtime/credential onboarding is manual |
 | `development-editors` | Sublime Text, VS Code, stable Zed, JetBrainsMono Nerd Font | Zed merge uses JSONC; AI-provider keys are excluded; the font is declared here for independent selection |

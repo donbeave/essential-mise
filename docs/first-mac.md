@@ -18,11 +18,11 @@ Stage 0:
 
 1. Checks the platform, macOS version, and non-root user.
 2. Installs or verifies Apple Command Line Tools and Git. Finish Apple's dialog when prompted.
-3. Installs official Homebrew when absent and initializes its environment. A successful empty `shellenv` result is valid when Homebrew is already initialized.
-4. Installs mise `2026.10.23` through the official installer when mise is absent or older. Compatible newer installations are preserved without downgrade.
-5. Adopts the public configuration when the target is absent or empty. A nonempty non-Git target is permanently deleted without a backup before adoption. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
-6. Applies `foundation`, installing the `mas` CLI and configuring shell activation.
-7. Lists all optional categories with numbers. Enter numbers separated by spaces or commas to install them, or press Return to skip. Noninteractive runs skip automatically. Before installation, the script requests the macOS administrator password in a clear prompt and keeps sudo authorization active for installers such as Zoom.
+3. Installs official Homebrew when absent, initializes its environment, and runs `brew update` to update Homebrew and package metadata. A successful empty `shellenv` result is valid when Homebrew is already initialized. This does not upgrade installed packages.
+4. Runs the official mise installer, then updates mise to the latest stable release, without waiting for the installer's default release-age threshold.
+5. Adopts the public configuration when the target is absent or empty. A nonempty non-Git target is preserved and stops the launcher; move it aside before adopting. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
+6. Applies and upgrades `foundation`, installing the `mas` CLI and configuring shell activation.
+7. Lists all optional categories with numbers. Enter numbers separated by spaces or commas to install or upgrade them, or press Return to skip. Noninteractive runs skip automatically. Before installation, the script requests the macOS administrator password in a clear prompt and keeps sudo authorization active for installers such as Zoom.
 8. Verifies a fresh login/interactive zsh.
 
 The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths (which cannot be represented safely in `MISE_CEILING_PATHS`), bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and prompts for optional categories again. Selections are installed once without changing the persistent environment selection.
@@ -85,7 +85,7 @@ OpenCode instructions follow `XDG_CONFIG_HOME`. If `OPENCODE_CONFIG_DIR` is set,
 
 ## 4. Update and upgrade
 
-Configuration updates, native package upgrades, Homebrew exception upgrades, and removal are separate operations.
+Configuration updates, native package upgrades, and removal are separate operations. Homebrew exception hooks upgrade their named packages when their modules are applied.
 
 Review and update the adopted checkout:
 
@@ -107,9 +107,9 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap --upgrade --dry
 MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" bootstrap --upgrade
 ```
 
-Exact Node, Bun, Rust, mr-boxington, and GraalVM pins remain fixed until their declarations change. The Grok Bot DMG URL/checksum is pinned too. To change a pin, edit the relevant `config.*.toml`, review the diff, and run the preview/apply cycle for that module. Native upgrade does not upgrade mise itself, pull the configuration, update declared repositories, or restart services.
+Node, Bun, Rust, mr-boxington, and Oracle GraalVM follow their latest releases when upgraded. Grok Bot remains pinned to a verified DMG URL and checksum; update its declaration after verifying a new release. Native upgrade does not upgrade mise itself, pull the configuration, update declared repositories, or restart services.
 
-Upgrade the six real-Homebrew exceptions only with their separate commands in [Homebrew exceptions](homebrew-exceptions.md). Routine hooks install missing packages and run health checks without upgrading installed packages. Review formula dependency changes, replaced cask bundles, signatures, login items, and privacy permissions after an upgrade.
+The six real-Homebrew exceptions are installed or upgraded by their owning hooks on apply; see [Homebrew exceptions](homebrew-exceptions.md). Review formula dependency changes, replaced cask bundles, signatures, login items, and privacy permissions after an upgrade.
 
 ## 5. Remove a module
 

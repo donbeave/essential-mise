@@ -8,11 +8,11 @@
 "brew-cask:grok-build" = "latest"
 
 [bootstrap.hooks.post-packages]
-description = "Presence-only real Homebrew: Claude Code, Amp CLI, and OMP; upgrades are separate"
+description = "Real Homebrew: install or upgrade Claude Code, Amp CLI, and OMP"
 run = [
-  "if ! /opt/homebrew/bin/brew list --cask claude-code@latest >/dev/null 2>&1; then /opt/homebrew/bin/brew install --cask claude-code@latest; fi",
-  "if ! /opt/homebrew/bin/brew list --formula ampcode >/dev/null 2>&1; then /opt/homebrew/bin/brew install ampcode/tap/ampcode; fi",
-  "if ! /opt/homebrew/bin/brew list --formula omp >/dev/null 2>&1; then /opt/homebrew/bin/brew install can1357/tap/omp; fi",
+  "if ! /opt/homebrew/bin/brew list --cask claude-code@latest >/dev/null 2>&1; then /opt/homebrew/bin/brew install --cask claude-code@latest; else /opt/homebrew/bin/brew upgrade --cask --greedy claude-code@latest; fi",
+  "if ! /opt/homebrew/bin/brew list --formula ampcode >/dev/null 2>&1; then /opt/homebrew/bin/brew install ampcode/tap/ampcode; else /opt/homebrew/bin/brew upgrade --formula ampcode/tap/ampcode; fi",
+  "if ! /opt/homebrew/bin/brew list --formula omp >/dev/null 2>&1; then /opt/homebrew/bin/brew install can1357/tap/omp; else /opt/homebrew/bin/brew upgrade --formula can1357/tap/omp; fi",
   "/opt/homebrew/bin/claude --version",
   "/opt/homebrew/bin/amp --version",
   "/opt/homebrew/bin/omp --version",

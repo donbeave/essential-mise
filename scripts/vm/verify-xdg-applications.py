@@ -280,6 +280,8 @@ def verify_opencode_absent(prefix, env, target):
 
 apply('initial-apply', 'terminal,development,ai-cli', 'packages,dotfiles')
 apply('second-apply', 'terminal,development,ai-cli', 'packages,dotfiles')
+second_apply_output = (evidence / 'second-apply.stdout').read_text() + (evidence / 'second-apply.stderr').read_text()
+assert 'Changed alias co' not in second_apply_output
 run('install-js', [mise, '-C', config_dir, '-E', 'js', 'bootstrap', '--yes'], timeout=600)
 verify_gh('gh', base_env)
 gh_text = (xdg / 'gh/config.yml').read_text()
@@ -324,10 +326,10 @@ fish_env = {
 }
 assert shutil.which('bun', path=fish_env['PATH']) is None
 expected_bun = run('expected-bun', [mise, '-C', config_dir, '-E', 'js', 'which', 'bun']).strip()
-assert f'{home}/.local/share/mise/installs/bun/1.4.4/' in expected_bun, expected_bun
+assert f'{home}/.local/share/mise/installs/bun/' in expected_bun, expected_bun
 fish_activation = run('fish-bun-activation', [fish, '-ic', 'command -v bun; and bun --version'], fish_env, timeout=30)
 assert expected_bun in fish_activation, fish_activation
-assert '1.4.4' in fish_activation, fish_activation
+assert run('expected-bun-version', [expected_bun, '--version']).strip() in fish_activation, fish_activation
 
 fish_path = xdg / 'fish/config.fish'
 original_fish = fish_path.read_text()

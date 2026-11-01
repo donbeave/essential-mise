@@ -21,8 +21,8 @@
 "brew:agent-browser" = "latest"
 
 [bootstrap.hooks.post-packages]
-description = "Presence-only real Homebrew: FFF MCP; upgrades are separate"
+description = "Real Homebrew: install or upgrade FFF MCP"
 run = [
-  "if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi",
+  "if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; else /opt/homebrew/bin/brew upgrade --formula dmtrKovalenko/fff/fff-mcp; fi",
   "/opt/homebrew/bin/fff-mcp --healthcheck",
 ]
