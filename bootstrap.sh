@@ -120,6 +120,16 @@ validate_config_checkout() {
 }
 
 first_adoption=0
+if [[ -e "$MISE_CONFIG_DIR" ]] && { [[ ! -d "$MISE_CONFIG_DIR" ]] || [[ -n "$(/bin/ls -A "$MISE_CONFIG_DIR")" ]]; }; then
+  inside="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --is-inside-work-tree 2>/dev/null || true)"
+  bare="$(/usr/bin/git -C "$MISE_CONFIG_DIR" rev-parse --is-bare-repository 2>/dev/null || true)"
+  if [[ "$inside" == 'true' || "$bare" == 'true' ]]; then
+    say '4/6 - Existing configuration detected; skipping adoption'
+  else
+    say '4/6 - Removing existing non-Git configuration'
+    /bin/rm -rf "$MISE_CONFIG_DIR" || fail "Cannot remove existing configuration: $MISE_CONFIG_DIR"
+  fi
+fi
 if [[ ! -e "$MISE_CONFIG_DIR" ]] || { [[ -d "$MISE_CONFIG_DIR" ]] && [[ -z "$(/bin/ls -A "$MISE_CONFIG_DIR")" ]]; }; then
   say '4/6 - First-run adoption of public configuration'
   work_dir="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/essential-mise-adopt.XXXXXX")"
@@ -127,8 +137,6 @@ if [[ ! -e "$MISE_CONFIG_DIR" ]] || { [[ -d "$MISE_CONFIG_DIR" ]] && [[ -z "$(/b
   cd "$work_dir"
   MISE_CEILING_PATHS="$work_dir:$MISE_CONFIG_DIR" "$MISE_BIN" bootstrap --adopt "$REPO"
   first_adoption=1
-else
-  say '4/6 - Existing configuration detected; skipping adoption'
 fi
 
 validate_config_checkout

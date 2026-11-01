@@ -20,7 +20,7 @@ Stage 0:
 2. Installs or verifies Apple Command Line Tools and Git. Finish Apple's dialog when prompted.
 3. Installs official Homebrew when absent and initializes its environment. A successful empty `shellenv` result is valid when Homebrew is already initialized.
 4. Installs and verifies mise `2026.10.23` through the official installer.
-5. Adopts the public configuration only when the target is absent or empty. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
+5. Adopts the public configuration when the target is absent or empty. A nonempty non-Git target is permanently deleted without a backup before adoption. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
 6. Applies only `foundation`, installing the `mas` CLI and configuring shell activation, then verifies a fresh login/interactive zsh.
 
 The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths (which cannot be represented safely in `MISE_CEILING_PATHS`), bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and applies only `foundation`, even if optional modules are selected.

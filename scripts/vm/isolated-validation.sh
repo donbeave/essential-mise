@@ -84,9 +84,13 @@ run_and_record() {
 
 first_home="$fixture_root/first-home"
 first_path="$first_home/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-run_and_record first-run 0 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script"
 first_config="$first_home/.config/mise"
+run_and_record make-non-git-config 0 /bin/mkdir -p "$first_config"
+run_and_record seed-non-git-config 0 /bin/bash -c "printf 'existing-user-setting = true\n' > '$first_config/config.toml'"
+run_and_record first-run 0 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script"
 run_and_record first-adopted-revision 0 assert_reviewed_revision "$first_config"
+run_and_record non-git-config-removed 1 /usr/bin/grep -F 'existing-user-setting = true' "$first_config/config.toml"
+run_and_record non-git-backup-absent 1 /bin/bash -c "compgen -G '$first_home/.config/mise.pre-essential-mise.*'"
 run_and_record set-expected-origin 0 git -C "$first_config" remote set-url origin "$expected_origin"
 initialized_path="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
 run_and_record existing-homebrew-empty-shellenv 0 env HOME="$first_home" PATH="$initialized_path" /bin/bash -c 'test -z "$(/opt/homebrew/bin/brew shellenv)"'
