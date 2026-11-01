@@ -17,7 +17,7 @@ The configuration targets **mise 2026.10.23**. `config.toml` contains only its m
 Review the current `bootstrap.sh`, then run:
 
 ```bash
-essential_mise_script="$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
+/bin/bash -c "$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)"
 ```
 
 This always downloads the latest launcher from `main`, and adoption uses the repository's default `main` branch. Stage 0 prepares Command Line Tools, Homebrew, pinned mise, and the adopted checkout, then applies only `foundation` to install the `mas` CLI and activate the shell. It does not permanently select optional modules. See [First Mac setup](docs/first-mac.md) for prompts, recovery, and the App Store flow.

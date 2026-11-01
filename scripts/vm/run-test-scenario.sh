@@ -98,7 +98,7 @@ record_adopted_state() {
 
 stage0_command="set -e
 reviewed_commit='$reviewed_commit'
-essential_mise_script=\"\$(/usr/bin/curl -fsSL \"https://raw.githubusercontent.com/donbeave/essential-mise/\$reviewed_commit/bootstrap.sh\")\" && test -n \"\$essential_mise_script\" && /bin/bash -c \"\$essential_mise_script\""
+/bin/bash -c \"\$(/usr/bin/curl -fsSL \"https://raw.githubusercontent.com/donbeave/essential-mise/\$reviewed_commit/bootstrap.sh\")\""
 
 case "$scenario" in
   stage0)

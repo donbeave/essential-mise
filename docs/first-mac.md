@@ -9,10 +9,10 @@ Use a native Apple Silicon Terminal on macOS **27.2 or newer**. Update an older 
 Review the current `bootstrap.sh`, then run:
 
 ```bash
-essential_mise_script="$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)" && test -n "$essential_mise_script" && /bin/bash -c "$essential_mise_script"
+/bin/bash -c "$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)"
 ```
 
-This command always downloads the latest launcher from `main`. First adoption also uses the latest configuration from `main`; an existing-checkout rerun skips adoption and does not pull. The workflow has no commit parameter. `bash -c` preserves interactive installer input and the nonempty-download check fails closed.
+This command always downloads the latest launcher from `main`. First adoption also uses the latest configuration from `main`; an existing-checkout rerun skips adoption and does not pull. The workflow has no commit parameter. `bash -c` preserves interactive installer input, and `curl -f` stops on download errors.
 
 Stage 0:
 
