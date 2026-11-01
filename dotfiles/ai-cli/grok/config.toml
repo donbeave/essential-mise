@@ -1,0 +1,48 @@
+[marketplace]
+default_skills_installs_purged = true
+official_marketplace_auto_installed = true
+
+[[marketplace.sources]]
+name = "xAI Official"
+git = "https://github.com/xai-org/plugin-marketplace.git"
+
+[plugins]
+enabled = ["pstack"]
+
+# Coordinator seat. Only grok-4.7 is selectable.
+# high is that model's recommended effort. xhigh is reserved for fable-architect.
+# 4.5 and 4.6 cost the same per token. The fast variant costs 2x.
+[models]
+default = "grok-4.7"
+default_reasoning_effort = "high"
+allowed_models = ["grok-4.7"]
+disabled_models = ["grok-4.7-build-fast", "grok-4.6", "grok-4.5"]
+
+# Every roster subagent uses grok-4.7. Effort lives in ~/.grok/agents/*.md:
+# medium for locator, mechanic, verifier, docs-researcher, docs-writer;
+# xhigh for fable-architect; high for every other role.
+# Plugin agents (pstack:*) set no model or effort, so they inherit the parent.
+[subagents.models]
+a11y-auditor = "grok-4.7"
+agent-sandbox-engineer = "grok-4.7"
+architect = "grok-4.7"
+cicd-architect = "grok-4.7"
+code-reviewer = "grok-4.7"
+debugger = "grok-4.7"
+design-director = "grok-4.7"
+docs-researcher = "grok-4.7"
+docs-writer = "grok-4.7"
+fable-architect = "grok-4.7"
+frontend-engineer = "grok-4.7"
+locator = "grok-4.7"
+mechanic = "grok-4.7"
+openshell-specialist = "grok-4.7"
+perf-engineer = "grok-4.7"
+qa-engineer = "grok-4.7"
+rust-cli-tui-engineer = "grok-4.7"
+rust-engineer = "grok-4.7"
+security-reviewer = "grok-4.7"
+tanstack-start-specialist = "grok-4.7"
+test-reviewer = "grok-4.7"
+ux-specialist = "grok-4.7"
+verifier = "grok-4.7"

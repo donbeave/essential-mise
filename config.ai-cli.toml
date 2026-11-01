@@ -34,6 +34,9 @@ run = [
 "~/.claude/settings.json/agents" = { source = "dotfiles/ai-cli/claude/settings.json", merge = true }
 "~/.config/opencode/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy", variants = [{ default = true, target = "{{ xdg_config_home }}/opencode/AGENTS.md" }] }
 "~/.grok/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
+"~/.grok/config.toml" = { source = "dotfiles/ai-cli/grok/config.toml", mode = "copy" }
+"~/.grok/agents" = { source = "dotfiles/ai-cli/grok/agents", mode = "copy" }
+"~/.grok/sync-subagents.py" = { source = "dotfiles/ai-cli/grok/sync-subagents.py", mode = "copy" }
 "~/.kimi-code/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
 "~/.config/amp/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
 "~/.omp/agent/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
