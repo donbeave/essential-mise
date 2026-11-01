@@ -6,6 +6,9 @@ model: claude-sonnet-5-5
 effort: high
 skills:
   - repo-context
+  - pstack:principle-prove-it-works
+  - pstack:principle-make-operations-idempotent
+omitClaudeMd: true
 color: purple
 ---
 

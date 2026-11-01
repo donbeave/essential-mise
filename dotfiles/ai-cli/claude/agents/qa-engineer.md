@@ -1,12 +1,14 @@
 ---
 name: qa-engineer
 description: "QA engineer for any web app. Drives the running app in a browser and compares it with the agreed drafts and specs: every flow and state, back, forward, reload and deep links, viewports and themes, plus exploratory abuse cases. Use after a UI unit is built and for regression passes. Reports every mismatch as a bug; does not fix."
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-sonnet-5-5
 effort: high
 skills:
   - repo-context
+  - pstack:principle-prove-it-works
+omitClaudeMd: true
 color: yellow
 ---
 

@@ -1,12 +1,14 @@
 ---
 name: design-director
 description: "Frontend designer and visual reviewer for any web repo with a design system. Use before building a screen or component, to map drafts or mockups onto existing components and tokens and spec what is missing, and after it is built, to review screenshots against the draft. Writes spec files only. Not for production code."
-tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch
+tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, Skill
 disallowedTools: NotebookEdit, Agent
 model: claude-sonnet-5-5
 effort: high
 skills:
   - repo-context
+  - pstack:principle-experience-first
+omitClaudeMd: true
 color: pink
 ---
 

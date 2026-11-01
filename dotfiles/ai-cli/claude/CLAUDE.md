@@ -116,6 +116,20 @@ Anthropic measured a policy of running cheap and re-running only failures one st
 - If the user denies a tool call or subagent, do not retry it unchanged.
 - Subagents do not commit or push unless their brief says so. The main session commits and pushes verified work.
 
+## pstack
+
+pstack (`pstack@pstack-claude`) stays on as the main session's working style: its SessionStart hook routes multi-file, design and unknown-cause work through `/poteto-mode`. These rules adapt it to the roster above:
+
+- **Delegates**: when a poteto-mode playbook step says to spawn `pstack:poteto-agent`, spawn the matching roster agent from the routing table instead. Use `poteto-agent` only when no roster agent fits. Roster agents already preload the pstack principles for their role (`skills:` in each file) plus `repo-context`, which folds in pstack's prove-it-works, deslop and unslop rules.
+- **Routed skills** (`how`, `why`, `swarm`, `arena`, `architect`, `interrogate`, `reflect`, `thermos`) set their own subagent types; leave them, and their models come from the pstack model sheet below. These skills fan out, so run them only from the main session.
+- **Steering**: state the goal and constraints, and name a principle only to override a default (for example "apply attack the premise"). Ask agents which decision each named principle changed.
+- **Fresh by default**: give a fix round, follow-up or retry to a fresh agent, with consolidated scope (the original brief, every later directive, the prior report and branch). Resume an agent only when the work needs state that is costly to move: uncommitted changes in its checkout, or a running process. Stop an abandoned agent and confirm it stopped; check `git status` against its claims.
+- **Own the result**: review each agent's diff and write your own summary; never pass a report through. A required independent review that cannot run stays `BLOCKED: independent review`; your own review, tests or CI do not substitute.
+- **Second opinions** come from the same brief on a different model: `arena` for design, `interrogate` for adversarial review. Use them for decisions that are expensive to reverse.
+- **Model sheet**: pstack's own defaults put most roles on Opus. `~/.claude/pstack-models.md` overrides them to match the model policy above: Sonnet for work, Haiku for read-and-collect roles, one Opus seat in review panels for diversity, no Fable. It is loaded here:
+
+@~/.claude/pstack-models.md
+
 ## Legacy `ca-*` names
 
 `platform/redesign/goal.md` names `ca-*` agents. Map each name to its current agent and keep the overrides that `goal.md` gives:

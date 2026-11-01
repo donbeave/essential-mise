@@ -6,6 +6,11 @@ model: claude-sonnet-5-5
 effort: high
 skills:
   - repo-context
+  - pstack:principle-laziness-protocol
+  - pstack:principle-prove-it-works
+  - pstack:principle-make-operations-idempotent
+  - pstack:principle-separate-before-serializing-shared-state
+omitClaudeMd: true
 color: red
 ---
 

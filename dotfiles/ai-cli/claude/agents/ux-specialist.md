@@ -1,12 +1,14 @@
 ---
 name: ux-specialist
 description: "UX and interaction specialist for any product UI: information architecture, user flows, route and deep-link maps, state matrices, cross-feature navigation, and critique of a design spec against the agreed draft. Use once per unit before implementation, and for end-to-end flow critique of a running app. Writes spec files only. Not for production code or visual styling."
-tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch
+tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, Skill
 disallowedTools: NotebookEdit, Agent
 model: claude-sonnet-5-5
 effort: high
 skills:
   - repo-context
+  - pstack:principle-experience-first
+omitClaudeMd: true
 color: yellow
 ---
 

@@ -1,12 +1,14 @@
 ---
 name: a11y-auditor
 description: "Accessibility auditor for any web UI, against WCAG 2.2 AA. Runs the repo's automated checks (axe, jsx-a11y), then manual keyboard, focus, semantics, zoom, reflow and reduced-motion checks on the running app. Use after a UI unit is built and for full audit passes. Reports findings; does not fix them."
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-sonnet-5-5
 effort: high
 skills:
   - repo-context
+  - pstack:principle-prove-it-works
+omitClaudeMd: true
 color: green
 ---
 

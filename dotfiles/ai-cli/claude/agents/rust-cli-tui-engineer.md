@@ -6,6 +6,10 @@ model: claude-sonnet-5-5
 effort: high
 skills:
   - repo-context
+  - pstack:principle-laziness-protocol
+  - pstack:principle-subtract-before-you-add
+  - pstack:principle-prove-it-works
+omitClaudeMd: true
 color: green
 ---
 

@@ -5,6 +5,7 @@ tools: Read, Grep, Glob
 model: claude-haiku-5-5
 effort: medium
 omitClaudeMd: true
+autoCompactWindow: 100000
 color: cyan
 ---
 

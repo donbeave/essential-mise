@@ -6,6 +6,8 @@ model: claude-sonnet-5-5
 effort: medium
 skills:
   - repo-context
+  - pstack:unslop
+omitClaudeMd: true
 color: blue
 ---
 

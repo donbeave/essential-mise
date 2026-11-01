@@ -1,12 +1,13 @@
 ---
 name: docs-researcher
-description: "Researcher for library, tool, version and API questions in any stack. Use before choosing, adding or bumping a dependency, or before relying on an API you have not confirmed at the pinned version. Answers one question with cited, dated evidence from official docs, registries, changelogs and upstream source. Not for designing or editing code."
-tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
+description: "Researcher for library, tool, version and API questions in any stack. Use before choosing, adding or bumping a dependency, or before relying on an API you have not confirmed at the pinned version. Answers one question with cited, dated evidence from official docs, registries, changelogs and upstream source. For TanStack or OpenShell behavior, use those specialists. Not for designing or editing code."
+tools: Read, Grep, Glob, Bash, WebFetch, WebSearch, Skill
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-sonnet-5-5
 effort: medium
 skills:
   - repo-context
+omitClaudeMd: true
 color: blue
 ---
 

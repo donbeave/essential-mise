@@ -1,12 +1,16 @@
 ---
 name: fable-architect
-description: "Frontier-model architect (Fable 5.1, the most expensive model). Use only for a single highest-stakes decision per phase, after architect and an Opus retry have failed or disagree, with a written reason why Opus is not enough. Not for routine design, implementation or review."
-tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
+description: "Frontier-model architect (Fable 5.1, the most expensive model). Use only for a single highest-stakes decision per phase, after architect and an Opus retry have failed or disagree, or when the repo's plan names a Fable call for that phase. Requires a written reason why Opus is not enough. Not for routine design, implementation or review."
+tools: Read, Grep, Glob, Bash, WebFetch, WebSearch, Skill
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-fable-5-1
 effort: high
 skills:
   - repo-context
+  - pstack:principle-foundational-thinking
+  - pstack:principle-redesign-from-first-principles
+  - pstack:principle-model-the-domain
+omitClaudeMd: true
 color: red
 ---
 
