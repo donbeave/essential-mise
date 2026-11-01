@@ -65,13 +65,20 @@ gitconfig.write_text('''# synthetic user comment
 [includeIf "gitdir:/synthetic/"]
     path = /synthetic/include
 [pull]
-    rebase = false
+    rebase = true
+    ff = only
 ''')
 env = git_settings(home)
+env['MISE_CONFIG_DIR'] = str(config_dir)
+env['MISE_CEILING_PATHS'] = str(config_dir)
+env.pop('MISE_ENV', None)
+for iteration in (1, 2):
+    run(f'git-pull-defaults-{iteration}', [mise, '-C', config_dir, '-E', 'development', 'bootstrap', '--only', 'dotfiles', '--yes'], env)
+for key in ('pull.rebase', 'pull.ff'):
+    assert run(f'git-pull-default-{key}', ['git', 'config', '--global', '--get-all', key], env).splitlines() == ['false']
 commands = {
     'core.autocrlf': 'input',
     'core.excludesFile': str(config_dir / 'dotfiles/development/git/ignore'),
-    'pull.rebase': 'false',
     'branch.autoSetupRebase': 'never',
     'fetch.prune': 'true',
     'merge.conflictStyle': 'zdiff3',
@@ -122,7 +129,7 @@ assert '"vim_mode": true' in zed_text
 assert '"theme": "UserTheme"' not in zed_text
 assert '"agent"' not in zed_text and '"agent_servers"' not in zed_text
 report = (
-    'git_repeated_cli_preservation=PASS\ncustom_xdg_ignore=PASS\n'
+    'git_pull_defaults_repeated=PASS\ngit_repeated_cli_preservation=PASS\ncustom_xdg_ignore=PASS\n'
     'zed_jsonc_preservation=PASS\n'
 )
 (evidence / 'report.txt').write_text(report)

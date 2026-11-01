@@ -54,7 +54,7 @@ env = ["foundation", "terminal", "development", "security"]
 
 Do not overwrite an existing selector merely to add a module. Edit its `env` list while retaining existing entries. Project `.miserc*` files, `MISE_ENV`, and command-line `-E` can override this selection.
 
-Apply the nonidentity Git settings and XDG-safe ignore override with the exact `git config` commands in [Manual actions](manual-actions.md). They deliberately use Git's own writer to preserve user settings, repeated helpers, includes, comments, and formatting.
+The `development` module configures Git pulls to use merge commits by default. Apply the remaining nonidentity Git settings and XDG-safe ignore override with the exact `git config` commands in [Manual actions](manual-actions.md). They use Git's own writer to preserve unrelated settings, repeated helpers, includes, comments, and formatting.
 
 ## 3. Apply one module or runtime
 

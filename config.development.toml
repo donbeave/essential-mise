@@ -2,6 +2,13 @@
 "brew:gh" = "latest"
 "brew:git-lfs" = "latest"
 
+[bootstrap.hooks.post-dotfiles]
+description = "Use merge commits for Git pulls by default"
+run = [
+  "/usr/bin/git config --global --replace-all pull.rebase false",
+  "/usr/bin/git config --global --replace-all pull.ff false",
+]
+
 [bootstrap.hooks.post-packages]
 description = "GitHub CLI owns its XDG/GH_CONFIG_DIR configuration and preserves unrelated keys"
 run = [
