@@ -21,11 +21,13 @@ Stage 0:
 3. Installs official Homebrew when absent and initializes its environment. A successful empty `shellenv` result is valid when Homebrew is already initialized.
 4. Installs and verifies mise `2026.10.23` through the official installer.
 5. Adopts the public configuration when the target is absent or empty. A nonempty non-Git target is permanently deleted without a backup before adoption. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
-6. Applies only `foundation`, installing the `mas` CLI and configuring shell activation, then verifies a fresh login/interactive zsh.
+6. Applies `foundation`, installing the `mas` CLI and configuring shell activation.
+7. Lists all optional categories with numbers. Enter numbers separated by spaces or commas to install them, or press Return to skip. Noninteractive runs skip automatically.
+8. Verifies a fresh login/interactive zsh.
 
-The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths (which cannot be represented safely in `MISE_CEILING_PATHS`), bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and applies only `foundation`, even if optional modules are selected.
+The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths (which cannot be represented safely in `MISE_CEILING_PATHS`), bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and prompts for optional categories again. Selections are installed once without changing the persistent environment selection.
 
-Open a fresh Terminal after success. Its printed next-step commands include the concrete `mise -C` path and a matching `MISE_CEILING_PATHS` boundary, so projects in the caller's directory or above the adopted checkout cannot contribute resources.
+Open a fresh Terminal after success. Category selection does not change the persistent environment list; use `miserc.local.toml` for that as shown below.
 
 ## 2. Apply the standard workstation
 
