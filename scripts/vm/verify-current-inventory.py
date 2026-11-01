@@ -48,8 +48,8 @@ EXPECTED_COUNTS = {
     'brew-cask': 49,
     'mas': 21,
     'macos-app': 1,
-    'tools': 5,
-    'dotfiles': 17,
+    'tools': 9,
+    'dotfiles': 19,
     'settings': 1,
     'preferences': 67,
     'repositories': 2,
@@ -62,9 +62,13 @@ EXPECTED_TOOLS = {
     ('development-rust', 'rust'): {
         'version': '1.99.1',
         'mr_boxington': True,
-        'components': ['llvm-tools'],
+        'components': ['clippy', 'rustfmt', 'rust-analyzer', 'rust-src', 'llvm-tools'],
     },
     ('development-rust', 'mr-boxington'): {'version': '1.24.1'},
+    ('development-rust', 'aqua:nextest-rs/nextest/cargo-nextest'): '0.9.150',
+    ('development-rust', 'aqua:taiki-e/cargo-llvm-cov'): '0.9.1',
+    ('development-rust', 'aqua:EmbarkStudios/cargo-deny'): '0.20.2',
+    ('development-rust', 'github:Canop/bacon'): {'version': '3.26.0', 'bin_path': 'aarch64-apple-darwin'},
     ('development-java', 'java'): 'oracle-graalvm-25.0.4.1.1',
 }
 EXPECTED_REPOSITORIES = {
@@ -238,11 +242,18 @@ def validate_dotfile(root, owner, target, specification, errors):
                 )
             else:
                 disk_path = root.joinpath(*source_path.parts)
-                if not disk_path.is_file():
-                    errors.append(f'dotfile {owner} {target}: missing source {source}')
+                if disk_path.is_dir():
+                    members = [path for path in disk_path.rglob('*') if not path.is_dir()]
+                    if not members:
+                        errors.append(f'dotfile {owner} {target}: empty source directory {source}')
                 else:
+                    members = [disk_path] if disk_path.is_file() else []
+                    if not members:
+                        errors.append(f'dotfile {owner} {target}: missing source {source}')
+                owned_root = (root / 'dotfiles' / owner).resolve()
+                for member in members:
                     try:
-                        disk_path.resolve().relative_to((root / 'dotfiles' / owner).resolve())
+                        member.resolve().relative_to(owned_root)
                     except ValueError:
                         errors.append(
                             f'dotfile {owner} {target}: source {source} escapes dotfiles/{owner}/'

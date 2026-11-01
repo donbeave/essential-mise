@@ -2,5 +2,9 @@
 credential_command = 'if command -v gh >/dev/null 2>&1; then gh auth token --hostname "$MISE_CREDENTIAL_HOST"; elif [ -x /opt/homebrew/bin/gh ]; then /opt/homebrew/bin/gh auth token --hostname "$MISE_CREDENTIAL_HOST"; elif [ -x /usr/local/bin/gh ]; then /usr/local/bin/gh auth token --hostname "$MISE_CREDENTIAL_HOST"; else exit 1; fi'
 
 [tools]
-rust = { version = "1.99.1", mr_boxington = true, components = ["llvm-tools"] }
+rust = { version = "1.99.1", mr_boxington = true, components = ["clippy", "rustfmt", "rust-analyzer", "rust-src", "llvm-tools"] }
 mr-boxington = { version = "1.24.1" }
+"aqua:nextest-rs/nextest/cargo-nextest" = "0.9.150"
+"aqua:taiki-e/cargo-llvm-cov" = "0.9.1"
+"aqua:EmbarkStudios/cargo-deny" = "0.20.2"
+"github:Canop/bacon" = { version = "3.26.0", bin_path = "aarch64-apple-darwin" }

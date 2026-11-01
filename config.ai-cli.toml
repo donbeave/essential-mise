@@ -26,7 +26,9 @@ run = [
 ]
 
 [dotfiles]
-"~/.claude/CLAUDE.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
+"~/.claude/CLAUDE.md" = { source = "dotfiles/ai-cli/claude/CLAUDE.md", mode = "copy" }
+"~/.claude/agents" = { source = "dotfiles/ai-cli/claude/agents", mode = "copy" }
+"~/.claude/skills/repo-context" = { source = "dotfiles/ai-cli/claude/skills/repo-context", mode = "copy" }
 "~/.config/opencode/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy", variants = [{ default = true, target = "{{ xdg_config_home }}/opencode/AGENTS.md" }] }
 "~/.grok/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
 "~/.kimi-code/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }

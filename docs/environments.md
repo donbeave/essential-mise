@@ -24,7 +24,7 @@ env = ["foundation", "terminal", "development", "security"]
 | Module | Contents | Prerequisites and boundaries |
 |---|---|---|
 | `js` | Node `26.9.0`, Bun `1.4.4` | Install once, invoke once with `-E ... exec`, or persist in `miserc.local.toml` |
-| `development-rust` | Rust `1.99.1` with `llvm-tools` and native `mr_boxington`; mr-boxington `1.24.1` | Uses native Cargo command-wrapper behavior; `gh auth` may be required for release lookup |
+| `development-rust` | Rust `1.99.1` with clippy, rustfmt, rust-analyzer, rust-src, `llvm-tools`, and native `mr_boxington`; mr-boxington `1.24.1`; cargo-nextest, cargo-llvm-cov, cargo-deny, and bacon | Uses native Cargo command-wrapper behavior; `gh auth` may be required for release lookup |
 | `development-java` | Oracle GraalVM `25.0.4.1.1`, Gradle, Maven, VisualVM | Homebrew OpenJDK may also be installed; verify GraalVM, `mvn`, and `gradle` in a fresh shell |
 | `development-apps` | JetBrains Toolbox, Yaak, TablePlus, DevHub, Patterns | Toolbox IDEs/settings and MAS sign-in are manual |
 | `development-containers` | OrbStack | VM/runtime/credential onboarding is manual |
@@ -55,7 +55,7 @@ env = ["foundation", "terminal", "development", "security"]
 | Module | Contents | Independence and boundaries |
 |---|---|---|
 | `ai-tools` | ripgrep (`rg`), fd, fzf, ast-grep (`sg`), semgrep, jq, yq, dasel, sd, git-delta, eza, zoxide, tree, tokei, hyperfine, shellcheck, shfmt, universal-ctags, rtk, agent-browser; fff-mcp through real Homebrew | Shared utilities only; no agent-owned settings. Browser runtime initialization is manual. FFF uses real Homebrew because mise leaves its raw binary non-executable |
-| `ai-cli` | Claude Code, Codex, Cursor CLI, Antigravity CLI, Kimi Code, OpenCode, Grok Build, Amp CLI, OMP, jq, Claude status line | No desktop packages or references to unselected RTK/FFF/Caveman. Amp CLI and OMP use real-Homebrew hooks for documented incompatibilities. Includes agent instructions, Amp completions, and the zsh status-line wrapper |
+| `ai-cli` | Claude Code, Codex, Cursor CLI, Antigravity CLI, Kimi Code, OpenCode, Grok Build, Amp CLI, OMP, jq, Claude status line | No desktop packages or references to unselected RTK/FFF/Caveman. Amp CLI and OMP use real-Homebrew hooks for documented incompatibilities. Includes agent instructions, Claude Code's `CLAUDE.md`, subagents, and `repo-context` skill, Amp completions, and the zsh status-line wrapper. Copy any edits to the live Claude files back with `mise dot add --changed` |
 | `ai-desktop` | Claude, ChatGPT, Cursor, Antigravity, Kimi, OpenCode Desktop, Grok Bot, ZCode, CodexBar, Amp Desktop via real Homebrew | No CLI packages or settings. Amp Desktop refuses existing unmanaged apps. Its package is retained despite a known macOS 27.2 `_dyld_start` stall; a working GUI is not claimed |
 
 Use these commands for the complete terminal coding-agent setup:
