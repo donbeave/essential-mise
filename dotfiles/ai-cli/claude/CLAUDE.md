@@ -136,22 +136,3 @@ pstack (`pstack@pstack-claude`) stays on as the main session's working style: it
 - **Model sheet**: pstack's own defaults put most roles on Opus. `~/.claude/pstack-models.md` overrides them to match the model policy above: Sonnet for work, Haiku for read-and-collect roles, one Opus seat in review panels for diversity, no Fable. It is loaded here:
 
 @~/.claude/pstack-models.md
-
-## Legacy `ca-*` names
-
-`platform/redesign/goal.md` names `ca-*` agents. Map each name to its current agent and keep the overrides that `goal.md` gives:
-
-| `ca-*` name | Agent |
-|---|---|
-| `ca-explorer` | `locator` |
-| `ca-docs-researcher` | `docs-researcher` |
-| `ca-fable-architect` | `fable-architect` |
-| `ca-design-director` | `design-director` |
-| `ca-ux-specialist` | `ux-specialist` |
-| `ca-frontend-engineer` | `frontend-engineer` |
-| `ca-verifier` | `verifier` |
-| `ca-a11y-auditor` | `a11y-auditor` |
-| `ca-qa-engineer` | `qa-engineer` |
-| `ca-code-reviewer` | `code-reviewer` |
-| `ca-perf-engineer` | `perf-engineer` |
-| `ca-docs-writer` | `docs-writer` |

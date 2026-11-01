@@ -50,6 +50,6 @@ for meta in "$sub_dir"/agent-*.meta.json; do
     jq -r '[(.message.model // "?" | sub("^claude-"; "")), (.message.usage // {} | (.input_tokens // 0) + (.cache_read_input_tokens // 0) + (.cache_creation_input_tokens // 0))] | @tsv')
   amodel=${amodel%%-*}
   printf '\n%s↳%s %s%s%s %s│%s %s %s %s│%s %s' \
-    "$dim" "$rst" "$yel" "${atype#ca-}" "$rst" "$dim" "$rst" "${amodel:-starting}" "$aeffort" "$dim" "$rst" \
+    "$dim" "$rst" "$yel" "$atype" "$rst" "$dim" "$rst" "${amodel:-starting}" "$aeffort" "$dim" "$rst" \
     "$(fmt_k "${atokens:-0}")"
 done

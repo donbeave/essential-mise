@@ -25,7 +25,7 @@ def record_failure(exception_type, exception, traceback):
 
 sys.excepthook = record_failure
 home = root / 'home'
-agent_definition = home / '.claude/agents/ca-explorer.md'
+agent_definition = home / '.claude/agents/locator.md'
 agent_definition.parent.mkdir(parents=True)
 agent_definition.write_text('---\neffort: low\n---\n')
 transcript = root / 'session.jsonl'
@@ -52,7 +52,7 @@ def assistant_entry():
 
 def agent(name, finished=False, interrupted=False, idle=False):
     (subagents / f'agent-{name}.meta.json').write_text(json.dumps({
-        'agentType': f'ca-{name}',
+        'agentType': name,
         'description': 'synthetic test agent',
         'finished': finished,
     }))
@@ -63,13 +63,13 @@ def agent(name, finished=False, interrupted=False, idle=False):
         os.utime(log, (modified, modified))
 
 
-agent('explorer')
+agent('locator')
 agent('finished', finished=True)
 agent('interrupted', interrupted=True)
 agent('idle', idle=True)
 expected = (
     '~/Projects/ChainArgos/redesign-review │ Opus 5.5 medium │ 35% (345k/1.0M)\n'
-    '↳ explorer │ sonnet low │ 91k'
+    '↳ locator │ sonnet low │ 91k'
 )
 (evidence / 'expected.txt').write_text(expected)
 for percentage, color in ((35, 32), (50, 33), (80, 31)):

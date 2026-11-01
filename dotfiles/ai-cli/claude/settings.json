@@ -1,0 +1,36 @@
+{
+  "model": "claude-sonnet-5-5",
+  "modelSettings": {
+    "claude-sonnet-5-5": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    }
+  },
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5",
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git remote get-url *)",
+      "Read(~/.claude/project-notes/**)",
+      "Read(~/.claude/skills/repo-context/**)"
+    ],
+    "deny": [
+      "Agent(Explore)",
+      "Agent(Plan)",
+      "Bash(git clean -f*)",
+      "Bash(git commit * --no-verify*)",
+      "Bash(git commit --no-verify*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git stash clear*)",
+      "Bash(git stash drop*)"
+    ]
+  }
+}

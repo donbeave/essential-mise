@@ -31,6 +31,7 @@ run = [
 "~/.claude/skills/repo-context" = { source = "dotfiles/ai-cli/claude/skills/repo-context", mode = "copy" }
 "~/.claude/pstack-models.md" = { source = "dotfiles/ai-cli/claude/pstack-models.md", mode = "copy" }
 "~/.claude/project-notes" = { source = "dotfiles/ai-cli/claude/project-notes", mode = "copy" }
+"~/.claude/settings.json/agents" = { source = "dotfiles/ai-cli/claude/settings.json", merge = true }
 "~/.config/opencode/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy", variants = [{ default = true, target = "{{ xdg_config_home }}/opencode/AGENTS.md" }] }
 "~/.grok/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
 "~/.kimi-code/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
