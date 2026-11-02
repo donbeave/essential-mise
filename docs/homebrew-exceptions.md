@@ -1,6 +1,6 @@
 # Real Homebrew compatibility exceptions
 
-Native mise package resources are the default. These six packages use `/opt/homebrew/bin/brew` directly because a concrete incompatibility was reproduced with mise **2026.10.23**. The hooks install or upgrade their named packages and run health checks; they are not declarative package resources.
+Native mise package resources are the default. These seven packages use `/opt/homebrew/bin/brew` directly because a concrete incompatibility was reproduced with mise **2026.10.23**. The hooks install or upgrade their named packages and run health checks; they are not declarative package resources.
 
 Every hook checks the expected Homebrew owner before installing, and upgrades the named package on subsequent applies. Cask upgrades use `--greedy`, including casks that update themselves or declare a `latest` version. Native `status --missing`, upgrade, and prune do not manage these packages.
 
@@ -11,6 +11,7 @@ Every hook checks the expected Homebrew owner before installing, and upgrades th
 | Claude Code (`ai-cli`) | `brew install --cask claude-code@latest` | `/opt/homebrew/bin/claude --version` | `brew upgrade --cask --greedy claude-code@latest` | `brew uninstall --cask claude-code@latest` |
 | Amp CLI (`ai-cli`) | `brew install ampcode/tap/ampcode` | `/opt/homebrew/bin/amp --version` | `brew upgrade ampcode/tap/ampcode` | `brew uninstall ampcode/tap/ampcode` |
 | OMP (`ai-cli`) | `brew install can1357/tap/omp` | `/opt/homebrew/bin/omp --version` | `brew upgrade can1357/tap/omp` | `brew uninstall can1357/tap/omp` |
+| Muse Code (`ai-cli`) | `brew install --cask muse-code` | `/opt/homebrew/bin/muse --version` | `brew upgrade --cask --greedy muse-code` | `brew uninstall --cask muse-code` |
 | FFF MCP (`ai-tools`) | `brew install dmtrKovalenko/fff/fff-mcp` | `/opt/homebrew/bin/fff-mcp --healthcheck` | `brew upgrade dmtrKovalenko/fff/fff-mcp` | `brew uninstall dmtrKovalenko/fff/fff-mcp` |
 | Amp Desktop (`ai-desktop`) | `brew install --cask ampcode/tap/amp@beta` | Executable exists and `codesign --verify --deep --strict` succeeds | `brew upgrade --cask --greedy ampcode/tap/amp@beta` | `brew uninstall --cask ampcode/tap/amp@beta` |
 | Surge (`network`) | `brew install --cask surge` | `surge-cli` and `surge-dhcpd` are executable; application signature verification succeeds | `brew upgrade --cask --greedy surge` | `brew uninstall --cask surge` |
@@ -38,6 +39,16 @@ Error: formula uses `with_env (install-time helper)`, which mise's source-build 
 ```
 
 Homebrew evaluates the formula and its completion-generation helper normally. OMP instruction/model files remain native mise dotfile merges.
+
+### Muse Code — `muse-code`
+
+With mise **2026.10.25**, the native cask resource fails with:
+
+```text
+mise ERROR brew-cask: binary artifact 'muse-aarch64-macos' was not found
+```
+
+Homebrew links the cask's `muse-aarch64-macos` binary to `/opt/homebrew/bin/muse` normally.
 
 ### FFF MCP — `dmtrKovalenko/fff/fff-mcp`
 

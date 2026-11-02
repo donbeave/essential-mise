@@ -8,14 +8,25 @@
 "brew-cask:grok-build" = "latest"
 
 [bootstrap.hooks.post-packages]
-description = "Real Homebrew: install or upgrade Claude Code, Amp CLI, and OMP"
+description = "Real Homebrew: install or upgrade Claude Code, Amp CLI, OMP, and Muse Code"
 run = [
   "if ! /opt/homebrew/bin/brew list --cask claude-code@latest >/dev/null 2>&1; then /opt/homebrew/bin/brew install --cask claude-code@latest; else /opt/homebrew/bin/brew upgrade --cask --greedy claude-code@latest; fi",
   "if ! /opt/homebrew/bin/brew list --formula ampcode >/dev/null 2>&1; then /opt/homebrew/bin/brew install ampcode/tap/ampcode; else /opt/homebrew/bin/brew upgrade --formula ampcode/tap/ampcode; fi",
   "if ! /opt/homebrew/bin/brew list --formula omp >/dev/null 2>&1; then /opt/homebrew/bin/brew install can1357/tap/omp; else /opt/homebrew/bin/brew upgrade --formula can1357/tap/omp; fi",
+  "if ! /opt/homebrew/bin/brew list --cask muse-code >/dev/null 2>&1; then /opt/homebrew/bin/brew install --cask muse-code; else /opt/homebrew/bin/brew upgrade --cask --greedy muse-code; fi",
   "/opt/homebrew/bin/claude --version",
   "/opt/homebrew/bin/amp --version",
   "/opt/homebrew/bin/omp --version",
+  "/opt/homebrew/bin/muse --version",
+]
+
+[bootstrap.repos]
+"~/.local/share/pstack-claude" = { url = "https://github.com/michael-denyer/pstack-claude.git", ref = "main", depth = 1 }
+
+[bootstrap.hooks.post-repos]
+description = "Install or update pstack through the Claude Code, Codex, OMP, OpenCode, and Muse Code plugin mechanisms"
+run = [
+  "/bin/bash \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/pstack-plugins.sh\"",
 ]
 
 [bootstrap.hooks.post-dotfiles]

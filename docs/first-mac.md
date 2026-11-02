@@ -131,6 +131,8 @@ Native unapply does not execute hooks. Remove only the Fish blocks owned by the 
 
 Each helper operation preserves unrelated Fish startup content. Removing `ai-cli` must not remove terminal-owned activation when `terminal` remains selected.
 
+Native unapply also does not remove pstack, which each agent owns. Remove it with `claude plugin uninstall pstack@pstack-claude`, `codex plugin remove pstack@pstack-claude`, `omp plugin uninstall pstack`, and `muse plugins remove pstack`, then delete the pstack symlinks under `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills` and the `~/.local/share/pstack-claude` clone.
+
 GitHub CLI settings and aliases are application-owned and are not reversed by native unapply; change them through `gh config` and `gh alias` rather than deleting the whole configuration or `hosts.yml`. Cloned repositories, login items, and macOS preferences need separate review. See [Manual actions](manual-actions.md) for preference snapshots and selective reversal.
 
 For native package cleanup, preview candidates explicitly and consult the [mise package lifecycle documentation](https://mise.jdx.dev/bootstrap/packages/) before removing anything:
