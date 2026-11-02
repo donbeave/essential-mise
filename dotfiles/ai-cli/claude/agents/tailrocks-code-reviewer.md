@@ -1,6 +1,6 @@
 ---
 name: tailrocks-code-reviewer
-description: "Independent correctness reviewer for a diff, branch or PR in any repo. Use after an implementer finishes a unit or batch and before merge, in a fresh context that has not seen the implementer's reasoning. Reports verified bugs, broken invariants, repo-rule violations and bug classes with severity. Not for fixing code; for security-sensitive changes add `tailrocks-security-reviewer`."
+description: 'Independent correctness reviewer for a diff, branch or PR in any repo. Use after an implementer finishes a unit or batch and before merge, in a fresh context that has not seen the implementer''s reasoning. Reports verified bugs, broken invariants, repo-rule violations and bug classes with severity. Not for fixing code; for security-sensitive changes add `@"tailrocks-security-reviewer (agent)"`.'
 tools: Read, Grep, Glob, LSP, Bash, WebFetch, Skill
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-sonnet-5-5

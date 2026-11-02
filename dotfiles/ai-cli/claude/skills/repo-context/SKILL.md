@@ -1,6 +1,6 @@
 ---
 name: repo-context
-description: Shared operating procedure for generic subagents. Resolves which repository and scope the brief targets, loads that repo's own rules and gate commands, and defines the common scope, verification, commit and reporting rules. Preloaded by every `tailrocks-*` agent except `tailrocks-locator`.
+description: 'Shared operating procedure for generic subagents. Resolves which repository and scope the brief targets, loads that repo''s own rules and gate commands, and defines the common scope, verification, commit and reporting rules. Preloaded by every `tailrocks-*` agent except `@"tailrocks-locator (agent)"`.'
 ---
 
 # Repo context
@@ -47,7 +47,7 @@ These adapt pstack's principles (the `pstack:principle-*` skills) for agents tha
 - Write the smallest change that solves the task. Delete code your change makes dead and finish migrations you start in the same change instead of adding shims, flags or compatibility layers. Match the surrounding style.
 - Code hygiene (pstack `deslop`): no comments that narrate what the code does; keep a comment only for a non-obvious why, and none at all where the repo forbids comments. No defensive try/catch or error swallowing on trusted internal paths, no `any` or casts to silence the type checker, no suppressing a lint that protects correctness.
 - Prefer a tool to hand edits for repeated work: a codemod, script or generator that a reviewer can rerun.
-- Tests: follow the repo's testing rules. Prefer no new test to a weak one, and never change a test to match wrong behavior. Where the repo requires an independent reviewer for test plans or red/green proof, say that `tailrocks-test-reviewer` is needed, and do not write the test until the brief says the plan was approved.
+- Tests: follow the repo's testing rules. Prefer no new test to a weak one, and never change a test to match wrong behavior. Where the repo requires an independent reviewer for test plans or red/green proof, say that `@"tailrocks-test-reviewer (agent)"` is needed, and do not write the test until the brief says the plan was approved.
 - Never hand-edit generated files. Rerun their generator.
 - Do not commit, push, open PRs or post comments unless the brief says to. Permission to commit is not permission to push: push only when the brief says push, whatever the repo's rules say. When you commit, check that `git config user.name` and `user.email` resolve to Alexey Zhokhov <alexey@zhokhov.com> (report a mismatch instead of committing), follow the repo's commit message rules, and use `git commit -s` so Git adds exactly one Signed-off-by trailer. Never use `--no-verify` or force-push.
 - Leave the working tree as you found it, except for the changes your brief asked for.
@@ -63,4 +63,4 @@ The report goes into the caller's context, so include what the caller needs to a
 
 If your role defines an Output section, use its sections, in its order, in place of Result and Evidence, and add Not verified, Needs from caller and Suggestions where it has no equivalent.
 
-Write the report in plain prose (pstack `unslop`): short declarative sentences with articles, active voice, and literal words rather than metaphors, starting with the content. Use commas or parentheses instead of long dashes. Keep "proven" and "unproven" visibly separate. Write agent names in code format, such as `tailrocks-verifier`.
+Write the report in plain prose (pstack `unslop`): short declarative sentences with articles, active voice, and literal words rather than metaphors, starting with the content. Use commas or parentheses instead of long dashes. Keep "proven" and "unproven" visibly separate. Write subagent references as `@"tailrocks-verifier (agent)"`.

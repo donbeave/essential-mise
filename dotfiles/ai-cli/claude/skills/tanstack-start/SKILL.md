@@ -1,6 +1,6 @@
 ---
 name: tanstack-start
-description: TanStack Start, Router and Query API facts for routing and data-loading work: rendering modes, generated route trees, loaders with Query, search params, boundaries and preloading. Use when a repo depends on @tanstack/react-start or @tanstack/react-router. Verify every API against the pinned versions; they move between minor releases.
+description: 'TanStack Start, Router and Query API facts for routing and data-loading work: rendering modes, generated route trees, loaders with Query, search params, boundaries and preloading. Use when a repo depends on @tanstack/react-start or @tanstack/react-router. Verify every API against the pinned versions; they move between minor releases.'
 ---
 
 # TanStack Start, Router and Query
