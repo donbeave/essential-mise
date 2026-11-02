@@ -89,4 +89,5 @@ Independent clean installation of every module, an applied native package/cask u
 - [Manual actions and preference reversal](docs/manual-actions.md)
 - [Claude Code status line](docs/claude-statusline.md)
 - [Yolo aliases](docs/yolo.md)
+- [Draft pull requests by default](docs/gh-draft.md)
 - [Disposable Tart/Cua verification](scripts/vm/README.md)

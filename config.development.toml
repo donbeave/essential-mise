@@ -18,6 +18,7 @@ run = [
   "/opt/homebrew/bin/gh config set prefer_editor_prompt disabled",
   "/opt/homebrew/bin/gh config set pager ''",
   "if ! /opt/homebrew/bin/gh alias list | /usr/bin/grep -Eq '^co:[[:space:]]+pr checkout$'; then /opt/homebrew/bin/gh alias set co 'pr checkout' --clobber; fi",
+  "if ! /opt/homebrew/bin/gh alias list | /usr/bin/grep -Eq '^prd:[[:space:]]+pr create --draft$'; then /opt/homebrew/bin/gh alias set prd 'pr create --draft' --clobber; fi",
   "/opt/homebrew/bin/gh config set http_unix_socket ''",
   "/opt/homebrew/bin/gh config set browser ''",
   "/opt/homebrew/bin/gh config set color_labels disabled",
@@ -37,4 +38,22 @@ run = [
   "test \"$(/opt/homebrew/bin/gh config get spinner)\" = enabled",
   "test \"$(/opt/homebrew/bin/gh config get version)\" = 1",
   "/opt/homebrew/bin/gh alias list | /usr/bin/grep -Eq '^co:[[:space:]]+pr checkout$'",
+  "/opt/homebrew/bin/gh alias list | /usr/bin/grep -Eq '^prd:[[:space:]]+pr create --draft$'",
 ]
+
+[dotfiles]
+"~/.zshenv/gh-draft" = { block = '''
+function gh {
+  if [[ ( $1 == pr && ( $2 == create || $2 == new ) ) && ${GH_PR_CREATE_DRAFT:-1} != 0 ]]; then
+    local arg
+    for arg in "${@:3}"; do
+      case $arg in
+        -d|--draft|--draft=*|-w|--web) command gh "$@"; return ;;
+      esac
+    done
+    command gh "$1" "$2" --draft "${@:3}"
+  else
+    command gh "$@"
+  fi
+}
+''' }
