@@ -42,19 +42,19 @@ ENVIRONMENTS = frozenset({
 })
 EXPECTED_COUNTS = {
     'environments': 27,
-    'packages': 130,
-    'unique_packages': 118,
+    'packages': 131,
+    'unique_packages': 119,
     'brew': 47,
-    'brew-cask': 49,
+    'brew-cask': 50,
     'mas': 21,
     'macos-app': 1,
     'tools': 9,
     'dotfiles': 32,
     'settings': 1,
     'preferences': 67,
-    'repositories': 2,
+    'repositories': 3,
     'login_items': 2,
-    'executables': 2,
+    'executables': 3,
 }
 EXPECTED_TOOLS = {
     ('js', 'node'): 'latest',
@@ -80,6 +80,11 @@ EXPECTED_REPOSITORIES = {
         'url': 'https://github.com/zsh-users/zsh-autosuggestions.git',
         'ref': 'master',
     },
+    ('ai-cli', '~/.local/share/pstack-claude'): {
+        'url': 'https://github.com/michael-denyer/pstack-claude.git',
+        'ref': 'main',
+        'depth': 1,
+    },
 }
 EXPECTED_VARIANTS = {
     ('terminal', '~/.config/ghostty/config'): [
@@ -100,7 +105,7 @@ EXPECTED_LOGIN_ITEMS = {
     ('utilities', '/Applications/CleanShot X.app'),
     ('utilities', '/Applications/Bartender 7.app'),
 }
-EXPECTED_EXECUTABLES = {'fish-config.py', 'claude-statusline.sh'}
+EXPECTED_EXECUTABLES = {'fish-config.py', 'claude-statusline.sh', 'pstack-plugins.sh'}
 STATUSLINE_SHA256 = '5afac045a509b5ca8d2e22f717e51ad69ea3d42208ec5f0d31ec2e135216a3ef'
 DOCK_KEYS = {
     'autohide', 'orientation', 'tilesize', 'magnification', 'show_recents', 'mru_spaces',
