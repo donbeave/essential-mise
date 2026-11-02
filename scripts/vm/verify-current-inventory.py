@@ -49,7 +49,7 @@ EXPECTED_COUNTS = {
     'mas': 21,
     'macos-app': 1,
     'tools': 9,
-    'dotfiles': 26,
+    'dotfiles': 32,
     'settings': 1,
     'preferences': 67,
     'repositories': 2,
