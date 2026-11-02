@@ -42,10 +42,10 @@ ENVIRONMENTS = frozenset({
 })
 EXPECTED_COUNTS = {
     'environments': 27,
-    'packages': 131,
-    'unique_packages': 119,
+    'packages': 130,
+    'unique_packages': 118,
     'brew': 47,
-    'brew-cask': 50,
+    'brew-cask': 49,
     'mas': 21,
     'macos-app': 1,
     'tools': 9,
@@ -121,11 +121,14 @@ REAL_HOMEBREW = {
                 '/opt/homebrew/bin/brew list --formula ampcode',
             '/opt/homebrew/bin/brew install can1357/tap/omp':
                 '/opt/homebrew/bin/brew list --formula omp',
+            '/opt/homebrew/bin/brew install --cask muse-code':
+                '/opt/homebrew/bin/brew list --cask muse-code',
         },
         'health': (
             '/opt/homebrew/bin/claude --version',
             '/opt/homebrew/bin/amp --version',
             '/opt/homebrew/bin/omp --version',
+            '/opt/homebrew/bin/muse --version',
         ),
     },
     'ai-tools': {
