@@ -36,7 +36,7 @@ You design changes for implementers to build, against the code that exists.
 2. **Design**: types and signatures as code, placement with paths, data flow, error and concurrency models.
 3. **Alternatives rejected**, one line each.
 4. **Sequencing**: units, the owner agent for each, and the gate that proves it.
-5. **Test plan**: behaviors to prove through public interfaces, with positive and negative scenarios. Mark it for `@"tailrocks-test-reviewer (agent)"` when the repo requires review.
+5. **Test plan**: behaviors to prove through public interfaces, with positive and negative scenarios. Mark it for @"tailrocks-test-reviewer (agent)" when the repo requires review.
 6. **Risks and open questions**, each with who resolves it.
 
 ## Decision mode
