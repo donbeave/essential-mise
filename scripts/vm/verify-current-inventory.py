@@ -54,7 +54,7 @@ EXPECTED_COUNTS = {
     'preferences': 67,
     'repositories': 3,
     'login_items': 2,
-    'executables': 3,
+    'executables': 4,
 }
 EXPECTED_TOOLS = {
     ('js', 'node'): 'latest',
@@ -105,7 +105,7 @@ EXPECTED_LOGIN_ITEMS = {
     ('utilities', '/Applications/CleanShot X.app'),
     ('utilities', '/Applications/Bartender 7.app'),
 }
-EXPECTED_EXECUTABLES = {'fish-config.py', 'claude-statusline.sh', 'pstack-plugins.sh'}
+EXPECTED_EXECUTABLES = {'fish-config.py', 'claude-statusline.sh', 'pstack-plugins.sh', 'rtk-agents.sh'}
 STATUSLINE_SHA256 = '5afac045a509b5ca8d2e22f717e51ad69ea3d42208ec5f0d31ec2e135216a3ef'
 DOCK_KEYS = {
     'autohide', 'orientation', 'tilesize', 'magnification', 'show_recents', 'mru_spaces',
@@ -272,11 +272,14 @@ def validate_dotfile(root, owner, target, specification, errors):
         if specification.get('mode') == 'copy':
             allowed = {'source', 'mode', 'variants'}
             shape = 'copy'
+        elif specification.get('mode') == 'template':
+            allowed = {'source', 'mode', 'variants'}
+            shape = 'template'
         elif specification.get('merge') is True:
             allowed = {'source', 'merge', 'format', 'variants'}
             shape = 'merge'
         else:
-            errors.append(f'dotfile {owner} {target}: expected copy or merge=true shape')
+            errors.append(f'dotfile {owner} {target}: expected copy, template or merge=true shape')
             return
         if not keys <= allowed:
             errors.append(
@@ -294,6 +297,27 @@ def validate_dotfile(root, owner, target, specification, errors):
             errors.append(f'dotfile {owner} {target}: block shape must contain only a non-empty block')
     else:
         errors.append(f'dotfile {owner} {target}: expected source, line, or block shape')
+
+
+RTK_KIMI_BLOCK = ('<!-- rtk-instructions v2 -->', '<!-- /rtk-instructions -->')
+
+
+def validate_rtk(root, hooks, errors):
+    claude = root / 'dotfiles/ai-cli/claude/CLAUDE.md'
+    if '@RTK.md' not in claude.read_text().splitlines():
+        errors.append('rtk: CLAUDE.md must carry the @RTK.md line that rtk init -g writes')
+    codex = (root / 'dotfiles/ai-cli/CODEX.md').read_text()
+    if '@{{ env.HOME }}/.codex/RTK.md' not in codex:
+        errors.append('rtk: CODEX.md must carry the RTK.md reference that rtk init -g --codex writes')
+    kimi = (root / 'dotfiles/ai-cli/KIMI.md').read_text()
+    shared = (root / 'dotfiles/ai-cli/GLOBAL_AGENTS.md').read_text()
+    if not kimi.startswith(shared):
+        errors.append('rtk: KIMI.md must start with the GLOBAL_AGENTS.md text')
+    if not all(marker in kimi for marker in RTK_KIMI_BLOCK):
+        errors.append('rtk: KIMI.md must carry the instruction block that rtk init --agent kimi writes')
+    commands = hooks.get(('ai-tools', 'post-dotfiles'), {}).get('commands', [])
+    if not any('bin/rtk-agents.sh' in command for command in commands):
+        errors.append('rtk: ai-tools post-dotfiles must run bin/rtk-agents.sh')
 
 
 def flatten_settings(owner, values, prefix='settings'):
@@ -655,6 +679,7 @@ def validate(root):
         errors.append(f'login items: missing {item[0]} {item[1]}')
 
     validate_homebrew(hooks, errors)
+    validate_rtk(root, hooks, errors)
 
     bin_directory = root / 'bin'
     try:
@@ -769,6 +794,27 @@ def self_test(root):
             'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; else /opt/homebrew/bin/brew upgrade --formula dmtrKovalenko/fff/fff-mcp; fi',
             'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then\\n  :\\nfi\\n/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp\\nif true; then\\n  :\\nfi',
             'ai-tools: /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp: missing active presence guard',
+        ),
+        (
+            'remove_claude_rtk_reference',
+            'dotfiles/ai-cli/claude/CLAUDE.md',
+            '\n@RTK.md\n',
+            '\n',
+            'rtk: CLAUDE.md must carry the @RTK.md line',
+        ),
+        (
+            'drift_kimi_from_shared_instructions',
+            'dotfiles/ai-cli/KIMI.md',
+            '# Engineering policy',
+            '# Kimi policy',
+            'rtk: KIMI.md must start with the GLOBAL_AGENTS.md text',
+        ),
+        (
+            'remove_rtk_agents_hook',
+            'config.ai-tools.toml',
+            'bin/rtk-agents.sh',
+            'bin/other.sh',
+            'rtk: ai-tools post-dotfiles must run bin/rtk-agents.sh',
         ),
     ]
     passed = True

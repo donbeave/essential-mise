@@ -6,3 +6,6 @@
 - Decompose independent work and use parallel research, implementation, review, and verification when the host supports them.
 - When committing, verify the effective Git committer identity is Alexey Zhokhov <alexey@zhokhov.com>. Use git commit -s so Git adds exactly one Signed-off-by trailer; never add or duplicate it manually.
 - Also add Co-authored-by: Codex <codex@openai.com>.
+{% if exec(command="test -x /opt/homebrew/bin/rtk && echo yes || true") %}
+@{{ env.HOME }}/.codex/RTK.md
+{% endif -%}
