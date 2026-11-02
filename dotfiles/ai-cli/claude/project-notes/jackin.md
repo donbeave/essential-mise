@@ -15,7 +15,7 @@ The Gates table in `jackin/rewrite/PLAN.md` is the authority: G-FAST `mise exec 
 - Read `jackin/rewrite/DESIGN.md` (decisions D01 to D28) and the task in `jackin/rewrite/PLAN.md` before any work. The shared rules in each jackin `AGENTS.md` are identical across the four jackin repositories.
 - No Docker execution: only `jackin-image` starts `docker`, and only for BuildKit builds. Agents run containers only through the opt-in Docker capability (D24).
 - No code comments except SPDX headers, shebang lines, parser directives, and generated files. Clap help text goes in `#[command(about)]` and `#[arg(help)]` attributes.
-- All old tests are deleted. New tests need a plan approved by `@"tailrocks-test-reviewer (agent)"` and a red and green record. nextest only.
+- All old tests are deleted. New tests need a plan approved by @"tailrocks-test-reviewer (agent)" and a red and green record. nextest only.
 - Never change an approved tuiscotti baseline in terminal-components-baseline. Never move its `visual-baseline` tag. Its own `AGENTS.md` applies there.
 - The program runs fully autonomous: never ask a human. Record decisions in `jackin/rewrite/decisions.tsv`.
 - Commits: Conventional Commits, `git commit -s`, push after each commit, only on `feature/openshell-native` (or local worktree branches merged into it), no force-push, never merge to `main`.
