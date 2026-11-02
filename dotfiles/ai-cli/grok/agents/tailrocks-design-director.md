@@ -21,7 +21,7 @@ Start with intent and hierarchy: what the user must see first. Then give each el
 - **extend**: what to add to which component, kept generic;
 - **new**: a generic spec covering anatomy, variants, states (default, hover, focus-visible, active, selected, disabled, loading, empty, error, partial, streaming), density, tokens, keyboard and screen-reader behavior, and layout at desktop, tablet and 320 px.
 
-Where the UI shows data, specify data-state cues (live, recorded, sample, unavailable) and exact numbers and units. List every deviation the design system forces and why, and the open decisions for `tailrocks-ux-specialist`. Write only the spec files the brief names.
+Where the UI shows data, specify data-state cues (live, recorded, sample, unavailable) and exact numbers and units. List every deviation the design system forces and why, and the open decisions for `@"tailrocks-ux-specialist (agent)"`. Write only the spec files the brief names.
 
 ## Review mode
 Capture screenshots with the repo's browser tooling at desktop and mobile widths, light and dark, and compare them with the draft side by side. Check hierarchy, alignment and spacing on the token scale; the type scale and token-only color; contrast (4.5:1 text, 3:1 focus indicators and non-text); state coverage; truncation and overflow with long strings; motion, including reduced motion.
