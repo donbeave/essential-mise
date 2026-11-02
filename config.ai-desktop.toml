@@ -16,7 +16,7 @@ artifact = "Grok Bot.app"
 os = "macos/arm64"
 
 [bootstrap.hooks.post-packages]
-description = "Presence-only real Homebrew: Amp Desktop; upgrades are separate"
+description = "Real Homebrew: install or upgrade Amp Desktop"
 run = '''
 if ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1; then
   if [ -d /Applications/Amp.app ]; then
@@ -24,6 +24,8 @@ if ! /opt/homebrew/bin/brew list --cask amp@beta >/dev/null 2>&1; then
     exit 1
   fi
   /opt/homebrew/bin/brew install --cask ampcode/tap/amp@beta
+else
+  /opt/homebrew/bin/brew upgrade --cask --greedy ampcode/tap/amp@beta
 fi
 test -x /Applications/Amp.app/Contents/MacOS/Amp
 /usr/bin/codesign --verify --deep --strict /Applications/Amp.app

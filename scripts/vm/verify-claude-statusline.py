@@ -52,7 +52,7 @@ def assistant_entry():
 
 def agent(name, finished=False, interrupted=False, idle=False):
     (subagents / f'agent-{name}.meta.json').write_text(json.dumps({
-        'agentType': f'tailrocks-{name}',
+        'agentType': name,
         'description': 'synthetic test agent',
         'finished': finished,
     }))
@@ -63,13 +63,13 @@ def agent(name, finished=False, interrupted=False, idle=False):
         os.utime(log, (modified, modified))
 
 
-agent('locator')
+agent('tailrocks-locator')
 agent('finished', finished=True)
 agent('interrupted', interrupted=True)
 agent('idle', idle=True)
 expected = (
     '~/Projects/ChainArgos/redesign-review │ Opus 5.5 medium │ 35% (345k/1.0M)\n'
-    '↳ locator │ sonnet low │ 91k'
+    '↳ tailrocks-locator │ sonnet low │ 91k'
 )
 (evidence / 'expected.txt').write_text(expected)
 for percentage, color in ((35, 32), (50, 33), (80, 31)):

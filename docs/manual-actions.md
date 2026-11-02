@@ -7,13 +7,12 @@ Native mise installs and configures only declared resources. The following remai
 - Set the new machine’s real Git identity deliberately. No `user.name` or `user.email` is deployed.
 - Run `gh auth login`, then `gh auth setup-git` for GitHub credential integration. `gh/hosts.yml`, SSH private hosts, and credential-helper reset semantics are not migrated.
 - Run `git lfs install` after installing Git LFS.
-- Apply the nine nonidentity Git tuning settings and the ignore override with Git itself. Generic INI merging is not used because it can consume indented Git settings as continuations. These commands preserve unrelated keys, repeated helpers, `includeIf`, comments, casing, and mixed indentation:
+- The `development` module sets global `pull.rebase=false` and `pull.ff=false` using Git's own configuration writer, so pulls use a merge commit even when a fast-forward is possible. Repository, branch, and command-line settings can override these defaults. Apply the remaining Git tuning settings and the ignore override with Git itself. Generic INI merging is not used because it can consume indented Git settings as continuations. These commands preserve unrelated keys, repeated helpers, `includeIf`, comments, casing, and mixed indentation:
 
   ```bash
   config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
   git config --global core.autocrlf input
   git config --global core.excludesFile "$config_dir/dotfiles/development/git/ignore"
-  git config --global pull.rebase false
   git config --global branch.autoSetupRebase never
   git config --global fetch.prune true
   git config --global merge.conflictStyle zdiff3

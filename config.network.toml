@@ -4,7 +4,7 @@
 "brew-cask:whyfi" = "latest"
 
 [bootstrap.hooks.post-packages]
-description = "Presence-only real Homebrew: Surge; upgrades are separate"
+description = "Real Homebrew: install or upgrade Surge"
 run = '''
 if ! /opt/homebrew/bin/brew list --cask surge >/dev/null 2>&1; then
   if [ -e /Applications/Surge.app ] || [ -e "/Applications/Surge Dashboard.app" ] || [ -L "/Applications/Surge Dashboard.app" ]; then
@@ -12,6 +12,8 @@ if ! /opt/homebrew/bin/brew list --cask surge >/dev/null 2>&1; then
     exit 1
   fi
   /opt/homebrew/bin/brew install --cask surge
+else
+  /opt/homebrew/bin/brew upgrade --cask --greedy surge
 fi
 test -x /opt/homebrew/bin/surge-cli
 test -x /opt/homebrew/sbin/surge-dhcpd

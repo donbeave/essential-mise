@@ -1,5 +1,5 @@
 [tools]
-java = "oracle-graalvm-25.0.4.1.1"
+java = "oracle-graalvm"
 
 [bootstrap.packages]
 "brew:gradle" = "latest"

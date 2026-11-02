@@ -48,8 +48,8 @@ EXPECTED_COUNTS = {
     'brew-cask': 49,
     'mas': 21,
     'macos-app': 1,
-    'tools': 5,
-    'dotfiles': 17,
+    'tools': 9,
+    'dotfiles': 26,
     'settings': 1,
     'preferences': 67,
     'repositories': 2,
@@ -57,24 +57,28 @@ EXPECTED_COUNTS = {
     'executables': 2,
 }
 EXPECTED_TOOLS = {
-    ('js', 'node'): '26.9.0',
-    ('js', 'bun'): '1.4.4',
+    ('js', 'node'): 'latest',
+    ('js', 'bun'): 'latest',
     ('development-rust', 'rust'): {
-        'version': '1.99.1',
+        'version': 'latest',
         'mr_boxington': True,
-        'components': ['llvm-tools'],
+        'components': ['clippy', 'rustfmt', 'rust-analyzer', 'rust-src', 'llvm-tools'],
     },
-    ('development-rust', 'mr-boxington'): {'version': '1.24.1'},
-    ('development-java', 'java'): 'oracle-graalvm-25.0.4.1.1',
+    ('development-rust', 'mr-boxington'): {'version': 'latest'},
+    ('development-rust', 'aqua:nextest-rs/nextest/cargo-nextest'): 'latest',
+    ('development-rust', 'aqua:taiki-e/cargo-llvm-cov'): 'latest',
+    ('development-rust', 'aqua:EmbarkStudios/cargo-deny'): 'latest',
+    ('development-rust', 'github:Canop/bacon'): {'version': 'latest', 'bin_path': 'aarch64-apple-darwin'},
+    ('development-java', 'java'): 'oracle-graalvm',
 }
 EXPECTED_REPOSITORIES = {
     ('terminal', '~/.oh-my-zsh'): {
         'url': 'https://github.com/ohmyzsh/ohmyzsh.git',
-        'ref': '0b50afdbfd8cbd0e03be68ecec4e1b5d3f55ef0a',
+        'ref': 'master',
     },
     ('terminal', '~/.oh-my-zsh/custom/plugins/zsh-autosuggestions'): {
         'url': 'https://github.com/zsh-users/zsh-autosuggestions.git',
-        'ref': '85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5',
+        'ref': 'master',
     },
 }
 EXPECTED_VARIANTS = {
@@ -97,7 +101,7 @@ EXPECTED_LOGIN_ITEMS = {
     ('utilities', '/Applications/Bartender 7.app'),
 }
 EXPECTED_EXECUTABLES = {'fish-config.py', 'claude-statusline.sh'}
-STATUSLINE_SHA256 = 'e0268e5e61bb07456bdbbcda5975c7189f5e89168b8cd3df6821cadc2c05917d'
+STATUSLINE_SHA256 = '5afac045a509b5ca8d2e22f717e51ad69ea3d42208ec5f0d31ec2e135216a3ef'
 DOCK_KEYS = {
     'autohide', 'orientation', 'tilesize', 'magnification', 'show_recents', 'mru_spaces',
 }
@@ -206,9 +210,12 @@ def load_configs(root, counts, errors):
             errors.append(f'{path.name}: cannot parse TOML: {error}')
             continue
         if owner == 'root':
-            if not same_value(data, {'min_version': '2026.10.23'}):
+            if not same_value(data, {'min_version': '2026.10.23', 'settings': {
+                'minimum_release_age': '0s',
+                'self_update': {'auto': True, 'minimum_release_age': '0s'},
+            }}):
                 errors.append(
-                    f'config.toml: expected only min_version = "2026.10.23", got {data!r}'
+                    f'config.toml: unexpected minimum version or self-update settings: {data!r}'
                 )
         else:
             configs[owner] = data
@@ -238,11 +245,18 @@ def validate_dotfile(root, owner, target, specification, errors):
                 )
             else:
                 disk_path = root.joinpath(*source_path.parts)
-                if not disk_path.is_file():
-                    errors.append(f'dotfile {owner} {target}: missing source {source}')
+                if disk_path.is_dir():
+                    members = [path for path in disk_path.rglob('*') if not path.is_dir()]
+                    if not members:
+                        errors.append(f'dotfile {owner} {target}: empty source directory {source}')
                 else:
+                    members = [disk_path] if disk_path.is_file() else []
+                    if not members:
+                        errors.append(f'dotfile {owner} {target}: missing source {source}')
+                owned_root = (root / 'dotfiles' / owner).resolve()
+                for member in members:
                     try:
-                        disk_path.resolve().relative_to((root / 'dotfiles' / owner).resolve())
+                        member.resolve().relative_to(owned_root)
                     except ValueError:
                         errors.append(
                             f'dotfile {owner} {target}: source {source} escapes dotfiles/{owner}/'
@@ -421,6 +435,24 @@ def has_presence_guard(commands, install, guard):
     return False
 
 
+def has_guarded_upgrade(commands, install, guard, upgrade):
+    condition = shell_tokens(f'! {guard} >/dev/null 2>&1')
+    install, upgrade = shell_tokens(install), shell_tokens(upgrade)
+    for command in commands:
+        try:
+            parsed = parse_shell(command)
+        except ValueError:
+            continue
+        for kind, branches in parsed:
+            if kind == 'if' and len(branches) == 2:
+                if (branches[0][0] == [('command', condition)]
+                        and ('command', install) in branches[0][1]
+                        and branches[1][0] is None
+                        and ('command', upgrade) in branches[1][1]):
+                    return True
+    return False
+
+
 def validate_homebrew(hooks, errors):
     actual_installs = collections.Counter()
     for (owner, hook_name), hook in hooks.items():
@@ -444,12 +476,9 @@ def validate_homebrew(hooks, errors):
             errors.append(f'{owner} post-packages: missing real-Homebrew hook')
             continue
         description = hook['description']
-        if not isinstance(description, str) or not all(
-            phrase in description.lower()
-            for phrase in ('presence-only', 'upgrades are separate')
-        ):
+        if not isinstance(description, str) or 'install or upgrade' not in description.lower():
             errors.append(
-                f'{owner} post-packages: description must state presence-only and upgrades are separate'
+                f'{owner} post-packages: description must state install or upgrade'
             )
         lines = {
             line.strip()
@@ -464,6 +493,13 @@ def validate_homebrew(hooks, errors):
                 continue
             if not has_presence_guard(hook['commands'], install, guard):
                 errors.append(f'{owner}: {install}: missing active presence guard ({guard})')
+            package = install.rsplit(' ', 1)[-1]
+            if ' install --cask ' in install:
+                upgrade = f'/opt/homebrew/bin/brew upgrade --cask --greedy {package}'
+            else:
+                upgrade = f'/opt/homebrew/bin/brew upgrade --formula {package}'
+            if not has_guarded_upgrade(hook['commands'], install, guard, upgrade):
+                errors.append(f'{owner}: {upgrade}: missing guarded upgrade')
 
 
 def compare_exact(label, actual, expected, errors):
@@ -699,23 +735,30 @@ def self_test(root):
             "dotfile variant: missing ('terminal', '~/.config/ghostty/config')",
         ),
         (
-            'change_runtime_pin',
+            'change_runtime_selector',
             'config.js.toml',
+            'node = "latest"',
             'node = "26.9.0"',
-            'node = "26.9.1"',
             "runtime ('js', 'node')",
+        ),
+        (
+            'remove_guarded_upgrade',
+            'config.ai-tools.toml',
+            'else /opt/homebrew/bin/brew upgrade --formula dmtrKovalenko/fff/fff-mcp;',
+            'else :;',
+            'ai-tools: /opt/homebrew/bin/brew upgrade --formula dmtrKovalenko/fff/fff-mcp: missing guarded upgrade',
         ),
         (
             'remove_presence_guard',
             'config.ai-tools.toml',
-            'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi',
+            'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; else /opt/homebrew/bin/brew upgrade --formula dmtrKovalenko/fff/fff-mcp; fi',
             '/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp',
             'ai-tools: /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp: missing active presence guard',
         ),
         (
             'install_after_presence_guard',
             'config.ai-tools.toml',
-            'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; fi',
+            'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp; else /opt/homebrew/bin/brew upgrade --formula dmtrKovalenko/fff/fff-mcp; fi',
             'if ! /opt/homebrew/bin/brew list --formula fff-mcp >/dev/null 2>&1; then\\n  :\\nfi\\n/opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp\\nif true; then\\n  :\\nfi',
             'ai-tools: /opt/homebrew/bin/brew install dmtrKovalenko/fff/fff-mcp: missing active presence guard',
         ),

@@ -16,6 +16,10 @@ The wrapper preserves an existing alias and forwards alias-supplied and explicit
 
 Claude Code is installed through the real-Homebrew `claude-code@latest` exception; see [Homebrew exceptions](homebrew-exceptions.md).
 
+## Start in bypass-permissions mode
+
+`claude-yolo` is one of the zsh aliases in [Yolo aliases](yolo.md). It runs `claude --dangerously-skip-permissions`, so it goes through this wrapper: the status line and every setting in `~/.claude/settings.json` stay in effect, including the permission deny rules. Add arguments as usual, for example `claude-yolo --model opus`.
+
 ## Bypass it temporarily
 
 Prefix a launch with `command` to bypass the zsh function and its status-line `--settings` without changing any files:

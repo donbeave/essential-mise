@@ -16,8 +16,8 @@
 "brew:gogcli" = "latest"
 
 [bootstrap.repos]
-"~/.oh-my-zsh" = { url = "https://github.com/ohmyzsh/ohmyzsh.git", ref = "0b50afdbfd8cbd0e03be68ecec4e1b5d3f55ef0a" }
-"~/.oh-my-zsh/custom/plugins/zsh-autosuggestions" = { url = "https://github.com/zsh-users/zsh-autosuggestions.git", ref = "85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5" }
+"~/.oh-my-zsh" = { url = "https://github.com/ohmyzsh/ohmyzsh.git", ref = "master" }
+"~/.oh-my-zsh/custom/plugins/zsh-autosuggestions" = { url = "https://github.com/zsh-users/zsh-autosuggestions.git", ref = "master" }
 
 [dotfiles]
 "~/.config/ghostty/config" = { source = "dotfiles/terminal/ghostty/config", mode = "copy", variants = [{ default = true, target = "{{ xdg_config_home }}/ghostty/config" }] }

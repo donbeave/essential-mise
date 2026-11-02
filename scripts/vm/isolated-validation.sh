@@ -87,11 +87,12 @@ first_path="$first_home/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sb
 first_config="$first_home/.config/mise"
 run_and_record make-non-git-config 0 /bin/mkdir -p "$first_config"
 run_and_record seed-non-git-config 0 /bin/bash -c "printf 'existing-user-setting = true\n' > '$first_config/config.toml'"
+run_and_record non-git-refused 1 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script"
+run_and_record non-git-config-preserved 0 /usr/bin/grep -F 'existing-user-setting = true' "$first_config/config.toml"
+run_and_record move-non-git-config 0 /bin/mv "$first_config" "$first_home/.config/mise.user-backup"
 run_and_record first-run 0 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script"
 run_and_record first-adopted-revision 0 assert_reviewed_revision "$first_config"
 run_and_record noninteractive-category-skip 0 /usr/bin/grep -F 'No optional categories selected.' "$evidence_dir/first-run.log"
-run_and_record non-git-config-removed 1 /usr/bin/grep -F 'existing-user-setting = true' "$first_config/config.toml"
-run_and_record non-git-backup-absent 1 /bin/bash -c "compgen -G '$first_home/.config/mise.pre-essential-mise.*'"
 run_and_record set-expected-origin 0 git -C "$first_config" remote set-url origin "$expected_origin"
 initialized_path="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
 run_and_record existing-homebrew-empty-shellenv 0 env HOME="$first_home" PATH="$initialized_path" /bin/bash -c 'test -z "$(/opt/homebrew/bin/brew shellenv)"'
@@ -160,8 +161,9 @@ xdg_fish_path="$xdg_home/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 run_and_record xdg-fish-runtime-absent 1 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_fish_path" /bin/bash -c 'command -v bun'
 run_and_record xdg-install-js 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" -E js bootstrap --yes
 run_and_record xdg-fish-consumption 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" MISE_ENV=js PATH="$xdg_fish_path" /opt/homebrew/bin/fish -ic 'command -v bun && bun --version'
-run_and_record xdg-fish-runtime-path 0 /usr/bin/grep -F "$xdg_home/.local/share/mise/installs/bun/1.4.4/" "$evidence_dir/xdg-fish-consumption.log"
-run_and_record xdg-fish-runtime-version 0 /usr/bin/grep -F '1.4.4' "$evidence_dir/xdg-fish-consumption.log"
+run_and_record xdg-fish-runtime-path 0 /usr/bin/grep -F "$xdg_home/.local/share/mise/installs/bun/" "$evidence_dir/xdg-fish-consumption.log"
+xdg_bun_version="$(env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" -E js exec -- bun --version)"
+run_and_record xdg-fish-runtime-version 0 /usr/bin/grep -Fx "$xdg_bun_version" "$evidence_dir/xdg-fish-consumption.log"
 run_and_record xdg-shell-persistence 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" /bin/zsh -lic 'cd /private/tmp && mise bootstrap --dry-run'
 printf 'env = ["foundation"]\n' > "$xdg_checkout/miserc.local.toml"
 run_and_record xdg-unapply-preview 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" "$xdg_home/.local/bin/mise" -C "$xdg_checkout" bootstrap unapply terminal --dry-run
