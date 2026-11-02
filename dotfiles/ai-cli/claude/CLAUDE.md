@@ -135,3 +135,5 @@ pstack (`pstack@pstack-claude`) stays on as the main session's working style: it
 - **Model sheet**: pstack's own defaults put most roles on Opus. `~/.claude/pstack-models.md` overrides them to match the model policy above: Sonnet for work, Haiku for read-and-collect roles, one Opus seat in review panels for diversity, no Fable. It is loaded here:
 
 @~/.claude/pstack-models.md
+
+@RTK.md
