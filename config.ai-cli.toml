@@ -29,6 +29,11 @@ run = [
 "~/.claude/CLAUDE.md" = { source = "dotfiles/ai-cli/claude/CLAUDE.md", mode = "copy" }
 "~/.claude/agents" = { source = "dotfiles/ai-cli/claude/agents", mode = "copy" }
 "~/.claude/skills/repo-context" = { source = "dotfiles/ai-cli/claude/skills/repo-context", mode = "copy" }
+"~/.claude/skills/rust-practices" = { source = "dotfiles/ai-cli/claude/skills/rust-practices", mode = "copy" }
+"~/.claude/skills/typescript-react-practices" = { source = "dotfiles/ai-cli/claude/skills/typescript-react-practices", mode = "copy" }
+"~/.claude/skills/tanstack-start" = { source = "dotfiles/ai-cli/claude/skills/tanstack-start", mode = "copy" }
+"~/.claude/skills/openshell" = { source = "dotfiles/ai-cli/claude/skills/openshell", mode = "copy" }
+"~/.claude/skills/github-actions" = { source = "dotfiles/ai-cli/claude/skills/github-actions", mode = "copy" }
 "~/.claude/pstack-models.md" = { source = "dotfiles/ai-cli/claude/pstack-models.md", mode = "copy" }
 "~/.claude/project-notes" = { source = "dotfiles/ai-cli/claude/project-notes", mode = "copy" }
 "~/.claude/settings.json/agents" = { source = "dotfiles/ai-cli/claude/settings.json", merge = true }

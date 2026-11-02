@@ -9,7 +9,7 @@ are disabled in ~/.grok/config.toml. An unknown model id falls back to the
 parent. Effort is the cost control: low, medium, high, xhigh.
 
 The map follows the Claude roster. Haiku seats use medium. Sonnet seats use
-high. The Fable seat is the only xhigh. grok-4.7 is the coding model xAI
+high. Fable is a per-call override, never a frontmatter seat. grok-4.7 is the coding model xAI
 recommends, so every seat uses it.
 
 Grok loads ~/.grok/agents ahead of ~/.claude/agents. Claude Code keeps reading
@@ -32,12 +32,11 @@ else:
 
 # name -> (model, effort). Unlisted agents use DEFAULT.
 ASSIGNMENTS = {
-    "locator": ("grok-4.7", "medium"),
-    "mechanic": ("grok-4.7", "medium"),
-    "verifier": ("grok-4.7", "medium"),
-    "docs-researcher": ("grok-4.7", "medium"),
-    "docs-writer": ("grok-4.7", "medium"),
-    "fable-architect": ("grok-4.7", "xhigh"),
+    "tailrocks-locator": ("grok-4.7", "medium"),
+    "tailrocks-mechanic": ("grok-4.7", "medium"),
+    "tailrocks-verifier": ("grok-4.7", "medium"),
+    "tailrocks-docs-researcher": ("grok-4.7", "medium"),
+    "tailrocks-docs-writer": ("grok-4.7", "medium"),
 }
 DEFAULT = ("grok-4.7", "high")
 

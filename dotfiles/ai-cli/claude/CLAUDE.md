@@ -8,15 +8,17 @@
 
 # Subagents
 
-Definitions live in `~/.claude/agents/`. This section is for the main session. Roster agents skip this file (`omitClaudeMd: true`) and get what they need from `repo-context`. No subagent can spawn another (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`), and the built-in Explore and Plan agents are denied: use `locator` and `architect`.
+Definitions live in `~/.claude/agents/tailrocks-*.md`. This section is for the main session. Roster agents skip this file (`omitClaudeMd: true`) and get what they need from `repo-context`. No subagent can spawn another (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`), and the built-in Explore and Plan agents are denied: use `tailrocks-locator` and `tailrocks-architect`.
 
-The agents are generic. None of them knows a specific project. Each one describes only its capabilities, and the brief you send decides where it works. Every agent except `locator` preloads the `repo-context` skill (`~/.claude/skills/repo-context/SKILL.md`), which makes it:
+The agents are generic roles. None of them is tied to a project, library, vendor or model, and no agent name contains a model name. The brief you send decides where an agent works. Every agent except `tailrocks-locator` preloads the `repo-context` skill (`~/.claude/skills/repo-context/SKILL.md`), which makes it:
 1. resolve the repo and scope from the brief, and stop with `Needs from caller:` if they are missing;
 2. read that repo's `AGENTS.md` and `CLAUDE.md` explicitly, plus the matching note in `~/.claude/project-notes/` (indexed by git remote);
 3. discover gate commands from the repo itself;
 4. follow the shared scope, verification and commit rules, and report under fixed headings.
 
-Project-specific knowledge belongs in the repo's own `AGENTS.md`, or in a project note when it cannot go in the repo. It never goes in an agent file. To onboard a new repo, add a note and a row to `~/.claude/project-notes/README.md`.
+Project-specific knowledge belongs in the repo's own `AGENTS.md`, or in a project note when it cannot go in the repo. Language, library and vendor specifics belong in stack skills (`rust-practices`, `typescript-react-practices`, `tanstack-start`, `openshell`, `github-actions`), which `repo-context` invokes by detecting the stack. None of it goes in an agent file. To onboard a new repo, add a note and a row to `~/.claude/project-notes/README.md`.
+
+Referencing agents: an agent's identity is its exact frontmatter `name`. In briefs, plans, reports, docs, commit messages and PR descriptions, always write that name in code format (`tailrocks-sandbox-engineer`), never as plain text ("the `tailrocks-verifier` subagent"); to force a specific agent in a prompt, use "Use the `tailrocks-verifier` subagent to …" or `@agent-tailrocks-verifier`. Express a model choice as a per-call override ("`tailrocks-architect` with `model: fable, effort: high`"), never as part of a name.
 
 ### Brief contract
 
@@ -32,29 +34,25 @@ Every brief must state:
 
 | Work | Agent |
 |---|---|
-| Find files, symbols, call sites, config (instead of built-in Explore) | `locator` |
-| Any library/tool/version/API question; choosing or bumping a dependency | `docs-researcher` |
-| Design before non-trivial work: new modules/crates/packages, contracts, cross-repo changes, migrations | `architect` |
-| One highest-stakes decision per phase: after `architect` and an Opus escalation failed, or when the repo's plan names a Fable call | `fable-architect` |
-| Rust backend/systems/library implementation | `rust-engineer` |
-| Rust CLI (clap) and TUI (ratatui/crossterm, PTY) | `rust-cli-tui-engineer` |
-| Agent sandboxes: containers, isolation, mounts, credentials, capsule, role images | `agent-sandbox-engineer` |
-| OpenShell API/behavior, jackin openshell-v2 tasks, blocker reports | `openshell-specialist` |
-| CI/CD, GitHub Actions, Velnor generator/runners, mise, hk, releases, images | `cicd-architect` |
-| TypeScript/React implementation, design-system components | `frontend-engineer` |
-| TanStack Start/Router/Query routing and data-loading design or upgrades | `tanstack-start-specialist` |
-| Map drafts to design-system components; visual review from screenshots | `design-director` |
-| Flows, route/deep-link map, state matrix, spec critique | `ux-specialist` |
-| Fully specified mechanical edits: lint fixes, codemods, headers, chosen pin bumps | `mechanic` |
-| Bug or CI failure with unknown cause, flaky test, regression | `debugger` |
-| Performance budgets, stress scenarios, profiling | `perf-engineer` |
-| Run gates and report PASS/FAIL | `verifier` |
-| Review a diff, branch or PR for correctness | `code-reviewer` |
-| Sandbox, unsafe/FFI, parsers, archives, credentials, CI trust, new dependencies | `security-reviewer` (in addition to `code-reviewer`) |
-| Approve a test plan before writing tests; red/green proof before keeping a test | `test-reviewer` |
-| WCAG 2.2 audit of built UI | `a11y-auditor` |
-| Drive the built app and compare with drafts/specs | `qa-engineer` |
-| Any `.mdx` or docs-site page; READMEs; decision records | `docs-writer` |
+| Find files, symbols, call sites, config (instead of built-in Explore) | `tailrocks-locator` |
+| Any library/tool/service/version/API question; choosing or bumping a dependency; upstream blocker reports | `tailrocks-docs-researcher` |
+| Design before non-trivial work: modules/crates/packages, contracts, routing and data loading, cross-repo changes, migrations; one phase-level decision (decision mode) | `tailrocks-architect` |
+| Backend, systems, library, CLI and TUI implementation | `tailrocks-systems-engineer` |
+| Web UI implementation: components, routes, data loading, design-system packages | `tailrocks-frontend-engineer` |
+| Sandboxes and isolation: containers, namespaces, mounts, egress, credentials, images | `tailrocks-sandbox-engineer` |
+| CI/CD, workflow generators, runners, toolchain pinning, hooks, releases, images | `tailrocks-cicd-engineer` |
+| Map drafts to design-system components; visual review from screenshots | `tailrocks-design-director` |
+| Flows, route/deep-link map, state matrix, spec critique | `tailrocks-ux-specialist` |
+| Fully specified mechanical edits: lint fixes, codemods, headers, chosen pin bumps | `tailrocks-mechanic` |
+| Bug or CI failure with unknown cause, flaky test, regression | `tailrocks-debugger` |
+| Performance budgets, stress scenarios, profiling | `tailrocks-perf-engineer` |
+| Run gates and report PASS/FAIL | `tailrocks-verifier` |
+| Review a diff, branch or PR for correctness | `tailrocks-code-reviewer` |
+| Sandbox, unsafe/FFI, parsers, archives, credentials, CI trust, new dependencies | `tailrocks-security-reviewer` (in addition to `tailrocks-code-reviewer`) |
+| Approve a test plan before writing tests; red/green proof before keeping a test | `tailrocks-test-reviewer` |
+| WCAG 2.2 audit of built UI | `tailrocks-a11y-auditor` |
+| Drive the built app and compare with drafts/specs | `tailrocks-qa-engineer` |
+| Any `.mdx` or docs-site page; READMEs; decision records | `tailrocks-docs-writer` |
 
 Do it yourself, without a subagent, for a one-file change with an obvious check, a question you can answer from two or three reads, or work that needs frequent back-and-forth with the user.
 
@@ -73,14 +71,15 @@ Defaults set in agent frontmatter:
 
 | Model + effort | Agents |
 |---|---|
-| Haiku `medium` | `locator` |
-| Haiku `high` | `verifier`, `mechanic` |
-| Sonnet `medium` | `docs-researcher`, `docs-writer` |
-| Sonnet `high` | every other agent: architects, implementers, reviewers, specialists, design, QA |
-| Fable `high` | `fable-architect` only |
+| Haiku `medium` | `tailrocks-locator` |
+| Haiku `high` | `tailrocks-verifier`, `tailrocks-mechanic` |
+| Sonnet `medium` | `tailrocks-docs-researcher`, `tailrocks-docs-writer` |
+| Sonnet `high` | every other agent |
+
+Fable is never a frontmatter default; it is reached only per call (Escalation, step 3).
 
 Session defaults in `~/.claude/settings.json`:
-- Main model Sonnet 5.5. Effort is saved per model under `modelSettings` (Sonnet `high`, Opus `medium`); a top-level `effortLevel` is ignored by Opus 5.5 and newer models.
+- Main model and effort are whatever `/model` and `/effort` saved (`model` and `modelSettings` in `settings.json`); a top-level `effortLevel` is ignored by Opus 5.5 and newer models.
 - `CLAUDE_CODE_SUBAGENT_MODEL` is Sonnet, so `general-purpose` and plugin agents without a model run on Sonnet instead of inheriting an Opus main session. Forks still use the main model.
 
 ### When the main session should be Opus
@@ -94,8 +93,8 @@ Subagents keep their Sonnet/Haiku defaults under an Opus orchestrator. `opusplan
 ### Per-call overrides (Agent tool `model` and `effort`)
 
 A per-call `model` keeps the agent's frontmatter effort, so always pass `effort` with it.
-- `model: haiku, effort: high` to `frontend-engineer` or `rust-engineer` for trivial transforms, generated tables and asset pipelines.
-- `model: sonnet, effort: high` to `mechanic` or `verifier` when the task needs judgment beyond running a pattern or a command.
+- `model: haiku, effort: high` to `tailrocks-frontend-engineer` or `tailrocks-systems-engineer` for trivial transforms, generated tables and asset pipelines.
+- `model: sonnet, effort: high` to `tailrocks-mechanic` or `tailrocks-verifier` when the task needs judgment beyond running a pattern or a command.
 - `model: opus, effort: high` only on escalation (below), with a reason.
 - `xhigh` and `max` only when the user asks.
 
@@ -105,17 +104,17 @@ Anthropic measured a policy of running cheap and re-running only failures at `hi
 
 1. When a result fails its gate or review, run the same agent again with the failure evidence, at the same settings. An agent that stopped because the brief was ambiguous or needed a judgment call has not failed a round: fix the brief, or send it straight to the Sonnet agent for that work.
 2. After two failed rounds on one finding, move one step up: Haiku → `model: sonnet, effort: high`; Sonnet → `model: opus, effort: high`.
-3. When Opus has also failed, or two Opus-level designs conflict, use the phase's single `fable-architect` call, with a written reason. Otherwise stop and ask the user.
+3. When Opus has also failed, or two Opus-level designs conflict, make the phase's single Fable call: `tailrocks-architect` in decision mode with `model: fable, effort: high`, and a written reason in the brief. Otherwise stop and ask the user.
 
 ## Delegation rules
 
-- **Pipeline for a feature or unit:** `locator`/`docs-researcher` → `architect` → `test-reviewer` (plan) → implementer(s) → `verifier` → `test-reviewer` (red/green, for new tests) → `code-reviewer` (+ `security-reviewer` when its triggers apply) → fix round → `verifier` → `docs-writer` for affected docs.
-- **Pipeline for a UI unit:** `locator` → `design-director` spec → `ux-specialist` critique → `frontend-engineer`(s) → `verifier` → `design-director` review ∥ `a11y-auditor` ∥ `qa-engineer` → `code-reviewer` → fix round → `verifier` → `docs-writer`.
+- **Pipeline for a feature or unit:** `tailrocks-locator`/`tailrocks-docs-researcher` → `tailrocks-architect` → `tailrocks-test-reviewer` (plan) → implementer(s) → `tailrocks-verifier` → `tailrocks-test-reviewer` (red/green, for new tests) → `tailrocks-code-reviewer` (+ `tailrocks-security-reviewer` when its triggers apply) → fix round → `tailrocks-verifier` → `tailrocks-docs-writer` for affected docs.
+- **Pipeline for a UI unit:** `tailrocks-locator` → `tailrocks-design-director` spec → `tailrocks-ux-specialist` critique → `tailrocks-frontend-engineer`(s) → `tailrocks-verifier` → `tailrocks-design-director` review ∥ `tailrocks-a11y-auditor` ∥ `tailrocks-qa-engineer` → `tailrocks-code-reviewer` → fix round → `tailrocks-verifier` → `tailrocks-docs-writer`.
 - Diffs touching sandbox isolation, credentials or CI trust also get a cross-model check with pstack `interrogate`, run from the main session.
-- One design critique round per unit. One `code-reviewer` per batch, on `<batch start>..HEAD`. After the fix round, check the fixes against the findings yourself; do not re-review.
-- At most one `fable-architect` call per phase, and only on the escalation path or when the repo's plan names a Fable call for that phase.
-- Only `docs-writer` edits `.mdx` files.
-- Never write a test without a plan that `test-reviewer` approved. Never keep a test that `test-reviewer` has not seen go red, then green. `test-reviewer` needs the fix committed: it proves red/green in a temporary worktree of that SHA.
+- One design critique round per unit. One `tailrocks-code-reviewer` per batch, on `<batch start>..HEAD`. After the fix round, check the fixes against the findings yourself; do not re-review.
+- At most one Fable call per phase, and only on the escalation path or when the repo's plan names a Fable call for that phase.
+- Only `tailrocks-docs-writer` edits `.mdx` files.
+- Never write a test without a plan that `tailrocks-test-reviewer` approved. Never keep a test that `tailrocks-test-reviewer` has not seen go red, then green. It needs the fix committed: it proves red/green in a temporary worktree of that SHA.
 - Run independent subagents in parallel, in one message, with at most 20 at once. Parallel writers must never share a file: give each one its own worktree or slot, or a disjoint set of files.
 - Brief each agent by the brief contract above. An agent knows only its brief, the repo's files and its project note.
 - Pass a subagent's diff, never its conclusion, to a reviewer. Treat agent reports as claims, and verify the key facts before acting on them.

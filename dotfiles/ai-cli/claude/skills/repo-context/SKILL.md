@@ -1,6 +1,6 @@
 ---
 name: repo-context
-description: Shared operating procedure for generic subagents. Resolves which repository and scope the brief targets, loads that repo's own rules and gate commands, and defines the common scope, verification, commit and reporting rules. Preloaded by every agent in ~/.claude/agents.
+description: Shared operating procedure for generic subagents. Resolves which repository and scope the brief targets, loads that repo's own rules and gate commands, and defines the common scope, verification, commit and reporting rules. Preloaded by every `tailrocks-*` agent except `tailrocks-locator`.
 ---
 
 # Repo context
@@ -30,9 +30,13 @@ Use the commands the repo itself defines. Do not invent gate commands.
 - Rust: `rust-toolchain.toml`, root `Cargo.toml` (`[workspace.lints]`, edition, `rust-version`, `[workspace.dependencies]`), `clippy.toml`, `rustfmt.toml`, `deny.toml`, `.config/nextest.toml`, and `.cargo/config.toml` (a `rustc-wrapper` or cargo wrapper, aliases, rustflags). Invoke cargo the way the repo does, including any wrapper.
 - TypeScript: the lockfile decides the package manager (`bun.lock`, `pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`). Then the root and package `package.json` scripts and workspaces, `tsconfig*.json` (follow `extends` and `references`), lint and format configs (`.oxlintrc.json`, `eslint.config.*`, `biome.json`, `.oxfmtrc*`, `.prettierrc*`), and framework and test configs (`vite.config.*`, `playwright.config.*`).
 
+Stack skills hold language and dependency specifics. Invoke each one that matches the repo: `rust-practices` (`Cargo.toml`), `typescript-react-practices` (`tsconfig.json` with React), `tanstack-start` (`@tanstack/react-start` or `@tanstack/react-router`), `openshell` (an OpenShell dependency or pin), `github-actions` (`.github/workflows` or `mise.toml`), and any skill the project note names.
+
+Tools: for browser work, use the repo's own tooling, else the `agent-browser` skill; for documentation lookups, the `firecrawl-developer-index` skill. Save screenshots, traces and logs under `$TMPDIR/<your agent name>/`.
+
 ## 4. Shared rules
 
-Engineering policy (from the user's global instructions, which you do not load): judge work by correctness, consistency and project fit, and do not leave a known-wrong state because fixing it costs effort. Before fixing a bug, find why the structure allowed it and whether it allows related bugs; prefer a fix that removes the enabling condition. When uncertain, inspect, test and measure before acting.
+Engineering policy (from the user's global instructions, which you do not load): judge work by correctness, consistency and project fit. Inside your scope, do not leave a known-wrong state because fixing it costs effort; report one outside your scope under Suggestions. Before fixing a bug, find why the structure allowed it and whether it allows related bugs; prefer a fix that removes the enabling condition. When uncertain, inspect, test and measure before acting.
 
 These adapt pstack's principles (the `pstack:principle-*` skills) for agents that work from a brief. Some agents preload the principles most relevant to their role; invoke any other principle skill by name when its trigger applies.
 
@@ -43,18 +47,20 @@ These adapt pstack's principles (the `pstack:principle-*` skills) for agents tha
 - Write the smallest change that solves the task. Delete code your change makes dead and finish migrations you start in the same change instead of adding shims, flags or compatibility layers. Match the surrounding style.
 - Code hygiene (pstack `deslop`): no comments that narrate what the code does; keep a comment only for a non-obvious why, and none at all where the repo forbids comments. No defensive try/catch or error swallowing on trusted internal paths, no `any` or casts to silence the type checker, no suppressing a lint that protects correctness.
 - Prefer a tool to hand edits for repeated work: a codemod, script or generator that a reviewer can rerun.
-- Tests: follow the repo's testing rules. Prefer no new test to a weak one, and never change a test to match wrong behavior. Where the repo requires an independent reviewer for test plans or red/green proof, say that `test-reviewer` is needed, and do not write the test until the brief says the plan was approved.
+- Tests: follow the repo's testing rules. Prefer no new test to a weak one, and never change a test to match wrong behavior. Where the repo requires an independent reviewer for test plans or red/green proof, say that `tailrocks-test-reviewer` is needed, and do not write the test until the brief says the plan was approved.
 - Never hand-edit generated files. Rerun their generator.
 - Do not commit, push, open PRs or post comments unless the brief says to. Permission to commit is not permission to push: push only when the brief says push, whatever the repo's rules say. When you commit, check that `git config user.name` and `user.email` resolve to Alexey Zhokhov <alexey@zhokhov.com> (report a mismatch instead of committing), follow the repo's commit message rules, and use `git commit -s` so Git adds exactly one Signed-off-by trailer. Never use `--no-verify` or force-push.
 - Leave the working tree as you found it, except for the changes your brief asked for.
 
 ## 5. Report
 
-Keep the report short, ideally under about 1,500 tokens. Write large artifacts to files and return their paths. Open with the goal restated in one line, so the caller can see you understood it. Use these headings, dropping any that are empty:
+The report goes into the caller's context, so include what the caller needs to act on; write large artifacts to files and return their paths. Open with the goal restated in one line, so the caller can see you understood it. Use these headings, dropping any that are empty:
 - **Result**: the answer, verdict or change, in a few sentences. Start with your role's verdict word if it has one (for example `PASS`/`FAIL`, or `APPROVE`/`CHANGES_REQUIRED`/`BLOCKED`).
 - **Evidence**: paths with line numbers, commands with results, URLs with dates.
 - **Not verified**: what you could not confirm, and why.
 - **Needs from caller**: only blocking inputs you could not resolve.
 - **Suggestions**: out-of-scope work you noticed.
 
-Write the report in plain prose (pstack `unslop`): short declarative sentences with articles, active voice, plain words. No chatbot openers or praise, no long dashes, no buzzwords such as "robust", "seamless", "leverage", "surface" or "harness" used as metaphors. Keep "proven" and "unproven" visibly separate.
+If your role defines an Output section, use its sections, in its order, in place of Result and Evidence, and add Not verified, Needs from caller and Suggestions where it has no equivalent.
+
+Write the report in plain prose (pstack `unslop`): short declarative sentences with articles, active voice, and literal words rather than metaphors, starting with the content. Use commas or parentheses instead of long dashes. Keep "proven" and "unproven" visibly separate. Write agent names in code format, such as `tailrocks-verifier`.
