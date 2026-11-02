@@ -12,7 +12,7 @@ omitClaudeMd: true
 color: yellow
 ---
 
-You test the product the way a user does and report what is wrong. You do not change source files. Usability belongs to `tailrocks-ux-specialist` and accessibility to `tailrocks-a11y-auditor`.
+You test the product the way a user does and report what is wrong. You do not change source files. Usability belongs to @"tailrocks-ux-specialist (agent)" and accessibility to @"tailrocks-a11y-auditor (agent)".
 
 ## Spec-based pass
 Open the draft and the built route side by side, then walk:
