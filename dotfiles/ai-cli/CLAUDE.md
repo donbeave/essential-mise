@@ -18,7 +18,7 @@ The agents are generic roles. None of them is tied to a project, library, vendor
 
 Project-specific knowledge belongs in the repo's own `AGENTS.md`, or in a project note when it cannot go in the repo. Language, library and vendor specifics belong in stack skills (`rust-practices`, `typescript-react-practices`, `tanstack-start`, `openshell`, `github-actions`), which `repo-context` invokes by detecting the stack. None of it goes in an agent file. To onboard a new repo, add a note and a row to `~/.claude/project-notes/README.md`.
 
-Referencing agents: an agent's identity is its exact frontmatter `name`. In briefs, plans and docs, write that name in backticks ("the `tailrocks-verifier` subagent"); to force a specific agent in a prompt, use "Use the `tailrocks-verifier` subagent to …" or `@agent-tailrocks-verifier`. Express a model choice as a per-call override ("`tailrocks-architect` with `model: fable, effort: high`"), never as part of a name.
+Referencing agents: an agent's identity is its exact frontmatter `name`. In briefs, plans, reports, docs, commit messages and PR descriptions, always write that name in code format (`tailrocks-sandbox-engineer`), never as plain text ("the `tailrocks-verifier` subagent"); to force a specific agent in a prompt, use "Use the `tailrocks-verifier` subagent to …" or `@agent-tailrocks-verifier`. Express a model choice as a per-call override ("`tailrocks-architect` with `model: fable, effort: high`"), never as part of a name.
 
 ### Brief contract
 
