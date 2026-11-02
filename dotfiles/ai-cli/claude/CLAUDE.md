@@ -79,13 +79,13 @@ Defaults set in agent frontmatter:
 Fable is never a frontmatter default; it is reached only per call (Escalation, step 3).
 
 Session defaults in `~/.claude/settings.json`:
-- Main model and effort are whatever `/model` and `/effort` saved (`model` and `modelSettings` in `settings.json`); a top-level `effortLevel` is ignored by Opus 5.5 and newer models.
+- Main model and effort are whatever `/model` and `/effort` saved (`model` and per-model `modelSettings` in `settings.json`). A top-level `effortLevel` in the user settings file does not apply to Opus 5.5 or later models; one in project, local or managed settings applies to every model (Claude Code model-config docs, checked 2026-11-03).
 - `CLAUDE_CODE_SUBAGENT_MODEL` is Sonnet, so `general-purpose` and plugin agents without a model run on Sonnet instead of inheriting an Opus main session. Forks still use the main model.
 
 ### When the main session should be Opus
 
 Switch the main session to Opus (`/model opus`, or `claude --model opus`) only to orchestrate work that Sonnet cannot manage well:
-- multi-phase, multi-repo programs coordinating many subagents (the ChainArgos redesign `goal.md`, the jackin OpenShell v2 rewrite);
+- multi-phase, multi-repo programs coordinating many subagents;
 - architecture with many interacting constraints or recorded decisions to reconcile;
 - a bug or design problem Sonnet has already failed twice.
 Subagents keep their Sonnet/Haiku defaults under an Opus orchestrator. `opusplan` (Opus while planning, Sonnet while executing) is a good middle ground for a single hard feature. Return to Sonnet when the hard part is done.
@@ -100,9 +100,9 @@ A per-call `model` keeps the agent's frontmatter effort, so always pass `effort`
 
 ## Escalation
 
-Anthropic measured a policy of running cheap and re-running only failures at `high` on a stronger setting: about 97% solved, about 40% cheaper than running everything on the expensive setting. Follow it:
+Anthropic's cost-optimization guidance (checked 2026-11-03): running everything at a low setting and re-running only the failures at a higher one kept the pass rate of running everything at the higher setting, for a little over half the cost. Follow it:
 
-1. When a result fails its gate or review, run the same agent again with the failure evidence, at the same settings. An agent that stopped because the brief was ambiguous or needed a judgment call has not failed a round: fix the brief, or send it straight to the Sonnet agent for that work.
+1. When a result fails its gate or review, run the same agent again with the failure evidence, at the same settings. An agent that stopped because the brief was ambiguous or needed a judgment call has not failed a round: fix the brief, or send it to the roster agent for that work at its default model.
 2. After two failed rounds on one finding, move one step up: Haiku → `model: sonnet, effort: high`; Sonnet → `model: opus, effort: high`.
 3. When Opus has also failed, or two Opus-level designs conflict, make the phase's single Fable call: @"tailrocks-architect (agent)" in decision mode with `model: fable, effort: high`, and a written reason in the brief. Otherwise stop and ask the user.
 
