@@ -74,7 +74,43 @@ function claude {
 }
 ''' }
 "~/.zshrc/yolo" = { block = '''
-alias claude-yolo='claude --dangerously-skip-permissions'
+function _claude-yolo {
+  local config_dir="$1" settings
+  shift
+  if [[ -f "$config_dir/settings.json" ]]; then
+    settings="$(/opt/homebrew/bin/jq -c 'del(.permissions.deny, .permissions.ask)' "$config_dir/settings.json")" || return
+  else
+    settings='{}'
+  fi
+  CLAUDE_CODE_EVEN_MORE_DANGEROUSLY_SKIP_PERMISSIONS=1 claude --dangerously-skip-permissions --setting-sources '' --settings "$settings" "$@"
+}
+function claude-yolo {
+  _claude-yolo "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" "$@"
+}
+function claude-scentbird {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-scentbird" claude "$@"
+}
+function claude-scentbird-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-scentbird" _claude-yolo "$HOME/.claude-scentbird" "$@"
+}
+function claude-scentbird-ai {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-scentbird-ai" claude "$@"
+}
+function claude-scentbird-ai-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-scentbird-ai" _claude-yolo "$HOME/.claude-scentbird-ai" "$@"
+}
+function claude-chainargos {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos" claude "$@"
+}
+function claude-chainargos-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos" _claude-yolo "$HOME/.claude-chainargos" "$@"
+}
+function claude-chainargos2 {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos2" claude "$@"
+}
+function claude-chainargos2-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos2" _claude-yolo "$HOME/.claude-chainargos2" "$@"
+}
 alias codex-yolo='codex --yolo'
 alias cursor-yolo='cursor-agent --yolo'
 alias agy-yolo='agy --dangerously-skip-permissions'

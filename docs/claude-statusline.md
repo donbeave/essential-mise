@@ -18,7 +18,7 @@ Claude Code is installed through the real-Homebrew `claude-code@latest` exceptio
 
 ## Start in bypass-permissions mode
 
-`claude-yolo` is one of the zsh aliases in [Yolo aliases](yolo.md). It runs `claude --dangerously-skip-permissions`, so it goes through this wrapper: the status line and every setting in `~/.claude/settings.json` stay in effect, including the permission deny rules. Add arguments as usual, for example `claude-yolo --model opus`.
+`claude-yolo` is a zsh function described in [Yolo commands](yolo.md). It retains this status line, starts bypass mode with the dangerous removal bypass, and excludes user permission deny and ask rules as well as project and local settings. Add arguments as usual, for example `claude-yolo --model opus`.
 
 ## Bypass it temporarily
 
