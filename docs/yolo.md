@@ -25,3 +25,7 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli dot apply
 `codex --yolo` is the wide mode: it removes the sandbox as well as the prompts. `--not-so-yolo` is a different flag (`--approve-for-me`) and is not what `codex-yolo` runs.
 
 `claude-yolo` allows destructive removals without the critical-path prompt. Use it in an isolated environment. It reads settings from `CLAUDE_CONFIG_DIR` when set, or `~/.claude` otherwise. Plain `claude` retains its normal settings and permission rules.
+
+`claude-scentbird-yolo` and `claude-scentbird-ai-yolo` use the same YOLO function with their respective account directories. All arguments are forwarded to Claude.
+
+`claude-chainargos` and `claude-chainargos2` use `~/.claude-chainargos` and `~/.claude-chainargos2`, respectively. Their `-yolo` variants use the same directories and the shared YOLO function. New accounts start with empty settings until Claude creates a settings file.
