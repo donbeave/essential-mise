@@ -1,8 +1,8 @@
 # Yolo aliases
 
-`ai-cli` adds one zsh alias per terminal coding agent. Each alias starts that agent so it does not stop for permission prompts. Arguments after the alias are passed through, for example `grok-yolo -c`.
+`ai-cli` adds zsh commands for terminal coding agents. Arguments are passed through, for example `grok-yolo -c`.
 
-The aliases are one `~/.zshrc` block, `mise:yolo`. Fish does not get them. Apply `ai-cli`, then open a fresh zsh session:
+The commands are in one `~/.zshrc` block, `mise:yolo`. Fish does not get them. Apply `ai-cli`, then open a fresh zsh session:
 
 ```bash
 config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
@@ -12,7 +12,7 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli dot apply
 
 | Alias | Expands to | What that flag does |
 |---|---|---|
-| `claude-yolo` | `claude --dangerously-skip-permissions` | Skips permission prompts. The call goes through the zsh `claude` function, so the [status line](claude-statusline.md) and `~/.claude/settings.json` still apply, including deny rules |
+| `claude-yolo` | Claude bypass mode with the extra dangerous removal bypass | Loads user settings without permission deny and ask rules, excludes project and local settings, and retains the [status line](claude-statusline.md). Managed settings and plugins can still restrict actions |
 | `codex-yolo` | `codex --yolo` | Alias of `--dangerously-bypass-approvals-and-sandbox`. Skips approvals and turns the sandbox off (`danger-full-access`) |
 | `cursor-yolo` | `cursor-agent --yolo` | Alias of `--force`. Allows commands unless a rule denies them. The command is `cursor-agent`; on this setup `agent` is Grok |
 | `agy-yolo` | `agy --dangerously-skip-permissions` | Antigravity CLI. Auto-approves tool permission requests |
@@ -23,3 +23,5 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli dot apply
 | `omp-yolo` | `omp --approval-mode=yolo` | Sets this session's approval mode to `yolo` |
 
 `codex --yolo` is the wide mode: it removes the sandbox as well as the prompts. `--not-so-yolo` is a different flag (`--approve-for-me`) and is not what `codex-yolo` runs.
+
+`claude-yolo` allows destructive removals without the critical-path prompt. Use it in an isolated environment. It reads settings from `CLAUDE_CONFIG_DIR` when set, or `~/.claude` otherwise. Plain `claude` retains its normal settings and permission rules.

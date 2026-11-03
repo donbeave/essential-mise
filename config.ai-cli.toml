@@ -74,7 +74,11 @@ function claude {
 }
 ''' }
 "~/.zshrc/yolo" = { block = '''
-alias claude-yolo='claude --dangerously-skip-permissions'
+function claude-yolo {
+  local settings
+  settings="$(/opt/homebrew/bin/jq -c 'del(.permissions.deny, .permissions.ask)' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json")" || return
+  CLAUDE_CODE_EVEN_MORE_DANGEROUSLY_SKIP_PERMISSIONS=1 claude --dangerously-skip-permissions --setting-sources '' --settings "$settings" "$@"
+}
 alias codex-yolo='codex --yolo'
 alias cursor-yolo='cursor-agent --yolo'
 alias agy-yolo='agy --dangerously-skip-permissions'
