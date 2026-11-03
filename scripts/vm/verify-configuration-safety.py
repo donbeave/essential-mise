@@ -74,8 +74,8 @@ env['MISE_CEILING_PATHS'] = str(config_dir)
 env.pop('MISE_ENV', None)
 for iteration in (1, 2):
     run(f'git-pull-defaults-{iteration}', [mise, '-C', config_dir, '-E', 'development', 'bootstrap', '--only', 'dotfiles', '--yes'], env)
-for key in ('pull.rebase', 'pull.ff'):
-    assert run(f'git-pull-default-{key}', ['git', 'config', '--global', '--get-all', key], env).splitlines() == ['false']
+for key, expected in {'pull.rebase': 'false', 'pull.ff': 'true'}.items():
+    assert run(f'git-pull-default-{key}', ['git', 'config', '--global', '--get-all', key], env).splitlines() == [expected]
 commands = {
     'core.autocrlf': 'input',
     'core.excludesFile': str(config_dir / 'dotfiles/development/git/ignore'),
