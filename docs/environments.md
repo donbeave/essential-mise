@@ -113,6 +113,8 @@ The `ai-cli` hook does not install these routes separately. Grok can discover th
 | MiMo Code | Native integration is under investigation. | [Draft PR 276](https://github.com/ayghri/i-have-adhd/pull/276) remains pending; guest testing found it shadows existing same-name user or project skill resolution. |
 | MiniMax Code | In mcode 0.7.4, a synthetic custom-provider session delivered routing and the explicit skill; disabled controls omitted them. | A synthetic custom-provider session delivered the explicit skill and the disabled control did not. The released always-on hook’s 30-second timeout is rejected by mcode 0.7.4. |
 
+Kimi 2.5.0 can lose an earlier plugin registration when another session was already open before that installation. Before changing plugins, close other Kimi sessions, and start a fresh session for each subsequent change. Check the plugin list afterward.
+
 Grok 1.0.70 discovered both Claude-installed plugins in a disposable guest and honored each Claude disabled state in new sessions. No separate Grok installation was needed. Restart Grok after changing a plugin. Antigravity can replace an existing same-name plugin during installation. Check source and scope before changing an installation. Grok uninstall removes plugin data unless `--keep-data` is used. MiniMax Code is not provisioned by this module yet.
 
 ### RTK
