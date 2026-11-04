@@ -185,15 +185,41 @@ alias omp-minimax='omp --profile minimax'
 alias omp-minimax-yolo='omp --profile minimax --approval-mode=yolo'
 alias omp-mimo='omp --profile mimo'
 alias omp-mimo-yolo='omp --profile mimo --approval-mode=yolo'
-# OMP + Anthropic API. Each --profile holds its own auth; provision each with a
-# separate 1Password key at runtime, e.g. ANTHROPIC_API_KEY="$(op read 'op://<vault>/<item>/<field>')" omp-anthropic-api-patrick.
-# No op:// refs are committed; see manual-actions.
-alias omp-anthropic-api-patrick='omp --profile anthropic-api-patrick'
-alias omp-anthropic-api-patrick-yolo='omp --profile anthropic-api-patrick --approval-mode=yolo'
-alias omp-anthropic-api-alexey='omp --profile anthropic-api-alexey'
-alias omp-anthropic-api-alexey-yolo='omp --profile anthropic-api-alexey --approval-mode=yolo'
-alias omp-anthropic-api-alexey2='omp --profile anthropic-api-alexey2'
-alias omp-anthropic-api-alexey2-yolo='omp --profile anthropic-api-alexey2 --approval-mode=yolo'
+# OMP + Anthropic API. Each account resolves its key at runtime via 1Password CLI.
+# The item reference lives outside the repo, e.g. in unmanaged ~/.zshenv:
+#   export OMP_ANTHROPIC_API_PATRICK_REF='op://Private/<item>/key'
+# No op:// refs are committed; see manual-actions. A pre-exported ANTHROPIC_API_KEY is honored as-is.
+function _omp-anthropic-api {
+  local profile="$1" ref_var="$2"
+  shift 2
+  local ref="${(P)ref_var:-}" key="${ANTHROPIC_API_KEY:-}"
+  if [[ -z "$key" ]]; then
+    if [[ -z "$ref" ]]; then
+      printf '%s: set %s to a 1Password reference or export ANTHROPIC_API_KEY\n' "$profile" "$ref_var" >&2
+      return 1
+    fi
+    key="$(op read "$ref")" || return 1
+  fi
+  ANTHROPIC_API_KEY="$key" omp --profile "$profile" "$@"
+}
+function omp-anthropic-api-patrick {
+  _omp-anthropic-api anthropic-api-patrick OMP_ANTHROPIC_API_PATRICK_REF "$@"
+}
+function omp-anthropic-api-patrick-yolo {
+  omp-anthropic-api-patrick --approval-mode=yolo "$@"
+}
+function omp-anthropic-api-alexey {
+  _omp-anthropic-api anthropic-api-alexey OMP_ANTHROPIC_API_ALEXEY_REF "$@"
+}
+function omp-anthropic-api-alexey-yolo {
+  omp-anthropic-api-alexey --approval-mode=yolo "$@"
+}
+function omp-anthropic-api-alexey2 {
+  _omp-anthropic-api anthropic-api-alexey2 OMP_ANTHROPIC_API_ALEXEY2_REF "$@"
+}
+function omp-anthropic-api-alexey2-yolo {
+  omp-anthropic-api-alexey2 --approval-mode=yolo "$@"
+}
 # Single-account agents: explicit <agent>-<account> twins of the bare commands.
 alias kimi-chainargos='kimi'
 alias kimi-chainargos-yolo='kimi --auto'
