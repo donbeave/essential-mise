@@ -17,25 +17,6 @@ with open(os.environ['MOCK_LOG'], 'a') as f:
     f.write(json.dumps([name] + args) + '\n')
 if os.environ.get('MOCK_FAIL') == name + ' ' + ' '.join(args):
     sys.exit(9)
-state = pathlib.Path(os.environ['MOCK_STATE'])
-if name == 'claude' and args == ['plugin', 'list', '--json']:
-    print(state.joinpath('claude-plugins.json').read_text())
-elif name == 'claude' and args == ['plugin', 'marketplace', 'list', '--json']:
-    print(state.joinpath('claude.json').read_text())
-elif name == 'claude' and args[:3] == ['plugin', 'marketplace', 'add']:
-    repo = args[3]
-    mp = 'pstack-claude' if repo.startswith('michael-denyer/') else 'i-have-adhd'
-    state.joinpath('claude.json').write_text(json.dumps([{'name': mp, 'source':'github', 'repo':repo}]))
-elif name == 'claude' and args[:2] == ['plugin', 'install']:
-    state.joinpath('claude-plugins.json').write_text(json.dumps([{'id':args[2], 'scope':'user', 'enabled':True}]))
-elif name == 'omp' and args == ['plugin', 'list', '--json']:
-    print(state.joinpath('omp.json').read_text())
-elif name == 'omp' and args == ['plugin', 'marketplace', 'list']:
-    print(state.joinpath('omp-marketplaces.txt').read_text())
-elif name == 'omp' and args[:3] == ['plugin', 'marketplace', 'add']:
-    state.joinpath('omp-marketplaces.txt').write_text('i-have-adhd ' + args[3] + '\n')
-elif name == 'codex' and args[:2] == ['plugin', 'list']:
-    print(state.joinpath('codex.json').read_text())
 '''
 
 class PluginLifecycle(unittest.TestCase):
@@ -59,6 +40,9 @@ class PluginLifecycle(unittest.TestCase):
         (self.state / 'omp-marketplaces.txt').write_text('No marketplaces configured\n')
         self.home = self.root / 'home'
         (self.home / '.local/share/pstack-claude/plugins/pstack/skills').mkdir(parents=True)
+        adhd_manifest = self.home / '.local/share/i-have-adhd/.claude-plugin/plugin.json'
+        adhd_manifest.parent.mkdir(parents=True)
+        adhd_manifest.write_text('{}')
         self.log = self.root / 'calls.jsonl'
         self.env = os.environ.copy()
         self.env.update(HOME=str(self.home), MOCK_LOG=str(self.log), MOCK_STATE=str(self.state))
@@ -82,50 +66,26 @@ class PluginLifecycle(unittest.TestCase):
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
 
-    def test_claude_fresh_and_repeat_do_not_readd(self):
-        self.assertEqual(self.run_script('pstack', 'claude').returncode, 0)
-        self.assertEqual(self.run_script('pstack', 'claude').returncode, 0)
-        self.assertEqual(sum(c[:4] == ['claude','plugin','marketplace','add'] for c in self.calls()), 1)
-        self.assertIn(['claude','plugin','update','pstack@pstack-claude','--scope','user'], self.calls())
-
-    def test_claude_collision_is_not_mutated(self):
-        (self.state / 'claude.json').write_text(json.dumps([{'name':'pstack-claude','source':'github','repo':'other/repo'}]))
-        result = self.run_script('pstack', 'claude')
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(self.calls(), [['claude','plugin','list','--json'], ['claude','plugin','marketplace','list','--json']])
-
-    def test_claude_disabled_is_not_reenabled_or_updated(self):
-        for script, plugin in [('pstack', 'pstack@pstack-claude'), ('adhd', 'i-have-adhd@i-have-adhd')]:
-            self.log.unlink(missing_ok=True)
-            record = {'id': plugin, 'scope': 'user', 'enabled': False}
-            (self.state / 'claude-plugins.json').write_text(json.dumps([record]))
-            result = self.run_script(script, 'claude')
-            self.assertEqual(result.returncode, 0)
-            self.assertIn('user disabled', result.stderr)
-            self.assertEqual(self.calls(), [['claude','plugin','list','--json']])
-            self.assertEqual(json.loads((self.state / 'claude-plugins.json').read_text()), [record])
-
-    def test_claude_malformed_listing_has_no_mutation(self):
-        (self.state / 'claude-plugins.json').write_text('[null]')
-        self.assertNotEqual(self.run_script('pstack', 'claude').returncode, 0)
-        self.assertEqual(self.calls(), [['claude','plugin','list','--json']])
-
-    def test_codex_pending_preserves_config_and_continues_other_agents(self):
-        config = self.home / '.codex/config.toml'
-        config.parent.mkdir(parents=True)
-        contents = '# user settings\nmodel = "unrelated"\n'
-        config.write_text(contents)
+    def test_pending_claude_and_codex_preserve_config_and_continue_muse(self):
+        claude_config = self.home / '.claude/settings.json'
+        claude_config.parent.mkdir(parents=True)
+        claude_contents = '{"enabledPlugins":{"unrelated@other":true}}\n'
+        claude_config.write_text(claude_contents)
+        codex_config = self.home / '.codex/config.toml'
+        codex_config.parent.mkdir(parents=True)
+        codex_contents = '# user settings\nmodel = "unrelated"\n'
+        codex_config.write_text(codex_contents)
         for script, marketplace in [('pstack', 'pstack-claude'), ('adhd', 'i-have-adhd')]:
             self.log.unlink(missing_ok=True)
             for _ in range(2):
-                result = self.run_script(script, 'codex', 'claude')
+                result = self.run_script(script, 'claude', 'codex', 'muse')
                 self.assertEqual(result.returncode, 0)
+                self.assertIn('PENDING ' + marketplace + '/Claude', result.stderr)
                 self.assertIn('PENDING ' + marketplace + '/Codex', result.stderr)
-                self.assertEqual(config.read_text(), contents)
-            self.assertFalse(any(call[0] == 'codex' for call in self.calls()))
-            self.assertTrue(any(call[0] == 'claude' for call in self.calls()))
-            (self.state / 'claude.json').write_text('[]')
-            (self.state / 'claude-plugins.json').write_text('[]')
+                self.assertEqual(claude_config.read_text(), claude_contents)
+                self.assertEqual(codex_config.read_text(), codex_contents)
+            self.assertFalse(any(call[0] in ('claude', 'codex') for call in self.calls()))
+            self.assertEqual(sum(call[0] == 'muse' for call in self.calls()), 2)
 
     def test_omp_existing_user_or_project_installation_is_left_untouched(self):
         for scope in ('user', 'project'):
@@ -167,16 +127,11 @@ class PluginLifecycle(unittest.TestCase):
         self.assertEqual(self.calls(), [])
 
     def test_failure_does_not_skip_later_agent_and_retry(self):
-        failure = 'claude plugin marketplace list --json'
-        self.assertNotEqual(self.run_script('pstack','claude','muse',fail=failure).returncode, 0)
-        self.assertTrue(any(c[:3] == ['muse','plugins','install'] for c in self.calls()))
-        self.assertEqual(self.run_script('pstack','claude','muse').returncode, 0)
-
-    def test_failure_stops_current_agent_before_following_operations(self):
-        failure = 'claude plugin marketplace update pstack-claude'
-        self.assertNotEqual(self.run_script('pstack','claude','muse',fail=failure).returncode, 0)
-        self.assertFalse(any(c[:3] == ['claude','plugin','install'] for c in self.calls()))
-        self.assertTrue(any(c[:3] == ['muse','plugins','install'] for c in self.calls()))
+        failure = 'muse plugins install ' + str(self.home / '.local/share/pstack-claude/plugins/pstack')
+        result = self.run_script('pstack', 'muse', 'claude', fail=failure)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('PENDING pstack-claude/Claude', result.stderr)
+        self.assertEqual(self.run_script('pstack', 'muse', 'claude').returncode, 0)
 
     def test_unknown_tool_fails_before_any_mutation(self):
         self.assertNotEqual(self.run_script('pstack','claude','unknown').returncode, 0)

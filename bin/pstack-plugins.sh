@@ -5,9 +5,7 @@
 set -euo pipefail
 
 bin=/opt/homebrew/bin
-repository=michael-denyer/pstack-claude
 marketplace=pstack-claude
-plugin="pstack@$marketplace"
 clone="$HOME/.local/share/$marketplace"
 skills_source="$clone/plugins/pstack/skills"
 
@@ -19,35 +17,7 @@ require_clone() {
 }
 
 install_claude() {
-  local catalogs count installed user_count enabled
-  installed="$("$bin/claude" plugin list --json)" || return
-  "$bin/jq" -e 'type == "array" and all(.[]; type == "object" and (.id | type == "string") and (.scope | type == "string") and (.enabled | type == "boolean"))' <<<"$installed" >/dev/null || return
-  user_count="$("$bin/jq" -r --arg id "$plugin" '[.[] | select(.id == $id and .scope == "user")] | length' <<<"$installed")" || return
-  [[ "$user_count" == 0 || "$user_count" == 1 ]] || return 1
-  if [[ "$user_count" == 1 ]]; then
-    enabled="$("$bin/jq" -r --arg id "$plugin" '.[] | select(.id == $id and .scope == "user") | .enabled' <<<"$installed")" || return
-    if [[ "$enabled" == false ]]; then
-      printf 'PENDING %s/Claude: user disabled this plugin; leaving it unchanged\n' "$marketplace" >&2
-      return 0
-    fi
-  fi
-  catalogs="$("$bin/claude" plugin marketplace list --json)" || return
-  "$bin/jq" -e 'type == "array" and all(.[]; type == "object" and (.name | type == "string"))' <<<"$catalogs" >/dev/null || return
-  count="$("$bin/jq" -r --arg name "$marketplace" '[.[] | select(.name == $name)] | length' <<<"$catalogs")" || return
-  if [[ "$count" == 0 ]]; then
-    "$bin/claude" plugin marketplace add "$repository" || return
-    catalogs="$("$bin/claude" plugin marketplace list --json)" || return
-  fi
-  if ! "$bin/jq" -e --arg name "$marketplace" --arg repo "$repository"     '[.[] | select(.name == $name)] | length == 1 and .[0].source == "github" and .[0].repo == $repo and (.[0].ref // "") == ""' <<<"$catalogs" >/dev/null; then
-    printf '%s: refusing Claude marketplace with unexpected source\n' "$marketplace" >&2
-    return 1
-  fi
-  "$bin/claude" plugin marketplace update "$marketplace"
-  if [[ "$user_count" == 0 ]]; then
-    "$bin/claude" plugin install "$plugin" --scope user
-  else
-    "$bin/claude" plugin update "$plugin" --scope user
-  fi
+  printf 'PENDING %s/Claude: concurrent native configuration writes can lose changes; existing installations were not changed\n' "$marketplace" >&2
 }
 
 install_codex() {
