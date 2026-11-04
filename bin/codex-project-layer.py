@@ -29,7 +29,7 @@ try:
             while b'\n' in pending:
                 line, pending = pending.split(b'\n', 1)
                 item = json.loads(line)
-                if item.get('id') == request_id:
+                if type(item.get('id')) is int and item['id'] == request_id:
                     if 'error' in item or 'result' not in item:
                         raise RuntimeError('API request failed')
                     return item['result']

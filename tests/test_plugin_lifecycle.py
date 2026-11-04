@@ -62,6 +62,7 @@ class PluginLifecycle(unittest.TestCase):
         self.log = self.root / 'calls.jsonl'
         self.env = os.environ.copy()
         self.env.update(HOME=str(self.home), MOCK_LOG=str(self.log), MOCK_STATE=str(self.state))
+        (self.root / 'codex-project-layer.py').write_text("print('clear')\n")
         self.scripts = {}
         for name in ('pstack', 'adhd'):
             script = self.root / (name + '.sh')
@@ -115,6 +116,7 @@ class PluginLifecycle(unittest.TestCase):
             self.log.unlink(missing_ok=True)
             (self.state / 'codex.json').write_text(json.dumps({'installed':[malformed]}))
             self.assertNotEqual(self.run_script('pstack', 'codex').returncode, 0)
+            self.assertEqual(self.calls(), [['codex', 'plugin', 'list', '--marketplace', 'pstack-claude', '--json']])
             self.assertFalse(any(c[:3] in (['codex','plugin','add'], ['codex','plugin','marketplace']) and
                                  ('upgrade' in c or 'pstack@pstack-claude' in c) for c in self.calls()))
 
