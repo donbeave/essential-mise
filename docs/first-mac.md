@@ -141,7 +141,9 @@ To remove a user-scope installation after checking its source and scope, use the
 | Codex | `codex plugin remove pstack@pstack-claude` | `codex plugin remove i-have-adhd@i-have-adhd` |
 | Muse Code | `muse plugins remove pstack` | `muse plugins remove i-have-adhd` |
 
-These commands do not remove a shared marketplace or checkout. OMP and OpenCode installations are not changed by this module; inspect their plugin managers and existing files before removing anything there. Applying `ai-cli` again can reinstall removed plugins, so deselect it first if you intend to keep them removed.
+Before using the Codex commands, inspect the effective plugin source and scope and stop concurrent Codex configuration writers. The native manager cannot guarantee preservation against another writer that changes configuration at the same time. See the [Codex plugin documentation](https://developers.openai.com/plugins/build/plugins).
+
+These commands do not remove a shared marketplace or checkout. Codex, OMP and OpenCode installations are not changed by this module; inspect their plugin managers and existing files before removing anything there. Applying `ai-cli` again can reinstall removed Claude Code or Muse Code plugins, so deselect it first if you intend to keep them removed.
 
 GitHub CLI settings and aliases are application-owned and are not reversed by native unapply; change them through `gh config` and `gh alias` rather than deleting the whole configuration or `hosts.yml`. Cloned repositories, login items, and macOS preferences need separate review. See [Manual actions](manual-actions.md) for preference snapshots and selective reversal.
 

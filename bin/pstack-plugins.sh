@@ -50,32 +50,9 @@ install_claude() {
   fi
 }
 
-install_codex() (
-  local installed layer_state
-  layer_state="$(/usr/bin/python3 "$(dirname "$0")/codex-project-layer.py")" || return
-  if [[ "$layer_state" != clear ]]; then
-    printf '%s: refusing Codex operation with project configuration\n' "$marketplace" >&2
-    return 1
-  fi
-  installed="$("$bin/codex" plugin list --marketplace "$marketplace" --json)" || return
-  "$bin/jq" -e 'type == "object" and (.installed | type == "array" and all(.[]; type == "object" and (.name | type == "string" and length > 0) and (.marketplaceName | type == "string") and (.installed | type == "boolean" and . == true) and (.enabled | type == "boolean") and (.source | type == "object")))' <<<"$installed" >/dev/null || return
-  if "$bin/jq" -e --arg name "${plugin%@*}" '.installed | any(.name != $name)' <<<"$installed" >/dev/null; then
-    printf '%s: refusing to change marketplace with unrelated Codex plugins\n' "$marketplace" >&2
-    return 1
-  fi
-  "$bin/codex" plugin marketplace add "$repository"
-  installed="$("$bin/codex" plugin list --marketplace "$marketplace" --json)"
-  "$bin/jq" -e 'type == "object" and (.installed | type == "array" and all(.[]; type == "object" and (.name | type == "string" and length > 0) and (.marketplaceName | type == "string") and (.installed | type == "boolean" and . == true) and (.enabled | type == "boolean") and (.source | type == "object")))' <<<"$installed" >/dev/null || return
-  if "$bin/jq" -e --arg name "${plugin%@*}" '.installed | any(.name != $name)' <<<"$installed" >/dev/null; then
-    printf '%s: refusing to upgrade unrelated Codex marketplace plugins\n' "$marketplace" >&2
-    return 1
-  fi
-  if "$bin/jq" -e '.installed | any(.name == "pstack")' <<<"$installed" >/dev/null; then
-    "$bin/codex" plugin marketplace upgrade "$marketplace"
-  else
-    "$bin/codex" plugin add "$plugin"
-  fi
-)
+install_codex() {
+  printf 'PENDING %s/Codex: concurrent native configuration writes can lose changes; existing installations were not changed\n' "$marketplace" >&2
+}
 
 install_omp() {
   printf 'PENDING pstack/OMP: native integration awaits upstream PR 396 and a release; existing installations were not changed\n' >&2

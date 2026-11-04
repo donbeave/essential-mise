@@ -62,7 +62,6 @@ class PluginLifecycle(unittest.TestCase):
         self.log = self.root / 'calls.jsonl'
         self.env = os.environ.copy()
         self.env.update(HOME=str(self.home), MOCK_LOG=str(self.log), MOCK_STATE=str(self.state))
-        (self.root / 'codex-project-layer.py').write_text("print('clear')\n")
         self.scripts = {}
         for name in ('pstack', 'adhd'):
             script = self.root / (name + '.sh')
@@ -111,14 +110,22 @@ class PluginLifecycle(unittest.TestCase):
         self.assertNotEqual(self.run_script('pstack', 'claude').returncode, 0)
         self.assertEqual(self.calls(), [['claude','plugin','list','--json']])
 
-    def test_codex_malformed_member_never_adds_or_upgrades_plugin(self):
-        for malformed in [None, {'name': 3}, {'name': 'pstack'}]:
+    def test_codex_pending_preserves_config_and_continues_other_agents(self):
+        config = self.home / '.codex/config.toml'
+        config.parent.mkdir(parents=True)
+        contents = '# user settings\nmodel = "unrelated"\n'
+        config.write_text(contents)
+        for script, marketplace in [('pstack', 'pstack-claude'), ('adhd', 'i-have-adhd')]:
             self.log.unlink(missing_ok=True)
-            (self.state / 'codex.json').write_text(json.dumps({'installed':[malformed]}))
-            self.assertNotEqual(self.run_script('pstack', 'codex').returncode, 0)
-            self.assertEqual(self.calls(), [['codex', 'plugin', 'list', '--marketplace', 'pstack-claude', '--json']])
-            self.assertFalse(any(c[:3] in (['codex','plugin','add'], ['codex','plugin','marketplace']) and
-                                 ('upgrade' in c or 'pstack@pstack-claude' in c) for c in self.calls()))
+            for _ in range(2):
+                result = self.run_script(script, 'codex', 'claude')
+                self.assertEqual(result.returncode, 0)
+                self.assertIn('PENDING ' + marketplace + '/Codex', result.stderr)
+                self.assertEqual(config.read_text(), contents)
+            self.assertFalse(any(call[0] == 'codex' for call in self.calls()))
+            self.assertTrue(any(call[0] == 'claude' for call in self.calls()))
+            (self.state / 'claude.json').write_text('[]')
+            (self.state / 'claude-plugins.json').write_text('[]')
 
     def test_omp_existing_user_or_project_installation_is_left_untouched(self):
         for scope in ('user', 'project'):
