@@ -8,6 +8,7 @@ built on Termrock (`junie-tui`) as a component library.
 | `spec.md` | Full spec: goal, architecture, screens, phases, verification | Draft for review |
 | `implementation-spec.md` | Build-ready CLI+TUI spec (reviewed 2026-11-05, 11 findings integrated) | Ready for P0 / P1 kickoff |
 | `flow-comparison.md` | 1:1 today-vs-proposal review from the user perspective + P1 amendments | Ready |
+| `implementation-plan.md` | Executor-strict goal/plan/tasks (gates, commands, evidence per task) | Ready |
 | `resume-prompt.md` | Prompt to restart this work in a fresh session | Ready |
 | `goal-prompt.md` | Prompt to produce the build-ready CLI+TUI implementation spec | Ready |
 
