@@ -121,4 +121,79 @@ alias opencode-yolo='opencode --auto'
 alias grok-yolo='grok --yolo'
 alias amp-yolo='amp --dangerously-allow-all'
 alias omp-yolo='omp --approval-mode=yolo'
+alias muse-yolo='muse --yolo'
+# --- provider matrix: <agent>-<provider>[-<account>] + -yolo twins ---
+# Claude Code. Anthropic reuses the chainargos dirs; bare `claude` keeps ~/.claude.
+function claude-anthropic {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos" claude "$@"
+}
+function claude-anthropic-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos" _claude-yolo "$HOME/.claude-chainargos" "$@"
+}
+function claude-anthropic2 {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos2" claude "$@"
+}
+function claude-anthropic2-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos2" _claude-yolo "$HOME/.claude-chainargos2" "$@"
+}
+function claude-kimi {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-kimi" claude "$@"
+}
+function claude-kimi-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-kimi" _claude-yolo "$HOME/.claude-kimi" "$@"
+}
+function claude-zai {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-zai" claude "$@"
+}
+function claude-zai-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-zai" _claude-yolo "$HOME/.claude-zai" "$@"
+}
+function claude-minimax {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-minimax" claude "$@"
+}
+function claude-minimax-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-minimax" _claude-yolo "$HOME/.claude-minimax" "$@"
+}
+function claude-mimo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-mimo" claude "$@"
+}
+function claude-mimo-yolo {
+  CLAUDE_CONFIG_DIR="$HOME/.claude-mimo" _claude-yolo "$HOME/.claude-mimo" "$@"
+}
+# Codex. Bare `codex` keeps the current ~/.codex login (OpenAI, alexey@chainargos.com);
+# codex-openai is its explicit twin. Other logins get isolated CODEX_HOME dirs.
+alias codex-openai='CODEX_HOME="$HOME/.codex" codex'
+alias codex-openai-yolo='CODEX_HOME="$HOME/.codex" codex --yolo'
+alias codex-openai2='CODEX_HOME="$HOME/.codex-openai2" codex'
+alias codex-openai2-yolo='CODEX_HOME="$HOME/.codex-openai2" codex --yolo'
+alias codex-openai-zhokhov='CODEX_HOME="$HOME/.codex-openai-zhokhov" codex'
+alias codex-openai-zhokhov-yolo='CODEX_HOME="$HOME/.codex-openai-zhokhov" codex --yolo'
+alias codex-kimi='CODEX_HOME="$HOME/.codex-kimi" codex'
+alias codex-kimi-yolo='CODEX_HOME="$HOME/.codex-kimi" codex --yolo'
+alias codex-zai='CODEX_HOME="$HOME/.codex-zai" codex'
+alias codex-zai-yolo='CODEX_HOME="$HOME/.codex-zai" codex --yolo'
+alias codex-minimax='CODEX_HOME="$HOME/.codex-minimax" codex'
+alias codex-minimax-yolo='CODEX_HOME="$HOME/.codex-minimax" codex --yolo'
+alias codex-mimo='CODEX_HOME="$HOME/.codex-mimo" codex'
+alias codex-mimo-yolo='CODEX_HOME="$HOME/.codex-mimo" codex --yolo'
+# OMP. Auth is isolated per --profile; profiles are created on first use.
+alias omp-kimi='omp --profile kimi'
+alias omp-kimi-yolo='omp --profile kimi --approval-mode=yolo'
+alias omp-zai='omp --profile zai'
+alias omp-zai-yolo='omp --profile zai --approval-mode=yolo'
+alias omp-minimax='omp --profile minimax'
+alias omp-minimax-yolo='omp --profile minimax --approval-mode=yolo'
+alias omp-mimo='omp --profile mimo'
+alias omp-mimo-yolo='omp --profile mimo --approval-mode=yolo'
+# Single-account agents: explicit <agent>-<account> twins of the bare commands.
+alias kimi-chainargos='kimi'
+alias kimi-chainargos-yolo='kimi --auto'
+alias grok-chainargos='grok'
+alias grok-chainargos-yolo='grok --yolo'
+alias opencode-chainargos='opencode'
+alias opencode-chainargos-yolo='opencode --auto'
+alias muse-chainargos='muse'
+alias muse-chainargos-yolo='muse --yolo'
+alias agy-gmail='agy'
+alias agy-gmail-yolo='agy --dangerously-skip-permissions'
 ''' }

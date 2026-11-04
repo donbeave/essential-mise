@@ -21,6 +21,29 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli dot apply
 | `grok-yolo` | `grok --yolo` | Alias of `--always-approve` and of `--permission-mode bypassPermissions`. Auto-approves tool executions |
 | `amp-yolo` | `amp --dangerously-allow-all` | Disables command confirmation prompts |
 | `omp-yolo` | `omp --approval-mode=yolo` | Sets this session's approval mode to `yolo` |
+| `muse-yolo` | `muse --yolo` | Muse Code. Disables approval and sandbox for the workspace run |
+
+## Provider matrix (`<agent>-<provider>[-<account>]`)
+
+One alias per account per agent; every entry also has a `-yolo` twin.
+
+| Alias | Account | Isolation |
+|---|---|---|
+| `claude-anthropic`, `claude-anthropic2` | Anthropic, alexey@chainargos.com / alexey2@chainargos.com | `~/.claude-chainargos`, `~/.claude-chainargos2` (shared with the legacy `claude-chainargos` / `claude-chainargos2` names) |
+| `claude-kimi`, `claude-zai`, `claude-minimax`, `claude-mimo` | Kimi / Z.AI / MiniMax / MiMo, alexey@chainargos.com | `~/.claude-kimi`, `~/.claude-zai`, `~/.claude-minimax`, `~/.claude-mimo` |
+| `codex-openai` | OpenAI, alexey@chainargos.com | `~/.codex` (explicit twin of bare `codex`) |
+| `codex-openai2` | OpenAI, alexey2@chainargos.com | `~/.codex-openai2` |
+| `codex-openai-zhokhov` | OpenAI, alexey@zhokhov.com | `~/.codex-openai-zhokhov` |
+| `codex-kimi`, `codex-zai`, `codex-minimax`, `codex-mimo` | Kimi / Z.AI / MiniMax / MiMo, alexey@chainargos.com | `~/.codex-kimi`, `~/.codex-zai`, `~/.codex-minimax`, `~/.codex-mimo` |
+| `omp-kimi`, `omp-zai`, `omp-minimax`, `omp-mimo` | Kimi / Z.AI / MiniMax / MiMo, alexey@chainargos.com | `omp --profile <name>` (created on first use) |
+| `kimi-chainargos` | Kimi, alexey@chainargos.com | Bare `kimi` |
+| `grok-chainargos` | Grok, alexey@chainargos.com | Bare `grok` |
+| `opencode-chainargos` | OpenCode Go, alexey@chainargos.com | Bare `opencode` |
+| `muse-chainargos` | Muse, alexey@chainargos.com | Bare `muse` |
+| `agy-gmail` | Gemini/Antigravity, donbeave@gmail.com | Bare `agy` |
+
+MiniMax Code and MiMo Code standalone CLIs are not installed, so MiniMax/MiMo are
+covered only through the `claude-*`, `codex-*`, and `omp-*` provider aliases.
 
 `codex --yolo` is the wide mode: it removes the sandbox as well as the prompts. `--not-so-yolo` is a different flag (`--approve-for-me`) and is not what `codex-yolo` runs.
 
