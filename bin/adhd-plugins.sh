@@ -46,6 +46,10 @@ install_codex() (
     printf "%s: refusing unset or relative HOME; use an absolute path\n" "$marketplace" >&2
     return 1
   fi
+  if [[ -n "${XDG_CONFIG_HOME:-}" && "$XDG_CONFIG_HOME" != /* ]]; then
+    printf "%s: refusing relative XDG_CONFIG_HOME; use an absolute path\n" "$marketplace" >&2
+    return 1
+  fi
   for git_config_var in GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM; do
     git_config_value="${!git_config_var:-}"
     if [[ -n "$git_config_value" && "$git_config_value" != /* ]]; then
