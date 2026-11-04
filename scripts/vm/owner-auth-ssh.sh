@@ -52,7 +52,7 @@ expect {
   }
   -re "y/n/enter.*submit" {
     if {$env(VM_AUTO_CONFIRM) eq "1"} {
-      send -- "y\n"
+      send -- "y"
       exp_continue
     }
     puts stderr "Native mise confirmation requires explicit VM_AUTO_CONFIRM=1"
