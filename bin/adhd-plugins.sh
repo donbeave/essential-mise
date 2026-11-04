@@ -41,6 +41,12 @@ install_claude() {
 
 install_codex() {
   local installed
+  installed="$("$bin/codex" plugin list --marketplace "$marketplace" --json)" || return
+  "$bin/jq" -e 'type == "object" and (.installed | type == "array" and all(.[]; type == "object" and (.name | type == "string" and length > 0) and (.marketplaceName | type == "string") and (.installed | type == "boolean" and . == true) and (.enabled | type == "boolean") and (.source | type == "object")))' <<<"$installed" >/dev/null || return
+  if "$bin/jq" -e --arg name "${plugin%@*}" '.installed | any(.name != $name)' <<<"$installed" >/dev/null; then
+    printf '%s: refusing to change marketplace with unrelated Codex plugins\n' "$marketplace" >&2
+    return 1
+  fi
   "$bin/codex" plugin marketplace add "$repository" --ref main
   installed="$("$bin/codex" plugin list --marketplace "$marketplace" --json)"
   "$bin/jq" -e 'type == "object" and (.installed | type == "array" and all(.[]; type == "object" and (.name | type == "string" and length > 0) and (.marketplaceName | type == "string") and (.installed | type == "boolean" and . == true) and (.enabled | type == "boolean") and (.source | type == "object")))' <<<"$installed" >/dev/null || return
