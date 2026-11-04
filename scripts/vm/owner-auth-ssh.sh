@@ -40,6 +40,40 @@ set command [list /usr/bin/ssh -tt \
   "$env(VM_SSH_USER)@$env(VM_IP)" "stty sane; $env(VM_REMOTE_COMMAND)"]
 spawn {*}$command
 set password_prompts 0
+proc clt_ready {command password} {
+  log_user 0
+  spawn -noecho {*}$command
+  set probe $spawn_id
+  set pid [exp_pid -i $probe]
+  set prompts 0
+  set ready 0
+  set aborted 0
+  set timeout 15
+  expect {
+    -nocase -re "password:" {
+      incr prompts
+      if {$prompts > 1} {
+        set aborted 1
+        catch {exec /bin/kill -KILL $pid}
+        catch {close -i $probe}
+      } else {
+        send -i $probe -- "$password\n"
+        exp_continue -continue_timer
+      }
+    }
+    timeout {
+      set aborted 1
+      catch {exec /bin/kill -KILL $pid}
+      catch {close -i $probe}
+    }
+    eof {}
+  }
+  if {![catch {wait -i $probe} result] && !$aborted && [llength $result] == 4 && [lindex $result 2] == 0 && [lindex $result 3] == 0} {
+    set ready 1
+  }
+  log_user 1
+  return $ready
+}
 expect {
   -nocase -re "password:" {
     incr password_prompts
@@ -67,15 +101,17 @@ expect {
     set deadline [expr {[clock seconds] + 900}]
     set check [list /usr/bin/ssh -T \
       -i $env(VM_SSH_KEY) \
-      -o BatchMode=yes \
+      -o BatchMode=no \
       -o IdentitiesOnly=yes \
+      -o PreferredAuthentications=publickey,password \
+      -o NumberOfPasswordPrompts=1 \
       -o StrictHostKeyChecking=yes \
       -o UserKnownHostsFile=$env(VM_KNOWN_HOSTS) \
       -o LogLevel=ERROR \
       -o ConnectTimeout=10 \
       "$env(VM_SSH_USER)@$env(VM_IP)" \
       "/usr/bin/xcode-select -p >/dev/null 2>&1 && /usr/bin/git --version >/dev/null 2>&1"]
-    while {[catch {exec {*}$check}]} {
+    while {![clt_ready $check $owner_password]} {
       if {[clock seconds] >= $deadline} {
         puts stderr "Timed out waiting for guest Command Line Tools"
         exit 124
