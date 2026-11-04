@@ -36,6 +36,8 @@ description = "XDG-aware Amp Fish completion block; preserves unrelated startup 
 run = [
   "/usr/bin/python3 \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py\" apply amp",
   "/usr/bin/python3 \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/fish-config.py\" status amp",
+  "/bin/bash \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/prune-legacy-agents.sh\" apply",
+  "/bin/bash \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/prune-legacy-agents.sh\" status",
 ]
 
 [dotfiles]
