@@ -48,6 +48,8 @@ try:
     layers = response['layers']
     if not isinstance(layers, list):
         raise RuntimeError('invalid layers')
+    base_user_layers = 0
+    project_found = False
     for layer in layers:
         if not isinstance(layer, dict) or not isinstance(layer.get('name'), dict):
             raise RuntimeError('invalid layer')
@@ -56,11 +58,17 @@ try:
             raise RuntimeError('invalid layer kind')
         if kind not in {'mdm', 'system', 'enterpriseManaged', 'user', 'project', 'sessionFlags', 'legacyManagedConfigTomlFromFile', 'legacyManagedConfigTomlFromMdm'}:
             raise RuntimeError('unknown layer kind')
+        if kind == 'user':
+            name = layer['name']
+            if not isinstance(name.get('file'), str) or not os.path.isabs(name['file']) or 'profile' not in name or (name['profile'] is not None and not isinstance(name['profile'], str)):
+                raise RuntimeError('invalid user layer')
+            if name['profile'] is None:
+                base_user_layers += 1
         if kind == 'project':
-            print('project')
-            break
-    else:
-        print('clear')
+            project_found = True
+    if base_user_layers != 1:
+        raise RuntimeError('missing or duplicate base user layer')
+    print('project' if project_found else 'clear')
 
 except Exception:
     print('Codex project configuration could not be inspected', file=sys.stderr)
