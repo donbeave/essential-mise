@@ -115,7 +115,7 @@ The `ai-cli` hook does not install these routes separately. Grok can discover th
 
 Kimi 2.5.0 can lose an earlier plugin registration when another session was already open before that installation. Before changing plugins, close other Kimi sessions, and start a fresh session for each subsequent change. Check the plugin list afterward.
 
-Grok 1.0.70 discovered both Claude-installed plugins in a disposable guest and honored each Claude disabled state in new sessions. No separate Grok installation was needed. Restart Grok after changing a plugin. Antigravity can replace an existing same-name plugin during installation. Check source and scope before changing an installation. Grok uninstall removes plugin data unless `--keep-data` is used. MiniMax Code is not provisioned by this module yet.
+Grok 1.0.70 discovered both Claude-installed plugins in a disposable guest and honored each Claude disabled state in new sessions. No separate Grok installation was needed. Restart Grok after changing a plugin. Antigravity can replace an existing same-name plugin during installation. In a 1.5.0 guest test, installing a same-name plugin over a symlinked plugin also deleted the symlink target before failing. Avoid symlinked plugin packages; check source and scope before changing an installation. Grok uninstall removes plugin data unless `--keep-data` is used. MiniMax Code is not provisioned by this module yet.
 
 ### RTK
 
