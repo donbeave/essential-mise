@@ -7,12 +7,12 @@ Native mise installs and configures only declared resources. The following remai
 - Set the new machine’s real Git identity deliberately. No `user.name` or `user.email` is deployed.
 - Run `gh auth login`, then `gh auth setup-git` for GitHub credential integration. `gh/hosts.yml`, SSH private hosts, and credential-helper reset semantics are not migrated. Never hand-write a git credential helper: `gh auth setup-git` writes the only valid form (`!gh auth git-credential`), and `gh auth credential-helper` does not exist (gh 2.103.3).
 - Run `git lfs install` after installing Git LFS.
-- The `development` module sets global `pull.rebase=false` and `pull.ff=true` using Git's own configuration writer. Pulls fast-forward when possible and merge divergent branches. Repository, branch, and command-line settings can override these defaults. Apply the remaining Git tuning settings and the ignore override with Git itself. Generic INI merging is not used because it can consume indented Git settings as continuations. These commands preserve unrelated keys, repeated helpers, `includeIf`, comments, casing, and mixed indentation:
+- The `github` module sets global `pull.rebase=false` and `pull.ff=true` using Git's own configuration writer. Pulls fast-forward when possible and merge divergent branches. Repository, branch, and command-line settings can override these defaults. Apply the remaining Git tuning settings and the ignore override with Git itself. Generic INI merging is not used because it can consume indented Git settings as continuations. These commands preserve unrelated keys, repeated helpers, `includeIf`, comments, casing, and mixed indentation:
 
   ```bash
   config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
   git config --global core.autocrlf input
-  git config --global core.excludesFile "$config_dir/dotfiles/development/git/ignore"
+  git config --global core.excludesFile "$config_dir/dotfiles/github/git/ignore"
   git config --global branch.autoSetupRebase never
   git config --global fetch.prune true
   git config --global merge.conflictStyle zdiff3

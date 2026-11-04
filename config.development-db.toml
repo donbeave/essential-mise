@@ -1,0 +1,3 @@
+[bootstrap.packages]
+"brew-cask:yaak" = "latest"
+"brew-cask:tableplus" = "latest"

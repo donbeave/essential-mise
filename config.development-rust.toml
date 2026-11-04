@@ -8,3 +8,6 @@ mr-boxington = { version = "latest" }
 "aqua:taiki-e/cargo-llvm-cov" = "latest"
 "aqua:EmbarkStudios/cargo-deny" = "latest"
 "github:Canop/bacon" = { version = "latest", bin_path = "aarch64-apple-darwin" }
+
+[bootstrap.packages]
+"brew-cask:jetbrains-toolbox" = "latest"

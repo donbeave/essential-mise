@@ -119,11 +119,11 @@ case "$scenario" in
     run_logged shell-verification "/bin/zsh -lic 'cd /tmp && command -v git && command -v brew && command -v mise && command -v mas && mise --version && mas --version && mise -E foundation doctor'"
     ;;
   standard)
-    run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,development bootstrap --dry-run"
-    run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,development bootstrap"
-    run_logged second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,development bootstrap"
-    run_logged status "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,development bootstrap status --missing"
-    vm_ssh "printf 'env = [\"foundation\", \"terminal\", \"development\"]\n' > '$config_dir/miserc.local.toml'"
+    run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,github bootstrap --dry-run"
+    run_logged apply "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,github bootstrap"
+    run_logged second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,github bootstrap"
+    run_logged status "cd '$config_dir' && \$HOME/.local/bin/mise -E foundation,terminal,github bootstrap status --missing"
+    vm_ssh "printf 'env = [\"foundation\", \"terminal\", \"github\"]\n' > '$config_dir/miserc.local.toml'"
     run_logged shell-verification "cd /tmp && /bin/zsh -lic 'command -v starship && command -v bat && command -v fish && test -x /Applications/Ghostty.app/Contents/MacOS/ghostty && test \"\$(git -C \"\$HOME/.oh-my-zsh\" rev-parse HEAD)\" = \"\$(git -C \"\$HOME/.oh-my-zsh\" rev-parse origin/master)\" && test \"\$(git -C \"\$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" rev-parse HEAD)\" = \"\$(git -C \"\$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" rev-parse origin/master)\" && mise doctor' && /opt/homebrew/bin/fish -lc 'mise --version'"
     run_logged gh-verification "/bin/zsh -lic 'test \"\$(gh config get git_protocol)\" = https && test \"\$(gh config get accessible_prompter)\" = disabled && test \"\$(gh config get prefer_editor_prompt)\" = disabled && test \"\$(gh config get color_labels)\" = disabled && test \"\$(gh config get version)\" = 1 && gh alias list | /usr/bin/grep -E \"co:[[:space:]]+pr checkout\"'"
     run_logged git-automation-absent 'test ! -e "$HOME/.gitconfig/preferences" && test ! -e "$HOME/.config/git/ignore"'
@@ -236,7 +236,7 @@ case "$scenario" in
     run_logged verify-not-installed 'test ! -d "/Applications/Apple Configurator.app"'
     ;;
   optional-modules)
-    optional_environments='security,js,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin'
+    optional_environments='security,js,development-db,development-containers,development-editors,development-vscode,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,development-browsers,privacy,productivity,office,office-docs,design,media,network,admin'
     run_logged preview "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap --dry-run"
     run_logged_interactive apply "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap --yes"
     run_logged_interactive second-run "cd '$config_dir' && \$HOME/.local/bin/mise -E $optional_environments bootstrap --yes"
@@ -246,7 +246,7 @@ case "$scenario" in
     run_logged_interactive cli-verification "/bin/zsh -lic 'mise -E js exec -- node --version && mise -E js exec -- bun --version && kubectl version --client && kubectx --help >/dev/null && helm version && tofu --version && ansible --version && linode-cli --version && gomplate --version && op --version'"
     ;;
   full-dry-run)
-    run_logged all-environments "/bin/zsh -lic 'cd /tmp && MISE_CONFIG_DIR=\"$config_dir\" mise -E foundation,terminal,development,security,js,development-rust,development-java,development-apps,development-containers,development-editors,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,privacy,productivity,office,design,media,network,admin,ai-tools,ai-cli,ai-desktop,system-preferences bootstrap --dry-run'"
+    run_logged all-environments "/bin/zsh -lic 'cd /tmp && MISE_CONFIG_DIR=\"$config_dir\" mise -E foundation,terminal,github,security,js,development-rust,development-java,development-db,development-containers,development-editors,development-vscode,development-apple,kubernetes,infrastructure,utilities,messengers,browsers,development-browsers,privacy,productivity,office,office-docs,design,media,network,admin,ai-tools,ai-cli,ai-desktop,system-preferences bootstrap --dry-run'"
     ;;
   preferences)
     vm_ssh 'set -e

@@ -1,4 +1,2 @@
 [bootstrap.packages]
 "brew-cask:google-chrome" = "latest"
-"brew-cask:google-chrome@dev" = "latest"
-"brew-cask:firefox@developer-edition" = "latest"

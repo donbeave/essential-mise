@@ -18,14 +18,16 @@ ENVIRONMENTS = frozenset({
     'ai-tools',
     'browsers',
     'design',
-    'development',
     'development-apple',
-    'development-apps',
+    'development-browsers',
     'development-containers',
+    'development-db',
     'development-editors',
     'development-java',
     'development-rust',
+    'development-vscode',
     'foundation',
+    'github',
     'infrastructure',
     'js',
     'kubernetes',
@@ -33,6 +35,7 @@ ENVIRONMENTS = frozenset({
     'messengers',
     'network',
     'office',
+    'office-docs',
     'privacy',
     'productivity',
     'security',
@@ -41,12 +44,12 @@ ENVIRONMENTS = frozenset({
     'utilities',
 })
 EXPECTED_COUNTS = {
-    'environments': 27,
-    'packages': 131,
-    'unique_packages': 119,
+    'environments': 30,
+    'packages': 129,
+    'unique_packages': 117,
     'brew': 48,
-    'brew-cask': 49,
-    'mas': 21,
+    'brew-cask': 48,
+    'mas': 20,
     'macos-app': 1,
     'tools': 9,
     'dotfiles': 32,
@@ -655,7 +658,7 @@ def validate(root):
 
     if 'brew:mas' not in packages_by_owner.get('foundation', set()):
         errors.append('foundation: missing default brew:mas')
-    for owner in ('terminal', 'development-editors'):
+    for owner in ('terminal',):
         if 'brew-cask:font-jetbrains-mono-nerd-font' not in packages_by_owner.get(owner, set()):
             errors.append(f'{owner}: missing shared prerequisite brew-cask:font-jetbrains-mono-nerd-font')
     for owner in ('ai-tools', 'ai-cli'):

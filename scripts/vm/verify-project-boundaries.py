@@ -50,12 +50,12 @@ def run(name, arguments, cwd, custom_env=None, expected=0):
 run('workspace-ignore', ['git', '-C', source_config, 'check-ignore', '-v', 'config.workspaces.local.toml'], source_config)
 project = root / 'project'
 project.mkdir(parents=True)
-(project / '.miserc.toml').write_text('env = ["development"]\n')
+(project / '.miserc.toml').write_text('env = ["github"]\n')
 loaded = run('project-selector', [mise, 'config'], project)
-assert 'config.development.toml' in loaded and 'config.ai-cli.toml' not in loaded
+assert 'config.github.toml' in loaded and 'config.ai-cli.toml' not in loaded
 (project / '.miserc.local.toml').write_text('env = ["ai-cli"]\n')
 loaded = run('project-local-selector', [mise, 'config'], project)
-assert 'config.ai-cli.toml' in loaded and 'config.development.toml' not in loaded
+assert 'config.ai-cli.toml' in loaded and 'config.github.toml' not in loaded
 loaded = run('cli-selector-override', [mise, '-E', 'terminal', 'config'], project)
 assert 'config.terminal.toml' in loaded and 'config.ai-cli.toml' not in loaded
 

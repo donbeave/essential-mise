@@ -49,7 +49,7 @@ If App Store sign-in is unavailable, first apply `foundation,terminal,developmen
 For first-time persistent selection, create `$config_dir/miserc.local.toml`:
 
 ```toml
-env = ["foundation", "terminal", "development", "security"]
+env = ["foundation", "terminal", "github", "security"]
 ```
 
 Do not overwrite an existing selector merely to add a module. Edit its `env` list while retaining existing entries. Project `.miserc*` files, `MISE_ENV`, and command-line `-E` can override this selection.
@@ -153,7 +153,7 @@ For native package cleanup, preview candidates explicitly and consult the [mise 
 MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli bootstrap packages prune --dry-run
 ```
 
-Do not apply a broad prune automatically. Keep the Nerd Font while either `terminal` or `development-editors` remains, jq while either AI module remains, and `mas` whenever `foundation` or any App Store module remains. Hook-owned Amp CLI, FFF, and OMP are not owned by native status, upgrade, or prune and can appear as incorrect prune candidates. Remove the six Homebrew exceptions only with their explicit owner-specific commands in [Homebrew exceptions](homebrew-exceptions.md), and review every native candidate individually.
+Do not apply a broad prune automatically. Keep the Nerd Font while `terminal` remains, jq while either AI module remains, and `mas` whenever `foundation` or any App Store module remains. Hook-owned Amp CLI, FFF, and OMP are not owned by native status, upgrade, or prune and can appear as incorrect prune candidates. Remove the six Homebrew exceptions only with their explicit owner-specific commands in [Homebrew exceptions](homebrew-exceptions.md), and review every native candidate individually.
 
 ## 6. Troubleshooting
 

@@ -9,14 +9,14 @@ The TOML files are the package and setting source of truth.
 Recommended persistent list:
 
 ```toml
-env = ["foundation", "terminal", "development", "security"]
+env = ["foundation", "terminal", "github", "security"]
 ```
 
 | Module | Purpose and contents | Prerequisites and boundaries |
 |---|---|---|
 | `foundation` | `mas` CLI; `~/.local/bin` in `~/.zshenv`; native zsh activation | Installs the default App Store CLI; no optional configuration |
 | `terminal` | Stable Ghostty, JetBrainsMono Nerd Font, Starship, bat, watch, just, xh, wget, Bash, Nushell, Fish, git-standup, msedit, buf, gogcli; Oh My Zsh and zsh-autosuggestions | Starship is the only prompt renderer; Oh My Zsh self-update is disabled; Ghostty follows `XDG_CONFIG_HOME` through native variants; Fish activation uses an additive XDG-aware block |
-| `development` | GitHub CLI and Git LFS | Configures Git pulls to use merge commits; other Git tuning uses the manual commands in [Manual actions](manual-actions.md). GitHub CLI settings and the `co` and `prd` aliases use `gh` itself, preserving unrelated keys and honoring `GH_CONFIG_DIR`/custom XDG. A `~/.zshenv` `gh` function makes `gh pr create` open a draft ([Draft pull requests by default](gh-draft.md)). Identity, `git lfs install`, and `gh auth setup-git` are manual |
+| `github` | GitHub CLI and Git LFS | Configures Git pulls to use merge commits; other Git tuning uses the manual commands in [Manual actions](manual-actions.md). GitHub CLI settings and the `co` and `prd` aliases use `gh` itself, preserving unrelated keys and honoring `GH_CONFIG_DIR`/custom XDG. A `~/.zshenv` `gh` function makes `gh pr create` open a draft ([Draft pull requests by default](gh-draft.md)). Identity, `git lfs install`, and `gh auth setup-git` are manual |
 | `security` | 1Password, 1Password CLI, and 1Password for Safari (`mas:1569813296`) | App Store sign-in, account unlock, SSH agent, extension enablement, and CLI auth are manual |
 
 ## Optional development stacks
@@ -24,11 +24,12 @@ env = ["foundation", "terminal", "development", "security"]
 | Module | Contents | Prerequisites and boundaries |
 |---|---|---|
 | `js` | Latest Node and Bun | Install once, invoke once with `-E ... exec`, or persist in `miserc.local.toml` |
-| `development-rust` | Latest Rust with clippy, rustfmt, rust-analyzer, rust-src, `llvm-tools`, and native `mr_boxington`; latest mr-boxington, cargo-nextest, cargo-llvm-cov, cargo-deny, and bacon | Uses native Cargo command-wrapper behavior; `gh auth` may be required for release lookup |
-| `development-java` | Latest Oracle GraalVM, Gradle, Maven, VisualVM | Homebrew OpenJDK may also be installed; verify GraalVM, `mvn`, and `gradle` in a fresh shell |
-| `development-apps` | JetBrains Toolbox, Yaak, TablePlus, DevHub, Patterns | Toolbox IDEs/settings and MAS sign-in are manual |
+| `development-rust` | Latest Rust with clippy, rustfmt, rust-analyzer, rust-src, `llvm-tools`, and native `mr_boxington`; latest mr-boxington, cargo-nextest, cargo-llvm-cov, cargo-deny, bacon, and JetBrains Toolbox | Uses native Cargo command-wrapper behavior; `gh auth` may be required for release lookup |
+| `development-java` | Latest Oracle GraalVM, Gradle, Maven, VisualVM, and JetBrains Toolbox | Homebrew OpenJDK may also be installed; verify GraalVM, `mvn`, and `gradle` in a fresh shell |
+| `development-db` | Yaak and TablePlus | Account and workspace setup are manual |
 | `development-containers` | OrbStack | VM/runtime/credential onboarding is manual |
-| `development-editors` | Sublime Text, VS Code, stable Zed, JetBrainsMono Nerd Font | Zed merge uses JSONC; AI-provider keys are excluded; the font is declared here for independent selection |
+| `development-editors` | Sublime Text and stable Zed | Zed merge uses JSONC; AI-provider keys are excluded |
+| `development-vscode` | Visual Studio Code | Settings sync and extensions are manual |
 | `development-apple` | Xcode through MAS | Full Xcode onboarding and licenses are manual |
 | `kubernetes` | kubectl, kubectx, Helm | Cluster credentials and setup are manual |
 | `infrastructure` | OpenTofu, Ansible, linode-cli, gomplate | CLI only; no provisioning projects or state |
@@ -39,10 +40,12 @@ env = ["foundation", "terminal", "development", "security"]
 |---|---|---|
 | `utilities` | CleanShot, Bartender, Homebrew App, Keka | Additive login items use `/Applications/CleanShot X.app` and `/Applications/Bartender 7.app` |
 | `messengers` | Telegram, WhatsApp, Slack, WeChat, Zoom | Sign-in and notification/privacy setup |
-| `browsers` | Google Chrome, Google Chrome Dev, Firefox Developer Edition | Browser profiles, extensions, and sign-in |
+| `browsers` | Google Chrome | Browser profiles, extensions, and sign-in |
+| `development-browsers` | Google Chrome Dev and Firefox Developer Edition | Browser profiles, extensions, and sign-in |
 | `privacy` | Tor Browser, Little Snitch | System extension and privacy approvals |
-| `productivity` | Notion, Grammarly Desktop/Safari, Speechify, Superwhisper, Raindrop.io, Reeder | Superwhisper configuration is fully manual; no mode files are deployed |
-| `office` | Word, Excel, PDF Expert, Delimited, Create Booklet 2 | Licenses, accounts, and app setup |
+| `productivity` | Notion, Grammarly Desktop/Safari, Speechify, Superwhisper, Reeder | Superwhisper configuration is fully manual; no mode files are deployed |
+| `office` | Word and Excel | Licenses, accounts, and app setup |
+| `office-docs` | PDF Expert, Delimited, Create Booklet 2, OpenMark | Licenses, accounts, and app setup |
 | `design` | Sketch, Pixelmator Pro | License and Sketch Library registration |
 | `media` | VLC, Transmission, HandBrake, Plex Media Server, Blackmagic RAW, Shazam | Media server setup and accounts |
 | `network` | Surge, Cloudflare WARP, Tunnelblick, WhyFi | Surge uses a real-Homebrew hook because mise cannot expand its `$APPDIR` binary artifact. Proxy/VPN endpoints, secrets, extensions, and privileged setup are manual |

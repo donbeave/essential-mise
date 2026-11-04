@@ -33,7 +33,7 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,de
 Every machine-setup example uses `mise -C` with `MISE_CEILING_PATHS`, preventing trusted projects in the caller's directory or above the adopted checkout from contributing resources. To persist this selection for future shells, create `miserc.local.toml` in the adopted checkout:
 
 ```toml
-env = ["foundation", "terminal", "development", "security"]
+env = ["foundation", "terminal", "github", "security"]
 ```
 
 When adding modules later, edit that list without discarding existing entries. `-E` replaces the persistent selection for one invocation; it does not uninstall anything.

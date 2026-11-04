@@ -157,30 +157,33 @@ cd "$MISE_CONFIG_DIR"
 
 say '6/7 - Optional categories'
 environment_names=(
-  terminal development security js development-rust development-java
-  development-apps development-containers development-editors development-apple
-  kubernetes infrastructure utilities messengers browsers privacy productivity
-  office design media network admin ai-tools ai-cli ai-desktop system-preferences
+  terminal github security js development-rust development-java
+  development-db development-containers development-editors development-vscode development-apple
+  kubernetes infrastructure utilities messengers browsers development-browsers privacy
+  productivity office office-docs design media network admin ai-tools ai-cli ai-desktop system-preferences
 )
 environment_descriptions=(
   'Ghostty, shells, prompt, fonts, and terminal utilities'
   'GitHub CLI and Git LFS'
   '1Password apps, CLI, and Safari extension'
   'Node.js and Bun'
-  'Rust, LLVM tools, and mr-boxington'
-  'GraalVM, Gradle, Maven, and VisualVM'
-  'JetBrains Toolbox, Yaak, TablePlus, DevHub, and Patterns'
+  'Rust, LLVM tools, mr-boxington, and JetBrains Toolbox'
+  'GraalVM, Gradle, Maven, VisualVM, and JetBrains Toolbox'
+  'Yaak and TablePlus'
   'OrbStack container runtime'
-  'Sublime Text, VS Code, Zed, and developer font'
+  'Sublime Text and Zed'
+  'Visual Studio Code'
   'Xcode from the Mac App Store'
   'kubectl, kubectx, and Helm'
   'OpenTofu, Ansible, Linode CLI, and gomplate'
   'CleanShot, Bartender, Homebrew App, and Keka'
   'Telegram, WhatsApp, Slack, WeChat, and Zoom'
-  'Chrome, Chrome Dev, and Firefox Developer Edition'
+  'Google Chrome'
+  'Chrome Dev and Firefox Developer Edition'
   'Tor Browser and Little Snitch'
-  'Notion, Grammarly, Speechify, Superwhisper, Raindrop.io, and Reeder'
-  'Word, Excel, PDF Expert, Delimited, and Create Booklet 2'
+  'Notion, Grammarly, Speechify, Superwhisper, and Reeder'
+  'Word and Excel'
+  'PDF Expert, Delimited, Create Booklet 2, and OpenMark'
   'Sketch and Pixelmator Pro'
   'VLC, Transmission, HandBrake, Plex, Blackmagic RAW, and Shazam'
   'Surge, Cloudflare WARP, Tunnelblick, and WhyFi'
