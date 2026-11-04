@@ -39,8 +39,25 @@ install_claude() {
   fi
 }
 
-install_codex() {
+install_codex() (
   local installed
+  if [[ -z "${HOME:-}" || "$HOME" != /* ]]; then
+    printf "%s: refusing unset or relative HOME; use an absolute path\n" "$marketplace" >&2
+    return 1
+  fi
+  if [[ -n "${CODEX_HOME:-}" && "$CODEX_HOME" != /* ]]; then
+    printf "%s: refusing relative CODEX_HOME; use an absolute path\n" "$marketplace" >&2
+    return 1
+  fi
+  if [[ -n "${CODEX_SQLITE_HOME:-}" && "$CODEX_SQLITE_HOME" != /* ]]; then
+    printf "%s: refusing relative CODEX_SQLITE_HOME; use an absolute path\n" "$marketplace" >&2
+    return 1
+  fi
+  if [[ -e /.codex || -L /.codex ]]; then
+    printf "%s: refusing Codex operation with root project configuration\n" "$marketplace" >&2
+    return 1
+  fi
+  cd / || return
   installed="$("$bin/codex" plugin list --marketplace "$marketplace" --json)" || return
   "$bin/jq" -e 'type == "object" and (.installed | type == "array" and all(.[]; type == "object" and (.name | type == "string" and length > 0) and (.marketplaceName | type == "string") and (.installed | type == "boolean" and . == true) and (.enabled | type == "boolean") and (.source | type == "object")))' <<<"$installed" >/dev/null || return
   if "$bin/jq" -e --arg name "${plugin%@*}" '.installed | any(.name != $name)' <<<"$installed" >/dev/null; then
@@ -59,7 +76,7 @@ install_codex() {
   else
     "$bin/codex" plugin add "$plugin"
   fi
-}
+)
 
 install_omp() {
   printf 'PENDING i-have-adhd/OMP: shared cache can affect other projects; existing installations were not changed\n' >&2
