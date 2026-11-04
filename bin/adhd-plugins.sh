@@ -40,54 +40,12 @@ install_claude() {
 }
 
 install_codex() (
-  local installed
-  local -a path_parts
-  if [[ -z "${HOME:-}" || "$HOME" != /* ]]; then
-    printf "%s: refusing unset or relative HOME; use an absolute path\n" "$marketplace" >&2
+  local installed layer_state
+  layer_state="$(/usr/bin/python3 "$(dirname "$0")/codex-project-layer.py")" || return
+  if [[ "$layer_state" != clear ]]; then
+    printf '%s: refusing Codex operation with project configuration\n' "$marketplace" >&2
     return 1
   fi
-  if [[ -n "${XDG_CONFIG_HOME:-}" && "$XDG_CONFIG_HOME" != /* ]]; then
-    printf "%s: refusing relative XDG_CONFIG_HOME; use an absolute path\n" "$marketplace" >&2
-    return 1
-  fi
-  for git_config_var in GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM; do
-    git_config_value="${!git_config_var:-}"
-    if [[ -n "$git_config_value" && "$git_config_value" != /* ]]; then
-      printf "%s: refusing relative %s; use an absolute path\n" "$marketplace" "$git_config_var" >&2
-      return 1
-    fi
-  done
-  for git_repo_var in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_CEILING_DIRECTORIES GIT_GRAFT_FILE GIT_SHALLOW_FILE GIT_NAMESPACE GIT_SSH GIT_SSH_COMMAND GIT_EXEC_PATH GIT_TEMPLATE_DIR; do
-    if [[ -n "${!git_repo_var:-}" ]]; then
-      printf "%s: refusing %s during Codex plugin operations\n" "$marketplace" "$git_repo_var" >&2
-      return 1
-    fi
-  done
-  if [[ -z "${PATH:-}" || "$PATH" == :* || "$PATH" == *: || "$PATH" == *::* || "$PATH" == *$'\n'* ]]; then
-    printf "%s: refusing empty or newline-containing PATH during Codex plugin operations\n" "$marketplace" >&2
-    return 1
-  fi
-  local path_part
-  IFS=: read -r -a path_parts <<<"$PATH"
-  for path_part in "${path_parts[@]}"; do
-    if [[ "$path_part" != /* ]]; then
-      printf "%s: refusing relative PATH entry during Codex plugin operations\n" "$marketplace" >&2
-      return 1
-    fi
-  done
-  if [[ -n "${CODEX_HOME:-}" && "$CODEX_HOME" != /* ]]; then
-    printf "%s: refusing relative CODEX_HOME; use an absolute path\n" "$marketplace" >&2
-    return 1
-  fi
-  if [[ -n "${CODEX_SQLITE_HOME:-}" && "$CODEX_SQLITE_HOME" != /* ]]; then
-    printf "%s: refusing relative CODEX_SQLITE_HOME; use an absolute path\n" "$marketplace" >&2
-    return 1
-  fi
-  if [[ -e /.codex || -L /.codex ]]; then
-    printf "%s: refusing Codex operation with root project configuration\n" "$marketplace" >&2
-    return 1
-  fi
-  cd / || return
   installed="$("$bin/codex" plugin list --marketplace "$marketplace" --json)" || return
   "$bin/jq" -e 'type == "object" and (.installed | type == "array" and all(.[]; type == "object" and (.name | type == "string" and length > 0) and (.marketplaceName | type == "string") and (.installed | type == "boolean" and . == true) and (.enabled | type == "boolean") and (.source | type == "object")))' <<<"$installed" >/dev/null || return
   if "$bin/jq" -e --arg name "${plugin%@*}" '.installed | any(.name != $name)' <<<"$installed" >/dev/null; then
