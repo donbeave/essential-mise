@@ -42,9 +42,9 @@ ENVIRONMENTS = frozenset({
 })
 EXPECTED_COUNTS = {
     'environments': 27,
-    'packages': 130,
-    'unique_packages': 118,
-    'brew': 47,
+    'packages': 131,
+    'unique_packages': 119,
+    'brew': 48,
     'brew-cask': 49,
     'mas': 21,
     'macos-app': 1,

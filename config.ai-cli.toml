@@ -4,6 +4,7 @@
 "brew-cask:cursor-cli" = "latest"
 "brew-cask:antigravity-cli" = "latest"
 "brew:kimi-code" = "latest"
+"brew:mimo-code" = "latest"
 "brew:opencode" = "latest"
 "brew-cask:grok-build" = "latest"
 
