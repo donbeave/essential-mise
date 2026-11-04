@@ -36,6 +36,7 @@ One alias per account per agent; every entry also has a `-yolo` twin.
 | `codex-openai-zhokhov` | OpenAI, alexey@zhokhov.com | `~/.codex-openai-zhokhov` |
 | `codex-kimi`, `codex-zai`, `codex-minimax`, `codex-mimo` | Kimi / Z.AI / MiniMax / MiMo, alexey@chainargos.com | `~/.codex-kimi`, `~/.codex-zai`, `~/.codex-minimax`, `~/.codex-mimo` |
 | `omp-kimi`, `omp-zai`, `omp-minimax`, `omp-mimo` | Kimi / Z.AI / MiniMax / MiMo, alexey@chainargos.com | `omp --profile <name>` (created on first use) |
+| `omp-anthropic-api-patrick`, `omp-anthropic-api-alexey`, `omp-anthropic-api-alexey2` | Anthropic API, patrick / alexey / alexey2 | `omp --profile anthropic-api-<account>` (created on first use; provision each with a separate 1Password key at runtime, no `op://` refs committed) |
 | `kimi-chainargos` | Kimi, alexey@chainargos.com | Bare `kimi` |
 | `grok-chainargos` | Grok, alexey@chainargos.com | Bare `grok` |
 | `opencode-chainargos` | OpenCode Go, alexey@chainargos.com | Bare `opencode` |
