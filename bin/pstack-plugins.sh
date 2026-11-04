@@ -52,10 +52,36 @@ install_claude() {
 
 install_codex() (
   local installed
+  local -a path_parts
   if [[ -z "${HOME:-}" || "$HOME" != /* ]]; then
     printf "%s: refusing unset or relative HOME; use an absolute path\n" "$marketplace" >&2
     return 1
   fi
+  for git_config_var in GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM; do
+    git_config_value="${!git_config_var:-}"
+    if [[ -n "$git_config_value" && "$git_config_value" != /* ]]; then
+      printf "%s: refusing relative %s; use an absolute path\n" "$marketplace" "$git_config_var" >&2
+      return 1
+    fi
+  done
+  for git_repo_var in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_CEILING_DIRECTORIES GIT_GRAFT_FILE GIT_SHALLOW_FILE GIT_NAMESPACE GIT_SSH GIT_SSH_COMMAND GIT_EXEC_PATH GIT_TEMPLATE_DIR; do
+    if [[ -n "${!git_repo_var:-}" ]]; then
+      printf "%s: refusing %s during Codex plugin operations\n" "$marketplace" "$git_repo_var" >&2
+      return 1
+    fi
+  done
+  if [[ -z "${PATH:-}" || "$PATH" == :* || "$PATH" == *: || "$PATH" == *::* || "$PATH" == *$'\n'* ]]; then
+    printf "%s: refusing empty or newline-containing PATH during Codex plugin operations\n" "$marketplace" >&2
+    return 1
+  fi
+  local path_part
+  IFS=: read -r -a path_parts <<<"$PATH"
+  for path_part in "${path_parts[@]}"; do
+    if [[ "$path_part" != /* ]]; then
+      printf "%s: refusing relative PATH entry during Codex plugin operations\n" "$marketplace" >&2
+      return 1
+    fi
+  done
   if [[ -n "${CODEX_HOME:-}" && "$CODEX_HOME" != /* ]]; then
     printf "%s: refusing relative CODEX_HOME; use an absolute path\n" "$marketplace" >&2
     return 1
