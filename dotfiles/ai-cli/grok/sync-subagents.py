@@ -4,9 +4,9 @@
 Keeps each agent's procedure and tool list. Sets the Grok Build model and
 reasoning effort for that role.
 
-The Grok Build picker is limited to grok-4.7. Older ids and the fast variant
-are disabled in ~/.grok/config.toml. An unknown model id falls back to the
-parent. Effort is the cost control: low, medium, high, xhigh.
+Grok model and picker settings are configured separately by the user.
+An unknown model id falls back to the parent. Effort is the cost control:
+low, medium, high, xhigh.
 
 The map follows the Claude roster. Haiku seats use medium. Sonnet seats use
 high. Fable is a per-call override, never a frontmatter seat. grok-4.7 is the coding model xAI

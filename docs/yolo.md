@@ -35,7 +35,8 @@ One alias per account per agent; every entry also has a `-yolo` twin.
 | `codex-openai2` | OpenAI, alexey2@chainargos.com | `~/.codex-openai2` |
 | `codex-openai-zhokhov` | OpenAI, alexey@zhokhov.com | `~/.codex-openai-zhokhov` |
 | `codex-kimi`, `codex-zai`, `codex-minimax`, `codex-mimo` | Kimi / Z.AI / MiniMax / MiMo, alexey@chainargos.com | `~/.codex-kimi`, `~/.codex-zai`, `~/.codex-minimax`, `~/.codex-mimo` |
-| `omp-kimi`, `omp-zai`, `omp-minimax`, `omp-mimo` | Kimi / Z.AI / MiniMax / MiMo, alexey@chainargos.com | `omp --profile <name>` (created on first use) |
+| `omp-kimi`, `omp-minimax`, `omp-mimo` | Kimi / MiniMax / MiMo, alexey@chainargos.com | `omp --profile <name>` (created on first use) |
+| `omp-zai` | Z.AI, alexey@chainargos.com | `omp --profile zai` (created on first use; `zai-glm-flash/glm-5.3-flash` and `zai-glm-flash/glm-5.3`, each with `low` / `high` / `max` effort) |
 | `omp-anthropic-api-patrick`, `omp-anthropic-api-alexey`, `omp-anthropic-api-alexey2` | Anthropic API, patrick / alexey / alexey2 | `omp --profile anthropic-api-<account>`; key resolved at runtime via `op read` from `$OMP_ANTHROPIC_API_<ACCOUNT>_REF` (no `op://` refs committed) |
 | `kimi-chainargos` | Kimi, alexey@chainargos.com | Bare `kimi` |
 | `grok-chainargos` | Grok, alexey@chainargos.com | Bare `grok` |
