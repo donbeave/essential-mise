@@ -79,7 +79,7 @@ Pending routes print `PENDING` during apply and leave existing installations unt
 |---|---|
 | Claude Code | `claude plugin marketplace add`, then `claude plugin install pstack@pstack-claude`. Claude Code leaves auto-update off for third-party marketplaces, so every apply also runs `claude plugin marketplace update pstack-claude` and `claude plugin update pstack@pstack-claude` |
 | Codex | `codex plugin marketplace add`, then `codex plugin add pstack@pstack-claude`. When already installed, `codex plugin marketplace upgrade pstack-claude` refreshes the plugin |
-| OMP | **Pending.** Native OMP support is in [upstream draft PR 396](https://github.com/michael-denyer/pstack-claude/pull/396) and requires a release. The installer leaves existing installations untouched. The earlier Pi package does not establish that OMP discovers the bundled skills. |
+| OMP | **Pending.** Native OMP support is in [upstream PR 396](https://github.com/michael-denyer/pstack-claude/pull/396) and requires a release. The installer leaves existing installations untouched. The earlier Pi package does not establish that OMP discovers the bundled skills. |
 | OpenCode | **Pending.** No verified native pstack plugin is installed by this hook. Inspect legacy links under `${XDG_CONFIG_HOME:-~/.config}/opencode/skills` manually; the old installer recorded no ownership. |
 | Muse Code | `muse plugins install` from the clone's `plugins/pstack`; review runtime capabilities with `muse plugins inspect pstack` and approve the ones you trust |
 
