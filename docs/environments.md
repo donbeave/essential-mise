@@ -99,7 +99,7 @@ The OMP and OpenCode routes print `PENDING` during apply and leave existing inst
 | OpenCode | **Pending manual review.** The hook does not install or change a loader because it cannot yet safely rule out another installation of the same plugin. Existing files and installations are preserved. |
 | Muse Code | Installs or updates the checkout's Claude-compatible plugin from the same path; inspect and approve trusted runtime capabilities manually |
 
-An existing disabled Claude plugin is left disabled and is not updated. Restart an agent session after installation or update. The plugin is opt-in unless its own always-on mode is enabled. Review Muse capabilities with `muse plugins inspect i-have-adhd` and approve the ones you trust. Other agents are not configured by this hook; Kimi's documented plugin installation is interactive, and the MiMo integration is pending upstream review.
+An existing disabled Claude plugin is left disabled and is not updated. Restart an agent session after installation or update. The plugin is opt-in unless its own always-on mode is enabled. Review Muse capabilities with `muse plugins inspect i-have-adhd` and approve the ones you trust. In the tested Muse 1.4.14 guest, always-on context required the flag at `~/.claude/.i-have-adhd-always`; a flag only under a custom `CLAUDE_CONFIG_DIR` did not activate it. Other agents are not configured by this hook; Kimi's documented plugin installation is interactive, and the MiMo integration is pending upstream review.
 
 ### Other plugin routes
 
