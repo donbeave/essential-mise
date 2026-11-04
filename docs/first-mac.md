@@ -131,7 +131,17 @@ Native unapply does not execute hooks. Remove only the Fish blocks owned by the 
 
 Each helper operation preserves unrelated Fish startup content. Removing `ai-cli` must not remove terminal-owned activation when `terminal` remains selected.
 
-Native unapply also does not remove pstack, which each agent owns. Remove it with `claude plugin uninstall pstack@pstack-claude`, `codex plugin remove pstack@pstack-claude`, `omp plugin uninstall pstack`, and `muse plugins remove pstack`, then delete the pstack symlinks under `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills` and the `~/.local/share/pstack-claude` clone.
+Native unapply does not remove pstack or i-have-adhd from the agents. Review each installed plugin's source and scope before removing it through that agent's plugin manager. Keep shared checkouts while any installation or workflow still uses them. Earlier versions also created pstack links under `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills`. Inspect those links and remove only the ones you no longer want; the installer did not record ownership.
+
+To remove a user-scope installation after checking its source and scope, use the relevant agent's command:
+
+| Agent | pstack | i-have-adhd |
+|---|---|---|
+| Claude Code | `claude plugin uninstall pstack@pstack-claude --scope user` | `claude plugin uninstall i-have-adhd@i-have-adhd --scope user` |
+| Codex | `codex plugin remove pstack@pstack-claude` | `codex plugin remove i-have-adhd@i-have-adhd` |
+| Muse Code | `muse plugins remove pstack` | `muse plugins remove i-have-adhd` |
+
+These commands do not remove a shared marketplace or checkout. OMP and OpenCode installations are not changed by this module; inspect their plugin managers and existing files before removing anything there. Applying `ai-cli` again can reinstall removed plugins, so deselect it first if you intend to keep them removed.
 
 GitHub CLI settings and aliases are application-owned and are not reversed by native unapply; change them through `gh config` and `gh alias` rather than deleting the whole configuration or `hosts.yml`. Cloned repositories, login items, and macOS preferences need separate review. See [Manual actions](manual-actions.md) for preference snapshots and selective reversal.
 

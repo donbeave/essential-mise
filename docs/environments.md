@@ -55,7 +55,7 @@ env = ["foundation", "terminal", "development", "security"]
 | Module | Contents | Independence and boundaries |
 |---|---|---|
 | `ai-tools` | ripgrep (`rg`), fd, fzf, ast-grep (`sg`), semgrep, jq, yq, dasel, sd, git-delta, eza, zoxide, tree, tokei, hyperfine, shellcheck, shfmt, universal-ctags, rtk, agent-browser; fff-mcp through real Homebrew | Shared utilities only. Its `post-dotfiles` hook `bin/rtk-agents.sh` enables RTK for each installed agent ([RTK](#rtk)); it owns no other agent settings. Browser runtime initialization is manual. FFF uses real Homebrew because mise leaves its raw binary non-executable |
-| `ai-cli` | Claude Code, Codex, Cursor CLI, Antigravity CLI, Kimi Code, OpenCode, Grok Build, Muse Code, Amp CLI, OMP, jq, Claude status line, pstack through each agent's own plugin mechanism | No desktop packages or FFF/Caveman references. The only RTK references are the instruction lines described under [RTK](#rtk). Amp CLI, OMP, and Muse Code use real-Homebrew hooks for documented incompatibilities. Includes agent instructions, Claude Code's `CLAUDE.md`, the `tailrocks-*` subagents (with Grok copies), the `repo-context` and stack skills, project notes, and pstack model sheet; merged `settings.json` keys for the default model (Sonnet), per-model effort, subagent model and spawn depth, and permission allow/deny lists (these arrays replace the live ones); Amp completions; the zsh status-line wrapper; and one zsh yolo alias per agent ([Yolo aliases](yolo.md)). Copy any edits to the live Claude files back with `mise dot add --changed`, but do not copy back `model` or `modelSettings` after a temporary `/model` or `/effort` switch |
+| `ai-cli` | Claude Code, Codex, Cursor CLI, Antigravity CLI, Kimi Code, OpenCode, Grok Build, Muse Code, Amp CLI, OMP, jq, Claude status line, pstack and i-have-adhd plugin integrations where available | No desktop packages or FFF/Caveman references. The only RTK references are the instruction lines described under [RTK](#rtk). Amp CLI, OMP, and Muse Code use real-Homebrew hooks for documented incompatibilities. Includes agent instructions, Claude Code's `CLAUDE.md`, the `tailrocks-*` subagents (with Grok copies), the `repo-context` and stack skills, project notes, and pstack model sheet; merged `settings.json` keys for the default model (Sonnet), per-model effort, subagent model and spawn depth, and permission allow/deny lists (these arrays replace the live ones); Amp completions; the zsh status-line wrapper; and one zsh yolo alias per agent ([Yolo aliases](yolo.md)). Copy any edits to the live Claude files back with `mise dot add --changed`, but do not copy back `model` or `modelSettings` after a temporary `/model` or `/effort` switch |
 | `ai-desktop` | Claude, ChatGPT, Cursor, Antigravity, Kimi, OpenCode Desktop, Grok Bot, ZCode, CodexBar, Amp Desktop via real Homebrew | No CLI packages or settings. Amp Desktop refuses existing unmanaged apps. Its package is retained despite a known macOS 27.2 `_dyld_start` stall; a working GUI is not claimed |
 
 Use these commands for the complete terminal coding-agent setup:
@@ -71,17 +71,35 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootst
 
 ### pstack
 
-`ai-cli` installs [pstack](https://github.com/michael-denyer/pstack-claude) through each agent's own mechanism. No pstack skills or plugin files are tracked here. `bin/pstack-plugins.sh` runs from the `post-repos` hook on every apply and converges each agent: install when missing, update when present.
+`ai-cli` attempts to install [pstack](https://github.com/michael-denyer/pstack-claude) through the plugin mechanisms below. No pstack skills or plugin files are tracked here. `bin/pstack-plugins.sh` runs from the `post-repos` hook on every apply.
+
+Pending routes print `PENDING` during apply and leave existing installations untouched. An apply can exit successfully while a route remains pending. Installation, repeat application, and plugin behavior for the other routes remain under review.
 
 | Agent | Mechanism |
 |---|---|
 | Claude Code | `claude plugin marketplace add`, then `claude plugin install pstack@pstack-claude`. Claude Code leaves auto-update off for third-party marketplaces, so every apply also runs `claude plugin marketplace update pstack-claude` and `claude plugin update pstack@pstack-claude` |
 | Codex | `codex plugin marketplace add`, then `codex plugin add pstack@pstack-claude`. When already installed, `codex plugin marketplace upgrade pstack-claude` refreshes the plugin |
-| OMP | `omp plugin install git:github.com/michael-denyer/pstack-claude` (a Pi package). When already installed, `omp plugin upgrade pstack` |
-| OpenCode | pstack has no OpenCode plugin. The script links each skill from the shared clone into `${XDG_CONFIG_HOME:-~/.config}/opencode/skills`, which only OpenCode reads (`~/.agents/skills` would load every skill twice in Codex). It leaves existing entries alone and removes links to skills pstack dropped |
-| Muse Code | `muse plugins install` from the clone's `plugins/pstack`, or `muse plugins update pstack` when installed, then `muse plugins approve pstack` |
+| OMP | **Pending.** Native OMP support is in [upstream draft PR 396](https://github.com/michael-denyer/pstack-claude/pull/396) and requires a release. The installer leaves existing installations untouched. The earlier Pi package does not establish that OMP discovers the bundled skills. |
+| OpenCode | **Pending.** No verified native pstack plugin is installed by this hook. Inspect legacy links under `${XDG_CONFIG_HOME:-~/.config}/opencode/skills` manually; the old installer recorded no ownership. |
+| Muse Code | `muse plugins install` from the clone's `plugins/pstack`; review runtime capabilities with `muse plugins inspect pstack` and approve the ones you trust |
 
-The shared clone is `~/.local/share/pstack-claude`, a shallow native `[bootstrap.repos]` checkout of `main` that apply fast-forwards before the script runs. Muse Code comes from the Homebrew `muse-code` cask (Meta's official binary) through a real-Homebrew hook ([Homebrew exceptions](homebrew-exceptions.md)). `muse plugins approve` runs on every apply, so a changed upstream hook or agent definition is approved without review; remove that line from the script to review changes by hand. Restart open Claude Code, Codex, OMP, and Muse Code sessions to load an update. Codex hook trust is manual ([Manual actions](manual-actions.md)).
+The shared clone is `~/.local/share/pstack-claude`, a shallow native `[bootstrap.repos]` checkout of `main` that apply fast-forwards before the script runs. Muse Code comes from the Homebrew `muse-code` cask (Meta's official binary) through a real-Homebrew hook ([Homebrew exceptions](homebrew-exceptions.md)). Muse updates an installation from the same source path and refuses a different source. An existing disabled Claude plugin is left disabled and is not updated. Muse approval is manual and bound to the reviewed capability definition; an upstream change can require review again. Restart open Claude Code, Codex, and Muse Code sessions to load an update. Codex hook trust is manual ([Manual actions](manual-actions.md)).
+
+### i-have-adhd
+
+`ai-cli` attempts to install [i-have-adhd](https://github.com/ayghri/i-have-adhd) through the plugin mechanisms below. `bin/adhd-plugins.sh` runs on every apply. No standalone i-have-adhd skill folder is installed.
+
+The OMP and OpenCode routes print `PENDING` during apply and leave existing installations untouched. An apply can exit successfully while these routes remain pending. Installation, repeat application, and plugin behavior for the other routes remain under review.
+
+| Agent | Mechanism |
+|---|---|
+| Claude Code | Marketplace `i-have-adhd` and plugin `i-have-adhd@i-have-adhd`; invoke `/i-have-adhd` |
+| Codex | Marketplace `i-have-adhd` and plugin `i-have-adhd@i-have-adhd`; invoke `$i-have-adhd` |
+| OMP | **Pending.** OMP shares version caches across scopes. A user-scope install or upgrade can replace a cache another project uses. Equal version strings do not prove equal content. Existing installations are left untouched; see [OMP issue 16827](https://github.com/can1357/oh-my-pi/issues/16827). |
+| OpenCode | **Pending manual review.** The hook does not install or change a loader because it cannot yet safely rule out another installation of the same plugin. Existing files and installations are preserved. |
+| Muse Code | Installs or updates the checkout's Claude-compatible plugin from the same path; inspect and approve trusted runtime capabilities manually |
+
+An existing disabled Claude plugin is left disabled and is not updated. Restart an agent session after installation or update. The plugin is opt-in unless its own always-on mode is enabled. Review Muse capabilities with `muse plugins inspect i-have-adhd` and approve the ones you trust. Other agents are not configured by this hook; Kimi's documented plugin installation is interactive.
 
 ### RTK
 

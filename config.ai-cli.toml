@@ -22,11 +22,12 @@ run = [
 
 [bootstrap.repos]
 "~/.local/share/pstack-claude" = { url = "https://github.com/michael-denyer/pstack-claude.git", ref = "main", depth = 1 }
+"~/.local/share/i-have-adhd" = { url = "https://github.com/ayghri/i-have-adhd.git", ref = "main", depth = 1 }
 
 [bootstrap.hooks.post-repos]
-description = "Install or update pstack through the Claude Code, Codex, OMP, OpenCode, and Muse Code plugin mechanisms"
+description = "Install or update agent plugins"
 run = [
-  "/bin/bash \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/pstack-plugins.sh\"",
+  "/bin/bash \"${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/bin/agent-plugins.sh\"",
 ]
 
 [bootstrap.hooks.post-dotfiles]

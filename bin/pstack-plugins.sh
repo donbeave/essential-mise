@@ -1,6 +1,6 @@
 #!/bin/bash
-# Installs or updates pstack through each AI CLI's own plugin or skill mechanism.
-# Safe to repeat: every step reads the tool's current state and applies only the difference.
+# Installs or updates pstack through each supported AI CLI's plugin mechanism.
+# Repeat runs preserve disabled and unrelated installations where the agent supports it.
 # Usage: pstack-plugins.sh [claude|codex|omp|opencode|muse ...]   (default: all)
 set -euo pipefail
 
@@ -19,16 +19,46 @@ require_clone() {
 }
 
 install_claude() {
-  "$bin/claude" plugin marketplace add "$repository"
+  local catalogs count installed user_count enabled
+  installed="$("$bin/claude" plugin list --json)" || return
+  "$bin/jq" -e 'type == "array" and all(.[]; type == "object" and (.id | type == "string") and (.scope | type == "string") and (.enabled | type == "boolean"))' <<<"$installed" >/dev/null || return
+  user_count="$("$bin/jq" -r --arg id "$plugin" '[.[] | select(.id == $id and .scope == "user")] | length' <<<"$installed")" || return
+  [[ "$user_count" == 0 || "$user_count" == 1 ]] || return 1
+  if [[ "$user_count" == 1 ]]; then
+    enabled="$("$bin/jq" -r --arg id "$plugin" '.[] | select(.id == $id and .scope == "user") | .enabled' <<<"$installed")" || return
+    if [[ "$enabled" == false ]]; then
+      printf 'PENDING %s/Claude: user disabled this plugin; leaving it unchanged\n' "$marketplace" >&2
+      return 0
+    fi
+  fi
+  catalogs="$("$bin/claude" plugin marketplace list --json)" || return
+  "$bin/jq" -e 'type == "array" and all(.[]; type == "object" and (.name | type == "string"))' <<<"$catalogs" >/dev/null || return
+  count="$("$bin/jq" -r --arg name "$marketplace" '[.[] | select(.name == $name)] | length' <<<"$catalogs")" || return
+  if [[ "$count" == 0 ]]; then
+    "$bin/claude" plugin marketplace add "$repository" || return
+    catalogs="$("$bin/claude" plugin marketplace list --json)" || return
+  fi
+  if ! "$bin/jq" -e --arg name "$marketplace" --arg repo "$repository"     '[.[] | select(.name == $name)] | length == 1 and .[0].source == "github" and .[0].repo == $repo and (.[0].ref // "") == ""' <<<"$catalogs" >/dev/null; then
+    printf '%s: refusing Claude marketplace with unexpected source\n' "$marketplace" >&2
+    return 1
+  fi
   "$bin/claude" plugin marketplace update "$marketplace"
-  "$bin/claude" plugin install "$plugin"
-  "$bin/claude" plugin update "$plugin"
+  if [[ "$user_count" == 0 ]]; then
+    "$bin/claude" plugin install "$plugin" --scope user
+  else
+    "$bin/claude" plugin update "$plugin" --scope user
+  fi
 }
 
 install_codex() {
   local installed
   "$bin/codex" plugin marketplace add "$repository"
   installed="$("$bin/codex" plugin list --marketplace "$marketplace" --json)"
+  "$bin/jq" -e 'type == "object" and (.installed | type == "array" and all(.[]; type == "object" and (.name | type == "string" and length > 0) and (.marketplaceName | type == "string") and (.installed | type == "boolean" and . == true) and (.enabled | type == "boolean") and (.source | type == "object")))' <<<"$installed" >/dev/null || return
+  if "$bin/jq" -e --arg name "${plugin%@*}" '.installed | any(.name != $name)' <<<"$installed" >/dev/null; then
+    printf '%s: refusing to upgrade unrelated Codex marketplace plugins\n' "$marketplace" >&2
+    return 1
+  fi
   if "$bin/jq" -e '.installed | any(.name == "pstack")' <<<"$installed" >/dev/null; then
     "$bin/codex" plugin marketplace upgrade "$marketplace"
   else
@@ -37,57 +67,40 @@ install_codex() {
 }
 
 install_omp() {
-  local installed
-  installed="$("$bin/omp" plugin list --json)"
-  if "$bin/jq" -e '.npm | any(.name == "pstack")' <<<"$installed" >/dev/null; then
-    "$bin/omp" plugin upgrade pstack
-  else
-    "$bin/omp" plugin install "git:github.com/$repository"
-  fi
+  printf 'PENDING pstack/OMP: native integration awaits upstream PR 396 and a release; existing installations were not changed\n' >&2
 }
 
 install_opencode() {
-  local skills="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills" source target link
-  require_clone
-  mkdir -p "$skills"
-  for source in "$skills_source"/*/; do
-    source="${source%/}"
-    target="$skills/$(basename "$source")"
-    if [[ -L "$target" && "$(readlink "$target")" == "$source" ]]; then
-      continue
-    elif [[ -e "$target" || -L "$target" ]]; then
-      printf 'pstack: leaving existing %s in place\n' "$target" >&2
-    else
-      ln -s "$source" "$target"
-    fi
-  done
-  for link in "$skills"/*; do
-    if [[ -L "$link" && "$(readlink "$link")" == "$skills_source"/* && ! -e "$link" ]]; then
-      rm "$link"
-    fi
-  done
+  printf 'PENDING pstack/OpenCode: no verified native plugin; existing installations and legacy links were not changed\n' >&2
 }
 
 install_muse() {
   require_clone
-  if "$bin/muse" plugins inspect pstack >/dev/null 2>&1; then
-    "$bin/muse" plugins update pstack
-  else
-    "$bin/muse" plugins install "$clone/plugins/pstack"
-  fi
-  "$bin/muse" plugins approve pstack
+  "$bin/muse" plugins install "$clone/plugins/pstack"
 }
+
+if [[ "${1:-}" == --single ]]; then
+  shift
+  "install_$1"
+  exit $?
+fi
 
 tools=("$@")
 [[ ${#tools[@]} -gt 0 ]] || tools=(claude codex omp opencode muse)
 for tool in "${tools[@]}"; do
   case "$tool" in
     claude | codex | omp | opencode | muse) ;;
-    *)
-      printf 'pstack: unknown tool %s\n' "$tool" >&2
-      exit 2
-      ;;
+    *) printf '%s: unknown tool %s\n' "$marketplace" "$tool" >&2; exit 2 ;;
   esac
-  printf '==> pstack: %s\n' "$tool"
-  "install_$tool"
 done
+status=0
+for tool in "${tools[@]}"; do
+  printf '==> %s: %s\n' "$marketplace" "$tool"
+  if /bin/bash "$0" --single "$tool"; then
+    :
+  else
+    printf '%s: %s failed\n' "$marketplace" "$tool" >&2
+    status=1
+  fi
+done
+exit "$status"

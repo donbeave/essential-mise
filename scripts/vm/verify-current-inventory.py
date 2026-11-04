@@ -52,9 +52,9 @@ EXPECTED_COUNTS = {
     'dotfiles': 32,
     'settings': 1,
     'preferences': 67,
-    'repositories': 3,
+    'repositories': 4,
     'login_items': 2,
-    'executables': 4,
+    'executables': 6,
 }
 EXPECTED_TOOLS = {
     ('js', 'node'): 'latest',
@@ -85,6 +85,11 @@ EXPECTED_REPOSITORIES = {
         'ref': 'main',
         'depth': 1,
     },
+    ('ai-cli', '~/.local/share/i-have-adhd'): {
+        'url': 'https://github.com/ayghri/i-have-adhd.git',
+        'ref': 'main',
+        'depth': 1,
+    },
 }
 EXPECTED_VARIANTS = {
     ('terminal', '~/.config/ghostty/config'): [
@@ -105,7 +110,7 @@ EXPECTED_LOGIN_ITEMS = {
     ('utilities', '/Applications/CleanShot X.app'),
     ('utilities', '/Applications/Bartender 7.app'),
 }
-EXPECTED_EXECUTABLES = {'fish-config.py', 'claude-statusline.sh', 'pstack-plugins.sh', 'rtk-agents.sh'}
+EXPECTED_EXECUTABLES = {'fish-config.py', 'claude-statusline.sh', 'agent-plugins.sh', 'pstack-plugins.sh', 'adhd-plugins.sh', 'rtk-agents.sh'}
 STATUSLINE_SHA256 = '5afac045a509b5ca8d2e22f717e51ad69ea3d42208ec5f0d31ec2e135216a3ef'
 DOCK_KEYS = {
     'autohide', 'orientation', 'tilesize', 'magnification', 'show_recents', 'mru_spaces',
@@ -680,6 +685,9 @@ def validate(root):
 
     validate_homebrew(hooks, errors)
     validate_rtk(root, hooks, errors)
+    plugin_commands = hooks.get(('ai-cli', 'post-repos'), {}).get('commands', [])
+    if not any('bin/agent-plugins.sh' in command for command in plugin_commands):
+        errors.append('plugins: ai-cli post-repos must run bin/agent-plugins.sh')
 
     bin_directory = root / 'bin'
     try:
@@ -808,6 +816,13 @@ def self_test(root):
             '# Engineering policy',
             '# Kimi policy',
             'rtk: KIMI.md must start with the GLOBAL_AGENTS.md text',
+        ),
+        (
+            'remove_plugin_runner',
+            'config.ai-cli.toml',
+            'bin/agent-plugins.sh',
+            'bin/other.sh',
+            'plugins: ai-cli post-repos must run bin/agent-plugins.sh',
         ),
         (
             'remove_rtk_agents_hook',

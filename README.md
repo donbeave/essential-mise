@@ -76,7 +76,7 @@ Deselecting a module does not uninstall it. Native unapply, Fish-block removal, 
 - Signed-in installation, purchases/claims, and reruns for the 21 Mac App Store declarations remain manual and unverified.
 - Amp Desktop is provisioned for inventory completeness, but its known macOS 27.2 GUI startup failure means a working application is not claimed.
 - Authenticated OMP routing/instruction loading and interactive Claude status-line rendering require manual verification.
-- The pstack installation (`bin/pstack-plugins.sh`) and the Muse Code hook were verified on the primary Mac (2026-11-03: all five agents list pstack 0.9.120, and a second run exits 0), not yet on a fresh VM.
+- The earlier pstack installation (`bin/pstack-plugins.sh`) and the Muse Code hook were verified on the primary Mac on 2026-11-03; the current plugin-only installation has not yet been verified on a fresh VM.
 - The RTK agent integration (`bin/rtk-agents.sh`) was applied on the primary Mac (2026-11-03): `rtk init --show` reports Claude Code, Codex, and OpenCode configured, the Claude Code, Codex, Antigravity, Grok, and Muse hooks rewrite a scripted `git status`, and a second run changes no file. Live agent sessions (including Grok Build, Muse Code, OMP, OpenCode, and Kimi Code) and a fresh VM are not verified.
 - Account, license, privacy, privileged-extension, and application-specific setup are not automated.
 - Preference stored values can be checked, but every UI effect and delayed selective reversal requires manual verification.
