@@ -175,41 +175,17 @@ alias omp-kimi='omp --profile kimi'
 alias omp-kimi-yolo='omp --profile kimi --approval-mode=yolo'
 alias omp-zai='omp --profile zai'
 alias omp-zai-yolo='omp --profile zai --approval-mode=yolo'
-function omp-zai-flash-low {
-  omp --profile zai --model zai-glm-flash/glm-5.3-flash:low "$@"
+function omp-zai-flash {
+  omp --profile zai --model zai-glm-flash/glm-5.3-flash "$@"
 }
-function omp-zai-flash-low-yolo {
-  omp-zai-flash-low --approval-mode=yolo "$@"
+function omp-zai-flash-yolo {
+  omp-zai-flash --approval-mode=yolo "$@"
 }
-function omp-zai-flash-high {
-  omp --profile zai --model zai-glm-flash/glm-5.3-flash:high "$@"
+function omp-zai-53 {
+  omp --profile zai --model zai-glm-flash/glm-5.3 "$@"
 }
-function omp-zai-flash-high-yolo {
-  omp-zai-flash-high --approval-mode=yolo "$@"
-}
-function omp-zai-flash-max {
-  omp --profile zai --model zai-glm-flash/glm-5.3-flash:max "$@"
-}
-function omp-zai-flash-max-yolo {
-  omp-zai-flash-max --approval-mode=yolo "$@"
-}
-function omp-zai-low {
-  omp --profile zai --model zai-glm-flash/glm-5.3:low "$@"
-}
-function omp-zai-low-yolo {
-  omp-zai-low --approval-mode=yolo "$@"
-}
-function omp-zai-high {
-  omp --profile zai --model zai-glm-flash/glm-5.3:high "$@"
-}
-function omp-zai-high-yolo {
-  omp-zai-high --approval-mode=yolo "$@"
-}
-function omp-zai-max {
-  omp --profile zai --model zai-glm-flash/glm-5.3:max "$@"
-}
-function omp-zai-max-yolo {
-  omp-zai-max --approval-mode=yolo "$@"
+function omp-zai-53-yolo {
+  omp-zai-53 --approval-mode=yolo "$@"
 }
 alias omp-minimax='omp --profile minimax'
 alias omp-minimax-yolo='omp --profile minimax --approval-mode=yolo'
