@@ -58,6 +58,33 @@ expect {
     puts stderr "Native mise confirmation requires explicit VM_AUTO_CONFIRM=1"
     exit 1
   }
+  -re "Finish the Apple installation dialog, then " {
+    expect {
+      -re {press Return to continue\.\.\. } {}
+      timeout { puts stderr "Timed out waiting for Command Line Tools prompt"; exit 124 }
+      eof { puts stderr "Guest command exited during Command Line Tools prompt"; exit 1 }
+    }
+    set deadline [expr {[clock seconds] + 900}]
+    set check [list /usr/bin/ssh -T \
+      -i $env(VM_SSH_KEY) \
+      -o BatchMode=yes \
+      -o IdentitiesOnly=yes \
+      -o StrictHostKeyChecking=yes \
+      -o UserKnownHostsFile=$env(VM_KNOWN_HOSTS) \
+      -o LogLevel=ERROR \
+      -o ConnectTimeout=10 \
+      "$env(VM_SSH_USER)@$env(VM_IP)" \
+      "/usr/bin/xcode-select -p >/dev/null 2>&1 && /usr/bin/git --version >/dev/null 2>&1"]
+    while {[catch {exec {*}$check}]} {
+      if {[clock seconds] >= $deadline} {
+        puts stderr "Timed out waiting for guest Command Line Tools"
+        exit 124
+      }
+      after 3000
+    }
+    send -- "\n"
+    exp_continue
+  }
   -nocase -re "press.*(return|enter)" {
     send -- "\n"
     exp_continue
