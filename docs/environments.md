@@ -101,6 +101,20 @@ The OMP and OpenCode routes print `PENDING` during apply and leave existing inst
 
 An existing disabled Claude plugin is left disabled and is not updated. Restart an agent session after installation or update. The plugin is opt-in unless its own always-on mode is enabled. Review Muse capabilities with `muse plugins inspect i-have-adhd` and approve the ones you trust. Other agents are not configured by this hook; Kimi's documented plugin installation is interactive, and the MiMo integration is pending upstream review.
 
+### Other plugin routes
+
+These routes are not installed by the `ai-cli` hook. A successful apply does not imply they are configured. Review a plugin and its source before installing it.
+
+| Agent | pstack | i-have-adhd |
+|---|---|---|
+| Kimi Code | Native integration is pending [upstream PR 394](https://github.com/michael-denyer/pstack-claude/pull/394) and a release. | In a Kimi session, open `/plugins`, choose **Custom**, enter `https://github.com/ayghri/i-have-adhd`, review and confirm any prompts, and run `/reload`. Invoke `/skill:i-have-adhd:i-have-adhd`. The install is per-user. Use the plugin menu to update or remove it and reload; Kimi retains its managed copy after removal. |
+| Grok Build | The released plugin exposes skills. [Upstream PR 398](https://github.com/michael-denyer/pstack-claude/pull/398) proposes a model-followed routing hint, not guaranteed automatic routing. | The released plugin exposes the explicit skill; its Claude always-on hook does not supply context on the tested Grok release. |
+| Antigravity CLI | Native support is pending [upstream PR 390](https://github.com/michael-denyer/pstack-claude/pull/390). | The released plugin exposes the skill. Its native opt-in hook is pending [upstream PR 277](https://github.com/ayghri/i-have-adhd/pull/277); session behavior requires authentication and has not been verified. |
+| MiMo Code | Native integration is under investigation. | Native integration is pending [upstream PR 276](https://github.com/ayghri/i-have-adhd/pull/276). |
+| MiniMax Code | The released local plugin can be discovered, but its session behavior requires sign-in and is unverified. | The released local plugin can be discovered, but its session behavior requires sign-in and is unverified. |
+
+Antigravity can replace an existing same-name plugin during installation. Check source and scope before changing an installation. Grok uninstall removes plugin data unless `--keep-data` is used. MiniMax Code is not provisioned by this module yet.
+
 ### RTK
 
 `ai-tools` installs `rtk` and enables it for the installed agents listed below. The `post-dotfiles` hook runs `bin/rtk-agents.sh` after the agent instruction dotfiles are written. It skips `rtk` entirely when `rtk` is missing and skips any agent whose binary is missing, so `ai-tools` alone or `ai-cli` alone is safe. Repeating it changes no file.
