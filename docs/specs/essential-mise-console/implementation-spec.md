@@ -310,3 +310,6 @@ driven to merge — no orphans.
   hook-owned prune false-positives need their own design).
 - Q3 Visual identity — RECOMMENDED functional-first P1, D-style baseline review P2.
 - Q4 `miserc.local.toml` editing — RECOMMENDED read-only hint P1 (§5 row 8), editor P2.
+- Q5 distribution — OPEN (from `flow-comparison.md`): stage 0 stays curl+bash;
+  lock before P1 how the console installs (candidate: `cargo install --git`
+  with pinned rev after `development-rust`, or a mise tool backend).
