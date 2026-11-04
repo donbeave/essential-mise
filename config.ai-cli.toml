@@ -175,18 +175,6 @@ alias omp-kimi='omp --profile kimi'
 alias omp-kimi-yolo='omp --profile kimi --approval-mode=yolo'
 alias omp-zai='omp --profile zai'
 alias omp-zai-yolo='omp --profile zai --approval-mode=yolo'
-function omp-zai-flash {
-  omp --profile zai --model zai-glm-flash/glm-5.3-flash "$@"
-}
-function omp-zai-flash-yolo {
-  omp-zai-flash --approval-mode=yolo "$@"
-}
-function omp-zai-53 {
-  omp --profile zai --model zai-glm-flash/glm-5.3 "$@"
-}
-function omp-zai-53-yolo {
-  omp-zai-53 --approval-mode=yolo "$@"
-}
 alias omp-minimax='omp --profile minimax'
 alias omp-minimax-yolo='omp --profile minimax --approval-mode=yolo'
 alias omp-mimo='omp --profile mimo'
