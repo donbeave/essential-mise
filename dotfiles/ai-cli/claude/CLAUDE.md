@@ -8,7 +8,7 @@
 
 # Subagents
 
-Definitions live in `~/.claude/agents/tailrocks-*.md`. This section is for the main session. Roster agents skip this file (`omitClaudeMd: true`) and get what they need from `repo-context`. No subagent can spawn another (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`), and the built-in Explore and Plan agents are denied: use @"tailrocks-locator (agent)" and @"tailrocks-architect (agent)".
+Definitions live in `~/.claude/agents/tailrocks-*.md`. This section is for the main session. Roster agents skip this file (`omitClaudeMd: true`) and get what they need from `repo-context`. Do not have subagents spawn other subagents. Prefer @"tailrocks-locator (agent)" and @"tailrocks-architect (agent)" over the built-in Explore and Plan agents. Enforcement depends on the user's Claude settings.
 
 The agents are generic roles. None of them is tied to a project, library, vendor or model, and no agent name contains a model name. The brief you send decides where an agent works. Every agent except @"tailrocks-locator (agent)" preloads the `repo-context` skill (`~/.claude/skills/repo-context/SKILL.md`), which makes it:
 1. resolve the repo and scope from the brief, and stop with `Needs from caller:` if they are missing;
@@ -58,7 +58,7 @@ Do it yourself, without a subagent, for a one-file change with an obvious check,
 
 ## Model and effort
 
-Sonnet is the default. Haiku does cheap read-and-run work. Opus 5.5 is the orchestrator for hard work and an escalation step. It is never a roster default; it appears only as the one Opus seat in pstack review panels (see the model sheet). Fable 5.1 is the rarest last resort.
+Prefer Sonnet by default. Haiku does cheap read-and-run work. Opus 5.5 is the orchestrator for hard work and an escalation step. It is never a roster default; it appears only as the one Opus seat in pstack review panels (see the model sheet). Fable 5.1 is the rarest last resort.
 
 Evidence (checked 2026-11-01):
 - SWE-bench Pro subset, Anthropic's cost-optimization page: Sonnet 5.5 `high` solves 87.6% at $0.11 per solved task, the cheapest coding setting measured. Opus 5.5 `medium` solves 92.8% at $0.22. Fable 5.1 `high` solves 92.3% at $1.19.
@@ -79,8 +79,8 @@ Defaults set in agent frontmatter:
 Fable is never a frontmatter default; it is reached only per call (Escalation, step 3).
 
 Session defaults in `~/.claude/settings.json`:
-- Main model and effort are whatever `/model` and `/effort` saved (`model` and per-model `modelSettings` in `settings.json`). A top-level `effortLevel` in the user settings file does not apply to Opus 5.5 or later models; one in project, local or managed settings applies to every model (Claude Code model-config docs, checked 2026-11-03).
-- `CLAUDE_CODE_SUBAGENT_MODEL` is Sonnet, so `general-purpose` and plugin agents without a model run on Sonnet instead of inheriting an Opus main session. Forks still use the main model.
+- Saved `/model` and `/effort` choices use `model` and per-model `modelSettings` in `settings.json`; command-line, project or managed settings can override them. A top-level `effortLevel` in the user settings file does not apply to Opus 5.5 or later models; one in project, local or managed settings applies to every model (Claude Code model-config docs, checked 2026-11-03).
+- If `CLAUDE_CODE_SUBAGENT_MODEL` is configured as Sonnet, `general-purpose` and plugin agents without a model run on Sonnet instead of inheriting an Opus main session. Forks still use the main model.
 
 ### When the main session should be Opus
 
@@ -120,7 +120,7 @@ Anthropic's cost-optimization guidance (checked 2026-11-03): running everything 
 - Pass a subagent's diff, never its conclusion, to a reviewer. Treat agent reports as claims, and verify the key facts before acting on them.
 - If the user denies a tool call or subagent, do not retry it unchanged.
 - Subagents do not commit or push unless their brief says so. The main session commits and pushes verified work.
-- `settings.json` denies force-push, `git reset --hard`, `git clean -f`, `git stash drop/clear` and `--no-verify` in every mode. When one of these is genuinely needed, ask the user to run it.
+- Do not force-push, run `git reset --hard`, `git clean -f`, `git stash drop/clear` or bypass verification without the user's authorization. Claude settings may add tool-level restrictions.
 
 ## pstack
 
@@ -132,8 +132,6 @@ When pstack (`pstack@pstack-claude`) is installed and enabled, use it as the mai
 - **Fresh by default**: give a fix round, follow-up or retry to a fresh agent, with consolidated scope (the original brief, every later directive, the prior report and branch). Resume an agent only when the work needs state that is costly to move: uncommitted changes in its checkout, or a running process. Stop an abandoned agent and confirm it stopped; check `git status` against its claims.
 - **Own the result**: review each agent's diff and write your own summary; never pass a report through. A required independent review that cannot run stays `BLOCKED: independent review`; your own review, tests or CI do not substitute.
 - **Second opinions** come from the same brief on a different model: `arena` for design, `interrogate` for adversarial review. Use them for decisions that are expensive to reverse.
-- **Model sheet**: pstack's own defaults put most roles on Opus. `~/.claude/pstack-models.md` overrides them to match the model policy above: Sonnet for work, Haiku for read-and-collect roles, one Opus seat in review panels for diversity, no Fable. It is loaded here:
-
-@~/.claude/pstack-models.md
+- **Model sheet**: pstack's own defaults put most roles on Opus. If `~/.claude/pstack-models.md` exists, read its role overrides before using pstack skills. The user controls that file.
 
 @RTK.md

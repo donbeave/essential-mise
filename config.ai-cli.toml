@@ -48,7 +48,6 @@ run = [
 "~/.claude/skills/openshell" = { source = "dotfiles/ai-cli/claude/skills/openshell", mode = "copy" }
 "~/.claude/skills/github-actions" = { source = "dotfiles/ai-cli/claude/skills/github-actions", mode = "copy" }
 "~/.claude/project-notes" = { source = "dotfiles/ai-cli/claude/project-notes", mode = "copy" }
-"~/.claude/settings.json/agents" = { source = "dotfiles/ai-cli/claude/settings.json", merge = true }
 "~/.config/opencode/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy", variants = [{ default = true, target = "{{ xdg_config_home }}/opencode/AGENTS.md" }] }
 "~/.grok/AGENTS.md" = { source = "dotfiles/ai-cli/GLOBAL_AGENTS.md", mode = "copy" }
 "~/.grok/agents" = { source = "dotfiles/ai-cli/grok/agents", mode = "copy" }
