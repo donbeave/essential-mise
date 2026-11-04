@@ -82,7 +82,7 @@ install_omp() {
 }
 
 install_opencode() {
-  printf 'PENDING pstack/OpenCode: no verified native plugin; existing installations and legacy links were not changed\n' >&2
+  printf 'PENDING pstack/OpenCode: upstream PR 397 and a release are required; existing installations and legacy links were not changed\n' >&2
 }
 
 install_muse() {
