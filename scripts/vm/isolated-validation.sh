@@ -83,6 +83,7 @@ run_and_record() {
 }
 
 first_home="$fixture_root/first-home"
+xdg_home="$fixture_root/xdg-home"
 first_path="$first_home/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 first_config="$first_home/.config/mise"
 run_and_record make-non-git-config 0 /bin/mkdir -p "$first_config"
@@ -99,10 +100,11 @@ run_and_record existing-homebrew-empty-shellenv 0 env HOME="$first_home" PATH="$
 run_and_record existing-homebrew-rerun 0 env HOME="$first_home" PATH="$initialized_path" /bin/bash "$source_script"
 run_and_record existing-mise-not-reinstalled 1 /usr/bin/grep -F 'mise: installing mise...' "$evidence_dir/existing-homebrew-rerun.log"
 run_and_record wrap-newer-mise-binary 0 /bin/mv "$first_home/.local/bin/mise" "$first_home/.local/bin/mise-real"
-run_and_record write-newer-mise-wrapper 0 /bin/bash -c "printf '#!/bin/bash\nif [[ \"\$1\" == --version ]]; then\n  printf \"2999.1.1 test\\n\"\nelse\n  exec \"\$HOME/.local/bin/mise-real\" \"\$@\"\nfi\n' > '$first_home/.local/bin/mise'"
+run_and_record write-newer-mise-wrapper 0 /bin/bash -c "printf '#!/bin/bash\nif [[ \"\$1\" == --version || \"\$1\" == version ]]; then\n  printf \"2999.1.1 test\\n\"\nelse\n  exec \"\$HOME/.local/bin/mise-real\" \"\$@\"\nfi\n' > '$first_home/.local/bin/mise'"
 run_and_record executable-newer-mise-wrapper 0 /bin/chmod +x "$first_home/.local/bin/mise"
+newer_mise_checksum="$(/usr/bin/shasum -a 256 "$first_home/.local/bin/mise")"
 run_and_record newer-mise-rerun 0 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script"
-run_and_record newer-mise-preserved 0 /usr/bin/grep -F 'Using mise 2999.1.1; no downgrade needed.' "$evidence_dir/newer-mise-rerun.log"
+run_and_record newer-mise-preserved 0 /bin/bash -c '[[ "$(/usr/bin/shasum -a 256 "$1")" == "$2" ]]' _ "$first_home/.local/bin/mise" "$newer_mise_checksum"
 run_and_record newer-mise-installer-skipped 1 /usr/bin/grep -F 'mise: installing mise...' "$evidence_dir/newer-mise-rerun.log"
 run_and_record remove-newer-mise-wrapper 0 /bin/rm "$first_home/.local/bin/mise"
 run_and_record restore-mise-binary 0 /bin/mv "$first_home/.local/bin/mise-real" "$first_home/.local/bin/mise"
@@ -135,7 +137,6 @@ run_and_record repository-subdirectory-reason 0 /usr/bin/grep -F 'actual worktre
 run_and_record add-linked-worktree 0 /usr/bin/git -C "$first_config" worktree add --detach "$fixture_root/linked-config" "$REVIEWED_COMMIT"
 run_and_record linked-worktree 0 env HOME="$first_home" MISE_CONFIG_DIR="$fixture_root/linked-config" PATH="$first_path" /bin/bash "$source_script"
 
-xdg_home="$fixture_root/xdg-home"
 xdg_config="$fixture_root/xdg-custom"
 xdg_path="$xdg_home/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 run_and_record xdg-first-run 0 env HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" PATH="$xdg_path" /bin/bash "$source_script"
