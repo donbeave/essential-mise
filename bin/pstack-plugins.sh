@@ -1,7 +1,4 @@
 #!/bin/bash
-# Installs or updates pstack through each supported AI CLI's plugin mechanism.
-# Repeat runs preserve disabled and unrelated installations where the agent supports it.
-# Usage: pstack-plugins.sh [claude|codex|omp|opencode|muse ...]   (default: all)
 set -euo pipefail
 
 bin=/opt/homebrew/bin

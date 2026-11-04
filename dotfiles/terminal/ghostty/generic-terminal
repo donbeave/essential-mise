@@ -5,10 +5,8 @@ cursor-color = #ffffff
 cursor-text = #000000
 
 selection-background = #44475a
-# Alacritty used "CellForeground" — in Ghostty set it explicitly:
 selection-foreground = #cdd6f4
 
-# ANSI 0-7 (normal)
 palette = 0=#262626
 palette = 1=#ff4d4d
 palette = 2=#39ff88
@@ -18,7 +16,6 @@ palette = 5=#ff5fd7
 palette = 6=#39f5ff
 palette = 7=#e6e6e6
 
-# ANSI 8-15 (bright)
 palette = 8=#6f6f6f
 palette = 9=#ff6b6b
 palette = 10=#66ffad

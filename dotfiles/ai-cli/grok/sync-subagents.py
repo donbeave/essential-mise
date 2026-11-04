@@ -30,7 +30,6 @@ else:
     SRC = pathlib.Path.home() / ".claude" / "agents"
     DST = pathlib.Path.home() / ".grok" / "agents"
 
-# name -> (model, effort). Unlisted agents use DEFAULT.
 ASSIGNMENTS = {
     "tailrocks-locator": ("grok-4.7", "medium"),
     "tailrocks-mechanic": ("grok-4.7", "medium"),

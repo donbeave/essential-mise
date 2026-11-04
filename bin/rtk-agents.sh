@@ -1,11 +1,4 @@
 #!/bin/bash
-# Enables RTK for each installed coding agent. Claude Code, Codex, OpenCode, Antigravity CLI and
-# OMP use rtk's own `rtk init`. Grok Build and Muse Code have no rtk target, so this script writes
-# the hook each of them supports. Kimi Code only has a project-scoped rtk setup; its instructions
-# come from the tracked dotfile.
-# Safe to repeat: every step reads the current state and applies only the difference. Skips rtk
-# entirely when it is missing, and any agent whose binary is missing.
-# Usage: rtk-agents.sh [claude|codex|antigravity|omp|grok|muse ...]   (default: all)
 set -euo pipefail
 
 bin=/opt/homebrew/bin
@@ -15,7 +8,6 @@ muse_plugin="${XDG_DATA_HOME:-$home/.local/share}/essential-mise/rtk-muse-plugin
 
 have() { [[ -x "$bin/$1" ]]; }
 
-# Writes stdin to $1 only when the content differs, so a repeat run leaves the file untouched.
 write_if_changed() {
   local target="$1" temporary
   temporary="$(mktemp "$target.XXXXXX")"
@@ -27,15 +19,12 @@ write_if_changed() {
   mv "$temporary" "$target"
 }
 
-# rtk init -g also writes the Claude Code hook, RTK.md and settings.json. The @RTK.md reference in
-# ~/.claude/CLAUDE.md is tracked as a dotfile, so rtk finds it and leaves the file alone.
 setup_claude() {
   local arguments=(init -g --auto-patch --no-trust-filters)
   have opencode && arguments+=(--opencode)
   "$rtk" "${arguments[@]}" </dev/null
 }
 
-# The AGENTS.md reference is tracked as a dotfile. --codex does not accept --auto-patch.
 setup_codex() {
   "$rtk" init -g --codex </dev/null
 }
@@ -48,9 +37,6 @@ setup_omp() {
   "$rtk" init -g --agent omp --auto-patch --no-trust-filters </dev/null
 }
 
-# Grok Build runs `rtk hook claude` unchanged: its hook input carries Claude's tool_name and
-# tool_input aliases, `Bash` matches its shell tool, and it applies Claude's updatedInput reply.
-# It already scans ~/.claude/settings.json; this file keeps the hook when that scan is disabled.
 setup_grok() {
   mkdir -p "$home/.grok/hooks"
   write_if_changed "$home/.grok/hooks/rtk.json" <<'JSON' || true
@@ -67,9 +53,6 @@ setup_grok() {
 JSON
 }
 
-# Muse Code rejects rtk's Claude reply because it sets permissionDecisionReason without a
-# permissionDecision, so jq drops that field. Muse native hooks take no matcher; rtk ignores calls
-# that carry no shell command.
 setup_muse() {
   local installed recorded cache
   mkdir -p "$muse_plugin/.muse-plugin"

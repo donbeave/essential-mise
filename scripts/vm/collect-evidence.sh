@@ -14,8 +14,6 @@ vm_ssh 'mkdir -p /tmp/essential-mise-evidence'
 if [[ -d "$destination" && -n "$(/bin/ls -A "$destination")" ]]; then
   [[ -f "$marker" && ! -L "$marker" && "$(/bin/cat "$marker")" == essential-mise-validation-evidence ]] || \
     fail "Refusing to replace an unrelated nonempty evidence directory: $destination"
-  # Keep the ownership marker until all other removals have succeeded so a
-  # partial failure can be retried. Only directories need write permission.
   find "$destination" -type d -exec chmod u+w {} +
   find "$destination" -depth -mindepth 1 ! -path "$marker" -delete
 elif [[ -e "$destination" && ! -d "$destination" ]]; then

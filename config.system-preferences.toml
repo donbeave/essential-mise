@@ -24,7 +24,6 @@ NSGlobalDomain = { AppleInterfaceStyleSwitchesAutomatically = true, AppleLocale 
 "com.apple.TextInputMenu" = { visible = true }
 "com.apple.bird" = { "optimize-storage" = true }
 
-# Change only the intended member of each shared dictionary, not the whole value.
 [[bootstrap.macos.defaults_entries]]
 domain = "NSGlobalDomain"
 key = "AppleFirstWeekday"

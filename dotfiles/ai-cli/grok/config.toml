@@ -9,19 +9,12 @@ git = "https://github.com/xai-org/plugin-marketplace.git"
 [plugins]
 enabled = ["pstack"]
 
-# Coordinator seat. Only grok-4.7 is selectable.
-# high is that model's recommended effort.
-# 4.5 and 4.6 cost the same per token. The fast variant costs 2x.
 [models]
 default = "grok-4.7"
 default_reasoning_effort = "high"
 allowed_models = ["grok-4.7"]
 disabled_models = ["grok-4.7-build-fast", "grok-4.6", "grok-4.5"]
 
-# Every roster subagent uses grok-4.7. Effort lives in ~/.grok/agents/*.md:
-# medium for tailrocks-locator, tailrocks-mechanic, tailrocks-verifier,
-# tailrocks-docs-researcher and tailrocks-docs-writer; high for every other role.
-# Plugin agents (pstack:*) set no model or effort, so they inherit the parent.
 [subagents.models]
 tailrocks-a11y-auditor = "grok-4.7"
 tailrocks-architect = "grok-4.7"
