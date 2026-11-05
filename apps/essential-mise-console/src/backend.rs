@@ -57,6 +57,17 @@ impl Action {
             _ => Self::Unknown,
         }
     }
+
+    /// Canonical string form (round-trips through [`Action::parse`]).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Create => "create",
+            Self::Update => "update",
+            Self::Remove => "remove",
+            Self::Noop => "noop",
+            Self::Unknown => "unknown",
+        }
+    }
 }
 
 /// One per-part drift note, from `mise bootstrap status --json`.
@@ -115,9 +126,20 @@ pub enum ApplyOutcome {
         code: Option<i32>,
         /// Last log lines for the failure modal.
         tail: String,
+        /// Which phase failed (drives the CLI 1/3 exit mapping).
+        phase: ApplyPhase,
     },
     /// Cancelled via [`ApplyHandle::cancel`].
     Cancelled,
+}
+
+/// Which apply phase a line or outcome belongs to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApplyPhase {
+    /// Phase 1: base parts (`bootstrap --skip packages …`).
+    Base,
+    /// Phase 2: `bootstrap packages apply <kept…>`.
+    Packages,
 }
 
 /// What to apply: selected envs plus the package keep-list.
@@ -131,6 +153,8 @@ pub struct ApplyRequest {
     pub skip_parts: Vec<String>,
     /// Parts to run in phase 1 (`--only`). Mutually exclusive with `skip_parts`.
     pub only_parts: Vec<String>,
+    /// Pass only packages for this manager to phase 2 (`packages apply -m`).
+    pub manager: Option<String>,
     /// Pass `--update` (default true, matches `bootstrap.sh` step 6).
     pub update: bool,
     /// Pass `--upgrade` (default true, matches `bootstrap.sh` step 6).
@@ -187,7 +211,7 @@ impl From<std::io::Error> for BackendError {
 /// Stock-`mise bootstrap` backend over a config dir and requested envs.
 pub trait Backend: Send + Sync + 'static {
     /// Run `bootstrap plan --json` for the requested envs.
-    fn plan(&self, envs: &[String]) -> Result<Vec<PlanEntry>, BackendError>;
+    fn plan(&self, envs: &[String], jobs: Option<u64>) -> Result<Vec<PlanEntry>, BackendError>;
     /// Run `bootstrap status --json` for the requested envs.
     fn status(&self, envs: &[String]) -> Result<StatusSnapshot, BackendError>;
     /// Run phase 1 then phase 2 in a worker thread, streaming lines to `tx`.
@@ -345,9 +369,12 @@ fn run_with_timeout(
 }
 
 impl Backend for MiseBackend {
-    fn plan(&self, envs: &[String]) -> Result<Vec<PlanEntry>, BackendError> {
+    fn plan(&self, envs: &[String], jobs: Option<u64>) -> Result<Vec<PlanEntry>, BackendError> {
         let mut cmd = self.base_command(envs);
         cmd.arg("plan").arg("--json");
+        if let Some(j) = jobs {
+            cmd.arg("--jobs").arg(j.to_string());
+        }
         let out = run_with_timeout(&mut cmd, QUERY_TIMEOUT)?;
         if !out.status.success() {
             return Err(BackendError::Parse(format!(
@@ -410,7 +437,7 @@ impl Backend for MiseBackend {
         let worker_current = Arc::clone(&current);
 
         let phase1 = self.phase1_argv(req);
-        let phase2: Option<Vec<String>> = if req.keep.is_empty() {
+        let phase2: Option<Vec<String>> = if req.keep.is_empty() && req.manager.is_none() {
             None
         } else {
             let mut argv = vec![
@@ -418,6 +445,10 @@ impl Backend for MiseBackend {
                 "packages".to_string(),
                 "apply".to_string(),
             ];
+            if let Some(ref m) = req.manager {
+                argv.push("--manager".to_string());
+                argv.push(m.clone());
+            }
             if req.dry_run {
                 argv.push("--dry-run".to_string());
             }
@@ -584,6 +615,7 @@ fn run_apply_worker(
         return ApplyOutcome::Failed {
             code: None,
             tail: "sudo -v failed".to_string(),
+            phase: ApplyPhase::Base,
         };
     }
     let mut keepalive = Command::new("/bin/sh")
@@ -608,10 +640,17 @@ fn run_apply_worker(
             &mut log,
         );
     }
-    let mut phases: Vec<(&str, Vec<String>)> =
-        vec![("phase 1: base", full_argv(&config_dir, &req, &phase1))];
+    let mut phases: Vec<(ApplyPhase, &str, Vec<String>)> = vec![(
+        ApplyPhase::Base,
+        "phase 1: base",
+        full_argv(&config_dir, &req, &phase1),
+    )];
     if let Some(ref p2) = phase2 {
-        phases.push(("phase 2: packages", full_argv(&config_dir, &req, p2)));
+        phases.push((
+            ApplyPhase::Packages,
+            "phase 2: packages",
+            full_argv(&config_dir, &req, p2),
+        ));
     }
     let outcome = run_phases(
         &mise_bin,
@@ -632,7 +671,7 @@ fn run_apply_worker(
 fn run_phases(
     mise_bin: &Path,
     config_dir: &Path,
-    phases: Vec<(&str, Vec<String>)>,
+    phases: Vec<(ApplyPhase, &str, Vec<String>)>,
     emit: &mut impl FnMut(Stream, String, &mut std::io::BufWriter<std::fs::File>),
     log: &mut std::io::BufWriter<std::fs::File>,
     cancelled: &impl Fn() -> bool,
@@ -657,7 +696,7 @@ fn run_phases(
             .collect::<Vec<_>>()
             .join("\n")
     };
-    for (label, argv) in phases {
+    for (phase, label, argv) in phases {
         send(Stream::System, format!("{label}: {}", argv.join(" ")), log);
         if cancelled() {
             return ApplyOutcome::Cancelled;
@@ -667,11 +706,16 @@ fn run_phases(
                 return ApplyOutcome::Failed {
                     code: Some(code),
                     tail: format!("{label} exited {code}\n{}", last_lines()),
+                    phase,
                 };
             }
             Ok(None) => {}
             Err(tail) => {
-                return ApplyOutcome::Failed { code: None, tail };
+                return ApplyOutcome::Failed {
+                    code: None,
+                    tail,
+                    phase,
+                };
             }
         }
         if cancelled() {
@@ -797,6 +841,7 @@ impl ApplyHandle {
             Some(worker) => worker.join().unwrap_or(ApplyOutcome::Failed {
                 code: None,
                 tail: "apply worker panicked".to_string(),
+                phase: ApplyPhase::Base,
             }),
             None => ApplyOutcome::Cancelled,
         }

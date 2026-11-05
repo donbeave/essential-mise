@@ -12,9 +12,25 @@ use std::sync::{Arc, Mutex};
 use junie_tui::runtime::ExternalSender;
 
 use super::{
-    Action, ApplyHandle, ApplyLine, ApplyOutcome, ApplyRequest, Backend, BackendError, PlanEntry,
-    ResId, StatusSnapshot, Stream, snapshot_from_raw,
+    Action, ApplyHandle, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend, BackendError,
+    PlanEntry, ResId, StatusSnapshot, Stream, snapshot_from_raw,
 };
+
+/// One recorded [`MockBackend`] call, for golden-test assertions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MockCall {
+    /// `plan` was called.
+    Plan,
+    /// `status` was called.
+    Status,
+    /// `spawn_apply` was called; records whether it was a dry run.
+    SpawnApply {
+        /// The request's `dry_run` flag.
+        dry_run: bool,
+    },
+    /// `origin_map` was called.
+    OriginMap,
+}
 
 /// Deterministic backend parsing the committed fixtures.
 #[derive(Debug, Clone)]
@@ -22,6 +38,8 @@ pub struct MockBackend {
     plan_entries: Vec<PlanEntry>,
     status_snapshot: StatusSnapshot,
     origins: HashMap<ResId, Vec<String>>,
+    fail: Option<ApplyPhase>,
+    calls: Arc<Mutex<Vec<MockCall>>>,
 }
 
 impl MockBackend {
@@ -46,7 +64,29 @@ impl MockBackend {
             plan_entries,
             status_snapshot,
             origins: HashMap::new(),
+            fail: None,
+            calls: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// Record a call.
+    fn record(&self, call: MockCall) {
+        self.calls
+            .lock()
+            .expect("mock call log poisoned")
+            .push(call);
+    }
+
+    /// All recorded calls, in order.
+    pub fn calls(&self) -> Vec<MockCall> {
+        self.calls.lock().expect("mock call log poisoned").clone()
+    }
+
+    /// Script `spawn_apply` to fail in this phase (exit-code goldens).
+    /// A scripted failure wins over `dry_run`.
+    pub fn with_failure(mut self, phase: ApplyPhase) -> Self {
+        self.fail = Some(phase);
+        self
     }
 
     /// Add a canned origin entry (screenshot tests populate per screen).
@@ -69,19 +109,24 @@ impl Default for MockBackend {
 }
 
 impl Backend for MockBackend {
-    fn plan(&self, _envs: &[String]) -> Result<Vec<PlanEntry>, BackendError> {
+    fn plan(&self, _envs: &[String], _jobs: Option<u64>) -> Result<Vec<PlanEntry>, BackendError> {
+        self.record(MockCall::Plan);
         Ok(self.plan_entries.clone())
     }
 
     fn status(&self, _envs: &[String]) -> Result<StatusSnapshot, BackendError> {
+        self.record(MockCall::Status);
         Ok(self.status_snapshot.clone())
     }
 
     fn spawn_apply(
         &self,
-        _req: &ApplyRequest,
+        req: &ApplyRequest,
         tx: ExternalSender,
     ) -> Result<ApplyHandle, BackendError> {
+        self.record(MockCall::SpawnApply {
+            dry_run: req.dry_run,
+        });
         static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let log_path = std::env::temp_dir().join(format!(
             "emc-mock-apply-{}-{}.log",
@@ -89,6 +134,28 @@ impl Backend for MockBackend {
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::File::create(&log_path).map_err(BackendError::Spawn)?;
+        let fail = self.fail;
+        if let Some(phase) = fail {
+            tx.send(ApplyLine {
+                seq: 1,
+                stream: Stream::System,
+                text: format!("mock: failing in {phase:?} (scripted)"),
+            });
+            let worker = std::thread::Builder::new()
+                .name("emc-mock-apply".to_string())
+                .spawn(move || ApplyOutcome::Failed {
+                    code: Some(1),
+                    tail: format!("mock: {phase:?} failed (scripted)"),
+                    phase,
+                })
+                .map_err(BackendError::Spawn)?;
+            return Ok(ApplyHandle {
+                worker: Some(worker),
+                cancel_flag: Arc::new(AtomicBool::new(false)),
+                current: Arc::new(Mutex::new(None)),
+                log_path,
+            });
+        }
         tx.send(ApplyLine {
             seq: 1,
             stream: Stream::System,
@@ -107,6 +174,7 @@ impl Backend for MockBackend {
     }
 
     fn origin_map(&self, _config_dir: &Path) -> Result<HashMap<ResId, Vec<String>>, BackendError> {
+        self.record(MockCall::OriginMap);
         Ok(self.origins.clone())
     }
 }

@@ -2,6 +2,7 @@ use std::io::IsTerminal as _;
 use std::process::ExitCode;
 
 use clap::Parser as _;
+use essential_mise_console::backend::MiseBackend;
 use essential_mise_console::cli::{self, Cli, EXIT_ERROR};
 
 fn main() -> ExitCode {
@@ -13,5 +14,9 @@ fn main() -> ExitCode {
         );
         return ExitCode::from(EXIT_ERROR);
     }
-    ExitCode::from(cli::run(&cli))
+    let config_dir = cli::resolve_config_dir(cli.config_dir.as_deref());
+    let backend = MiseBackend::new(config_dir, cli::resolve_envs(&cli.env));
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    ExitCode::from(cli::run(&backend, &cli, &mut out))
 }

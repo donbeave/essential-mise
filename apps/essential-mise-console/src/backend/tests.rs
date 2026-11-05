@@ -162,6 +162,7 @@ fn spawn_apply_dry_run_spawns_nothing() {
     let req = ApplyRequest {
         envs: vec!["terminal".to_string()],
         keep: vec!["brew:jq".to_string()],
+        manager: None,
         skip_parts: Vec::new(),
         only_parts: Vec::new(),
         update: true,
@@ -197,7 +198,7 @@ fn spawn_apply_dry_run_spawns_nothing() {
 fn mock_loads_plan_fixture() {
     let backend = super::mock::MockBackend::new();
     let entries = backend
-        .plan(&["terminal".to_string()])
+        .plan(&["terminal".to_string()], None)
         .expect("mock plan parses");
     assert!(
         !entries.is_empty(),
@@ -225,7 +226,7 @@ fn tier2_live_plan_readonly_matches_fixture_shape() {
     let dir = host_config_dir();
     let backend = MiseBackend::new(dir.clone(), vec!["terminal".to_string()]).with_mise_bin("mise");
     let entries = backend
-        .plan(&["terminal".to_string()])
+        .plan(&["terminal".to_string()], None)
         .expect("live plan --json parses");
     assert!(!entries.is_empty(), "live plan has entries");
     for e in &entries {

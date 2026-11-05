@@ -10,6 +10,8 @@
 
 use std::path::{Path, PathBuf};
 
+use super::backend::{Action, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend};
+
 /// Exit 0: ok.
 pub const EXIT_OK: u8 = 0;
 /// Exit 1: a part failed (or usage error).
@@ -184,24 +186,211 @@ pub fn exec_hint(envs: &[String]) -> String {
 }
 
 fn unimplemented(command: &str) -> u8 {
-    eprintln!("essential-mise-console: '{command}' lands in a later task (T3.2+); see --help");
+    eprintln!("essential-mise-console: '{command}' lands in a later task (T3.4+); see --help");
     EXIT_ERROR
 }
 
-/// Dispatch a parsed CLI. Behavior lands per task; T3.1 owns the tree and
-/// the exit-code contract.
-pub fn run(cli: &Cli) -> u8 {
+/// Dispatch a parsed CLI against a backend, writing envelopes and logs to
+/// `out` and human notes to stderr. Returns the process exit code.
+pub fn run(backend: &dyn Backend, cli: &Cli, out: &mut dyn std::io::Write) -> u8 {
     match &cli.command {
         None => unimplemented("tui"),
         Some(Commands::Modules { .. }) => unimplemented("modules"),
         Some(Commands::Packages { .. }) => unimplemented("packages"),
-        Some(Commands::Plan { .. }) => unimplemented("plan"),
-        Some(Commands::Apply { .. }) => unimplemented("apply"),
+        Some(Commands::Plan {
+            json,
+            detailed_exitcode,
+            jobs,
+        }) => run_plan(backend, cli, *json, *detailed_exitcode, *jobs, out),
+        Some(Commands::Apply {
+            skip,
+            only_parts,
+            manager,
+            packages,
+            update,
+            upgrade,
+            dry_run,
+        }) => run_apply(
+            backend,
+            cli,
+            skip,
+            only_parts,
+            manager.as_deref(),
+            packages,
+            *update,
+            *upgrade,
+            *dry_run,
+            out,
+        ),
         Some(Commands::Status { .. }) => unimplemented("status"),
         Some(Commands::Verify { .. }) => unimplemented("verify"),
         Some(Commands::Setup) => unimplemented("setup"),
         Some(Commands::Tui { .. }) => unimplemented("tui"),
     }
+}
+
+/// `plan`: query the backend, print the console envelope
+/// `{"envs","resources","summary"}` on stdout and a human line on stderr.
+fn run_plan(
+    backend: &dyn Backend,
+    cli: &Cli,
+    json: bool,
+    detailed_exitcode: bool,
+    jobs: Option<u64>,
+    out: &mut dyn std::io::Write,
+) -> u8 {
+    let envs = resolve_envs(&cli.env);
+    let entries = match backend.plan(&envs, jobs) {
+        Ok(entries) => entries,
+        Err(e) => {
+            eprintln!("essential-mise-console: plan failed: {e}");
+            return EXIT_ERROR;
+        }
+    };
+    let mut create = 0u64;
+    let mut update = 0u64;
+    let mut remove = 0u64;
+    let mut unchanged = 0u64;
+    let mut unknown = 0u64;
+    let mut resources = Vec::with_capacity(entries.len());
+    for e in &entries {
+        match e.action {
+            Action::Create => create += 1,
+            Action::Update => update += 1,
+            Action::Remove => remove += 1,
+            Action::Noop => unchanged += 1,
+            Action::Unknown => unknown += 1,
+        }
+        resources.push(serde_json::json!({
+            "kind": e.kind,
+            "name": e.name,
+            "current": e.current,
+            "desired": e.desired,
+            "action": e.action.as_str(),
+        }));
+    }
+    if json {
+        let doc = serde_json::json!({
+            "envs": envs,
+            "resources": resources,
+            "summary": {
+                "create": create,
+                "update": update,
+                "remove": remove,
+                "unchanged": unchanged,
+                "unknown": unknown,
+            },
+        });
+        if writeln!(
+            out,
+            "{}",
+            serde_json::to_string_pretty(&doc).expect("envelope serializes")
+        )
+        .is_err()
+        {
+            eprintln!("essential-mise-console: failed to write plan output");
+            return EXIT_ERROR;
+        }
+    } else {
+        for e in &entries {
+            let _ = writeln!(
+                out,
+                "{} {} {}: {} -> {}",
+                e.action.as_str(),
+                e.kind,
+                e.name,
+                e.current,
+                e.desired
+            );
+        }
+    }
+    eprintln!(
+        "plan: {} create, {} update, {} remove, {} unchanged, {} unknown",
+        create, update, remove, unchanged, unknown
+    );
+    if detailed_exitcode {
+        if unknown > 0 {
+            EXIT_ERROR
+        } else if create + update + remove > 0 {
+            2
+        } else {
+            EXIT_OK
+        }
+    } else {
+        EXIT_OK
+    }
+}
+
+/// `apply`: two-phase apply with exit mapping 0 ok / 1 failed / 3 partial
+/// (phase 1 ok, phase 2 failed). `--dry-run` previews and never spawns.
+#[allow(clippy::too_many_arguments)]
+fn run_apply(
+    backend: &dyn Backend,
+    cli: &Cli,
+    skip: &[String],
+    only: &[String],
+    manager: Option<&str>,
+    packages: &[String],
+    update: bool,
+    upgrade: bool,
+    dry_run: bool,
+    out: &mut dyn std::io::Write,
+) -> u8 {
+    let envs = resolve_envs(&cli.env);
+    let keep: Vec<String> = packages.to_vec();
+    if !dry_run && !cli.yes && !confirm(&envs, &keep) {
+        return EXIT_ERROR;
+    }
+    let req = ApplyRequest {
+        envs,
+        keep,
+        manager: manager.map(|m| m.to_string()),
+        skip_parts: skip.to_vec(),
+        only_parts: only.to_vec(),
+        update,
+        upgrade,
+        dry_run,
+    };
+    let (tx, rx) = junie_tui::runtime::external_channel();
+    let handle = match backend.spawn_apply(&req, tx) {
+        Ok(handle) => handle,
+        Err(e) => {
+            eprintln!("essential-mise-console: apply failed to start: {e}");
+            return EXIT_ERROR;
+        }
+    };
+    let outcome = handle.join();
+    for m in rx.drain() {
+        if let Some(line) = m.downcast_ref::<ApplyLine>() {
+            let _ = writeln!(out, "{}", line.text);
+        }
+    }
+    match outcome {
+        ApplyOutcome::Success => EXIT_OK,
+        ApplyOutcome::Failed {
+            phase: ApplyPhase::Packages,
+            ..
+        } => EXIT_PARTIAL,
+        ApplyOutcome::Failed { .. } => EXIT_ERROR,
+        ApplyOutcome::Cancelled => EXIT_ERROR,
+    }
+}
+
+/// Confirm a mutating apply on stderr/stdin. Anything but `y`/`yes` aborts.
+fn confirm(envs: &[String], keep: &[String]) -> bool {
+    use std::io::Write as _;
+    let _ = write!(
+        std::io::stderr(),
+        "Apply to [{}] ({} packages kept)? [y/N] ",
+        envs.join(","),
+        keep.len()
+    );
+    let _ = std::io::stderr().flush();
+    let mut line = String::new();
+    if std::io::stdin().read_line(&mut line).is_err() {
+        return false;
+    }
+    matches!(line.trim().to_ascii_lowercase().as_str(), "y" | "yes")
 }
 
 #[cfg(test)]
