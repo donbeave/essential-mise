@@ -44,3 +44,23 @@ name = "default"
 features = ["default"]
 all_features = true
 target = "host"
+
+[stacks.rust.binary_release]
+manifest_path = "apps/essential-mise-console/Cargo.toml"
+version_package = "essential-mise-console"
+
+[stacks.rust.binary_release.evidence]
+profile = "signed-sbom-v1"
+
+[[stacks.rust.binary_release.products]]
+id = "essential-mise-console"
+package = "essential-mise-console"
+bins = ["essential-mise-console"]
+targets = ["aarch64-apple-darwin"]
+archive = "tar.gz"
+
+[stacks.rust.binary_release.preview]
+enabled = false
+
+[stacks.rust.binary_release.stable]
+enabled = false
