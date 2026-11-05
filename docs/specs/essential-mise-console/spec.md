@@ -15,16 +15,17 @@ result — without reimplementing any install logic.
 - No new config format. `config.<name>.toml` modules remain the only
   source of truth; the TUI never writes package declarations (one-shot
   installs stay unrecorded, matching today's `bootstrap.sh` semantics).
-- No replacement of `first-mac.sh` stages 0–5, VM verification scripts,
-  or docs. The TUI covers the interactive selection + apply + verify
-  loop only.
+- No replacement of VM verification scripts or docs. Stage 0–5 *orchestration*
+  lives in `emc setup` (calling official installers); install logic itself is
+  never reimplemented. The TUI covers the setup + selection + apply + verify
+  loop.
 - No contribution to `junie-tui` in P1. Generic widgets go upstream only
   in P2, under that repo's `AGENTS.md` rules.
 
 ## 3. Background and constraints
 
 - Depends on `tailrocks/terminal-components-baseline` main tip `2e9e60f` (PR #1
-  merged 2026-11-06). The crate pins that rev, never the branch. Upstream gaps go
+  merged 2026-11-05). The crate pins that rev, never the branch. Upstream gaps go
   back as PRs with full review rounds (plan T6.1).
 - Upstream mise capabilities used (all verified against mise 2026.10.x):
   `bootstrap plan --json` → per-resource `{id, current, desired,
@@ -36,26 +37,25 @@ result — without reimplementing any install logic.
 - Per-package origin (which module declares a package) is derived by
   parsing the `[bootstrap.packages]` tables of the selected env files,
   not from mise output (current `plan --json` carries no origin field).
-- Rust 1.99 / edition 2024 / ratatui 0.30 / crossterm 0.29 — already
+- Rust 1.99.1 / edition 2024 / ratatui 0.30 / crossterm 0.29 — already
   managed by essential-mise itself (dogfood).
 - UI verification follows the host rules: tuiscotti baselines + nextest
   in CI, Tart VM + Cua for real-install verification.
 
 ## 4. Architecture
 
-In-repo crate in `essential-mise` (subdirectory TBD), one binary crate plus a small library
+In-repo crate at `apps/essential-mise-console/`, one binary crate plus a small library
 for the screen state, following the `apps/jackin` (`jackin-console`)
 split:
 
 ```
-essential-mise-console/
+apps/essential-mise-console/
   src/
     main.rs        # clap CLI, terminal setup, App wiring
     backend.rs     # Backend trait + mise-CLI implementation
     world.rs       # plain data: modules, packages, plan, run state
     screens/       # thin pages: modules, packages, apply, result
   tests/           # tuiscotti baselines + nextest unit tests
-  .velnor/         # generated CI (never hand-edited)
 ```
 
 `junie-tui` is a dependency by exact git rev (pinned merged commit, never a branch; `default-features = false`
@@ -102,12 +102,9 @@ Out of P1 (P2 candidates): `unapply` screen, remote-host inventory,
 
 ## 6. Phasing and exit criteria
 
-- **P0 — bash deselect (hours, unblocked).** Second-level prompt in
-  `bootstrap.sh`: list selected envs' packages, untick, then
-  `--skip packages` + `apply <kept>`. Exit: same behavior as today
-  when nothing is deselected; `verify-current-inventory.py` still
-  passes.
-- **P1 — thin Rust frontend (days, unblocked 2026-11-06).**
+- **P0 — SUPERSEDED 2026-11-05** (no bash deselect; step-6 numbers stay until
+  the first signed release; see implementation-spec §6 and plan §3).
+- **P1 — thin Rust frontend (days, unblocked 2026-11-05).**
   In-repo crate, rev-pinned `junie-tui`, the 4 screens above against live
   mise JSON. Exit: fresh-VM dry run + apply of a 2-module selection
   through the TUI; tuiscotti smoke baselines for the 4 screens;
@@ -145,8 +142,9 @@ unmerged PRs left behind.
 
 1. Repo home and name — RESOLVED 2026-11-04: in-repo crate in
    `essential-mise` (subdirectory TBD); `junie-tui` by pinned git rev.
-2. Is the `unapply` screen P1 or P2?
+2. Is the `unapply` screen P1 or P2? — RECOMMENDED P2 (see implementation-spec §8).
 3. Visual identity: run a D-style baseline review before P1 ships, or
-   ship functional-first and style in P2?
+   ship functional-first and style in P2? — RECOMMENDED functional-first P1.
 4. Should the TUI also replace the `miserc.local.toml` persistent-env
-   editing, or stay one-shot like `bootstrap.sh` today?
+   editing, or stay one-shot like `bootstrap.sh` today? — RECOMMENDED read-only
+   hint P1, editor P2 (T3.3 may promote `--save-env`).

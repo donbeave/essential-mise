@@ -138,7 +138,7 @@ quit-`Dialog` (`src/widgets/dialog.rs:46`).
 │ └──────────────────────────────────┘ └───────────────────────────────────┘ │
 │ [Continue →]   (disabled while nothing is selected)                        │
 │ ↑/↓ move · Space toggle · / filter · a select-all · n select-none          │
-└─ mise 2026.11.0 · status cached 4s ago ────────────────────────────────────┘
+└─ mise 2026.11.1+ · status cached 4s ago ───────────────────────────────────┘
 ```
 
 S2 Packages — one `ListBox` in multi-select mode (`src/widgets/list.rs:80`,
@@ -259,8 +259,8 @@ on_external → downcast_ref` (`:394,235-244`); test pump
 |---|---|---|---|
 | 1 | Fresh-Mac run (stages 1–5) | — | Out of scope (stages 0–5 untouched); console starts at module select |
 | 2 | Category multi-select, search, skip | P1 | S1, 29 parsed envs, badges from `status --json` |
-| 3 | Per-package deselect, grouped | P0+P1 | P0 bash prompt; P1 S2; empty keep-list skips phase 2 |
-| 4 | Dry-run preview before apply | P0+P1 | `-n` in both |
+| 3 | Per-package deselect, grouped | P1 | S2 checklist; empty keep-list skips phase 2 |
+| 4 | Dry-run preview before apply | P1 | `-n` in CLI and TUI |
 | 5 | Apply, live log, native part order | P1 | S3 sudo pre-flight + two-phase worker |
 | 6 | `--upgrade` vs missing-only vs `--update` | P1 | Separate toggles, defaults on |
 | 7 | Re-verify selected envs | P1 | S4 status+plan; doctor hint only |
@@ -287,7 +287,7 @@ on_external → downcast_ref` (`:394,235-244`); test pump
   untick, then `--skip packages` + `apply <kept>`; `sudo -v` + keepalive
   preserved. Exit: identical behavior when nothing deselected;
   `tests/test_plugin_lifecycle.py` passes.
-- **P1 — console (days, unblocked 2026-11-06).** In-repo crate
+- **P1 — console (days, unblocked 2026-11-05).** In-repo crate
   (subdirectory TBD); `junie-tui` by git rev pinned at `2e9e60f` (merged main tip,
   re-verify at use); CLI §2 + screens §3 against
   live JSON; `Backend` §4 with mock. Exit: fresh-VM dry run + 2-module apply via
@@ -315,7 +315,7 @@ driven to merge — no orphans.
   hook-owned prune false-positives need their own design).
 - Q3 Visual identity — RECOMMENDED functional-first P1, D-style baseline review P2.
 - Q4 `miserc.local.toml` editing — RECOMMENDED read-only hint P1 (§5 row 8), editor P2.
-- Q5 distribution — RESOLVED 2026-11-06: prebuilt release binaries via the velnor
+- Q5 distribution — RESOLVED 2026-11-05: prebuilt release binaries via the velnor
   release flow (versioned per-target artifacts + sha256 manifest, the
   `release-manifest.json` pattern). `bootstrap.sh` shrinks to a ~15-line fetcher
   (arch guard, download pinned binary, verify sha256, exec). The binary owns
@@ -326,5 +326,5 @@ driven to merge — no orphans.
   The fetcher itself narrates: staged `==>` output (platform → download →
   handoff), curl progress, checksum verdict, cached-binary reuse — exact
   contract in the plan (T1.4). No silent minutes before the Rust UI appears.
-- P0 bash deselect — SUPERSEDED 2026-11-06 (no bash selection investment; step-6
+- P0 bash deselect — SUPERSEDED 2026-11-05 (no bash selection investment; step-6
   numbers stay until the first release; effort moves to the binary + release pipeline).

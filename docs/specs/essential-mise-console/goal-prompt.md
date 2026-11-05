@@ -7,8 +7,8 @@ Paste into a fresh session (or `/goal`) to produce the build-ready spec:
 
 CONTEXT (verified 2026-11-04, re-verify before citing):
 - essential-mise repo (this repo): mise config repo, env modules in
-  config.<name>.toml, interactive flow in bootstrap.sh (after first-mac.sh
-  stages 0-5). Read bootstrap.sh, config.toml, 2-3 config.*.toml modules,
+  config.<name>.toml, interactive flow in bootstrap.sh (stages 0-5 per
+  docs/first-mac.md). Read bootstrap.sh, config.toml, 2-3 config.*.toml modules,
   docs/manual-actions.md fully before designing anything.
 - Component library checkout: /tmp/tcb
   (tailrocks/terminal-components-baseline `origin/main`; re-fetch, it may be stale). Package
@@ -25,7 +25,7 @@ CONTEXT (verified 2026-11-04, re-verify before citing):
 TEAM (spawn parallel workers, one role each):
 1. Usage researcher — traces today's end-to-end flow (fresh Mac stages
    0-5, bootstrap.sh steps incl. 6/7 selection, re-runs, drift,
-   verify-current-inventory.py, miserc.local.toml one-shot semantics)
+   tests/test_plugin_lifecycle.py, miserc.local.toml one-shot semantics)
    and lists every user-visible scenario the console must cover.
 2. Library librarian — inventories the live /tmp/tcb checkout: every
    reusable widget/screen primitive with file:line citations, feature

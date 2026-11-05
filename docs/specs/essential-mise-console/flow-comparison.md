@@ -1,14 +1,14 @@
 # Flow comparison — today vs proposed CLI/TUI (user perspective)
 
 Method: every "today" row cites `bootstrap.sh` lines or `docs/first-mac.md`
-sections, read fully 2026-11-06. Proposal columns cite `implementation-spec.md`
+sections, read fully 2026-11-05. Proposal columns cite `implementation-spec.md`
 sections. Verdicts: **better** / **parity** / **gap** (with phase).
 
 ## A. Fresh Mac, stages 0–5 (out of console scope — correctly)
 
 | Today | CLI / TUI | Verdict |
 |---|---|---|
-| One curl command → CLT dialog, Homebrew, mise, adoption, foundation (`bootstrap.sh:39-156`, `first-mac.md:5-28`) | Neither; console starts at module select | **parity by design** (non-goal, locked) |
+| One curl command → fetcher (~15 lines) → `emc setup` owns CLT, Homebrew, mise, adoption, foundation (`bootstrap.sh:39-156` behavior reimplemented as orchestration calling official installers; `first-mac.md:5-28`) | `emc setup` + S1→S4 | **better** (progress UI, was silent) |
 | Fail-closed checkout validation: non-worktree, bare, symlink, wrong origin (`bootstrap.sh:89-151`) | Scenario 15: same checks, `Notice` + exit 1 | **parity** |
 | Foundation apply `mise -E foundation bootstrap --upgrade --update` (`:156`) | `emc -E foundation apply` / S1 pre-tick | **parity** |
 
@@ -19,7 +19,7 @@ sections. Verdicts: **better** / **parity** / **gap** (with phase).
 | Numbered list of 29 envs **with** descriptions (`:198-200`), free-text `1,3-5`, validated on submit, deduped (`:207-221`); invalid → whole script exits 1 | S1: same names+descriptions parsed from the script's arrays (no drift), live search, per-env installed/drift badges, validation before continue | **better** (search + badges + no dead-submit) |
 | No pre-check: cannot see noop vs change before answering | S1 badges (§3), `emc plan --detailed-exitcode` gates | **better** |
 | Non-tty silently skips (`:203-205`) | Fail-closed: explicit subcommand required (§2) | **better** (deliberate change, honest) |
-| No per-package visibility at select time | P0 second prompt + S2 checklist grouped by declaring module | **better** |
+| No per-package visibility at select time | S2 checklist grouped by declaring module | **better** |
 
 ## C. Apply (step 6 tail, `:223-237`)
 
@@ -97,11 +97,9 @@ amendment below.
 
 ## Must-fix before P1 (new findings from this review)
 
-1. **Q5 — distribution (open):** on a fresh Mac the console cannot exist yet
-   (in-repo crate needs Rust + crates.io). Resolution path: stage 0 stays
-   curl+bash (already locked); console targets operators with a working setup
-   and installs via `cargo install --git <repo> --rev <pin>` after
-   `development-rust` (or a mise tool backend) — lock one before P1.
+1. **Q5 — distribution (RESOLVED, supersedes this item):** velnor release flow,
+   pinned per-target artifact + sha256, fetcher + `emc setup` (see
+   implementation-spec §8, plan T1.4). The `cargo install` path below is dead.
 2. **P1 amendment — S1 pre-ticks from `miserc.local.toml` `env`** (read-only):
    bridges the one-shot trap and gives repeat users a one-keystroke path.
 3. **P1 amendment — worker tees the full log to a file**, S3 shows the path:

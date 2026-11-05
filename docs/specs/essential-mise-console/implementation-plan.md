@@ -48,18 +48,18 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
 
 - L1. Crate dir: `apps/essential-mise-console/` (mirrors baseline `apps/jackin`).
   Binary `essential-mise-console`, lib `essential_mise_console`. Safe: nothing in
-  the repo walks the root (`tests/` uses temp dirs; verified 2026-11-06).
+  the repo walks the root (`tests/` uses temp dirs; verified 2026-11-05).
 - L2. Toolchain: latest stable Rust, never below 1.99.1 (1.99.1 is latest stable
-  per `mise ls-remote rust`, verified 2026-11-06; re-resolve at start, record it).
+  per `mise ls-remote rust`, verified 2026-11-05; re-resolve at start, record it).
   Edition 2024. Crate ships its own `rust-toolchain.toml` (copy
   `/tmp/tcb/rust-toolchain.toml` verbatim, bump `channel` to the resolved latest).
-  mise itself must be ≥2026.11.1 (`mise self-update --yes`, same command as
-  `bootstrap.sh:87`; 2026.11.1 adds `bootstrap --save-env` and lockfile v4 —
-  see T3.3). `mbx` (mr-boxington's cargo shim, `/tmp/tcb/mise.toml:12`) is a CI
+  mise itself must be ≥2026.11.1 (`mise self-update --yes --no-plugins
+  --minimum-release-age 0s`, the full argv from `bootstrap.sh:87`; 2026.11.1 adds
+  `bootstrap --save-env` and lockfile v4 — see T3.3). `mbx` (mr-boxington's cargo shim, `/tmp/tcb/mise.toml:12`) is a CI
   concern only (`compile_driver = "mbx"` in velnor config): local builds use
   plain cargo + rust-toolchain.toml; do NOT add `[wrappers.cargo]` to shared config.
 - L3. `junie-tui`: git dependency, rev = **`2e9e60f`** (baseline PR #1 merge,
-  tailrocks/terminal-components-baseline `origin/main` tip verified 2026-11-06).
+  tailrocks/terminal-components-baseline `origin/main` tip verified 2026-11-05).
   Re-verify the tip at write time; pin the sha, never a branch.
 - L4. Test pins (from live `/tmp/tcb/Cargo.toml`, re-verify at use):
   `tuiscotti` git rev `d8d54155947f6303a41dfd6079b53c0abc16f29a`,
@@ -68,22 +68,23 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
   `0.1.73`, binary `velnor-actions`.
 - L5. Decisions (operator-overridable, proceed as locked): Q2 unapply=P2, Q3
   functional-first P1, Q4 read-only persistence hint P1 (T3.3 may promote
-  `--save-env`), Q5 RESOLVED 2026-11-06: release binaries via velnor release
-  flow; P0 SUPERSEDED 2026-11-06 (no bash selection logic; see §3).
+  `--save-env`), Q5 RESOLVED 2026-11-05: release binaries via velnor release
+  flow; P0 SUPERSEDED 2026-11-05 (no bash selection logic; see §3).
 - L6. Backend argv shape (observed flows): `mise -C <config-dir> -E <envs>
   bootstrap …` with `MISE_CEILING_PATHS=<config-dir>`; config dir resolves from
   `--config-dir`, else `$MISE_CONFIG_DIR`, else `~/.config/mise`.
 - L7. Source specs: `implementation-spec.md` (behavior), `flow-comparison.md`
   §"Must-fix" amendments (S1 pre-tick from `miserc.local.toml`, log spill file,
-  `exec` documented out-of-scope). Wireframes in §3 are normative for layout.
+  `exec` documented out-of-scope; amendment #1/Q5 superseded by the T1.4 release
+  flow). Wireframes in §3 are normative for layout.
 
-## 2. Gate G1 — SATISFIED 2026-11-06 (baseline PR #1 merged)
+## 2. Gate G1 — SATISFIED 2026-11-05 (baseline PR #1 merged)
 
 PR #1 merged as `2e9e60f` (`feat: add the jackin console screens to the baseline`).
-`origin/main` tip verified 2026-11-06; `external_channel` at `src/runtime.rs:84`
+`origin/main` tip verified 2026-11-05; `external_channel` at `src/runtime.rs:84`
 and all inventoried widgets present on main. Steps:
 1. `git -C /tmp/tcb fetch origin && git -C /tmp/tcb rev-parse origin/main`
-2. Check out the pinned tip locally (`git -C /tmp/tcb checkout <REV>`); all
+2. Check out the pinned tip locally (`git -C /tmp/tcb fetch origin && git -C /tmp/tcb checkout --detach <REV>`); all
    `/tmp/tcb` cites in this plan refer to main, never the old feature branch.
 3. Pin exactly this REV in `Cargo.toml` (re-verify the tip at write time; never
    a branch, never `a4e81a4`). Record REV in evidence.
@@ -91,10 +92,10 @@ Done when: REV is a full 40-char sha on `origin/main`, evidence pasted.
 
 Task dependency map (nothing starts before its needs are evidenced done):
 G1 → T4.1–T4.6. T1.0 → every P1 task (no toolchain evidence, no code). T1.1 → T1.2, T2.1, T1.4. T1.2 → T1.3. T1.3 → T1.4 (release needs CI). T2.1 → T2.2, T2.3, T3.1. T2.2 + T2.3 → T3.2,
-T4.6. T3.1 → T3.2, T3.4, T5.1. T1.0 → T3.3 (read-only). T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3. P1 stop-reports → T6.1 (P2).
+T4.6. G1 → T4.6 explicitly (screens need the pinned tip). T3.1 → T3.2, T3.4, T5.1. T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3. P1 stop-reports → T6.1 (P2).
 T0.1 → T0.2 → T0.3 (independent of all P1 tasks).
 
-## 3. P0 — SUPERSEDED 2026-11-06 (do not implement)
+## 3. P0 — SUPERSEDED 2026-11-05 (do not implement)
 
 Per user directive, no bash selection logic is built: `bootstrap.sh` step 6 keeps
 its numbered list until the first signed release, then delegates to the release
@@ -102,8 +103,11 @@ binary (see T1.4). The T0.1–T0.3 tasks below are retained for reference only.
 P0 exit gate (`tests/test_plugin_lifecycle.py`) still applies to any
 `bootstrap.sh` touch.
 
-### T0.1 — implement the second-level prompt
-Inputs: `bootstrap.sh:207-237` (category validation → sudo → apply).
+### T0.1 — implement the second-level prompt (REFERENCE ONLY — §3 superseded)
+Inputs: `bootstrap.sh:202-236` (selection `read` at :202, validation `if` at
+:208–221, sudo/apply at :223–236; re-grep at write time).
+Evidence first: `mise bootstrap --help | grep -A2 -- --skip` (part vocabulary
+for the phase split).
 Steps:
 1. After the `fi` closing category validation (line ~221), before the
    `if [[ -n "$selected_environments" ]]` block, insert a new block that, for
@@ -115,7 +119,7 @@ Steps:
 3. Phase split: `mise -E … bootstrap --skip packages --upgrade --update`, then —
    only if the keep-list is non-empty — `mise -E … bootstrap packages apply
    <kept…>`. Empty keep-list skips phase 2 (bare `packages apply` means ALL).
-4. Keep `sudo -v` + 60s keepalive exactly as-is (lines 226-234).
+4. Keep `sudo -v` + 60s keepalive exactly as-is (lines 226-236, re-grep).
 Forbidden: changing validation semantics, touching stages 1-5/7, `packages use`.
 Done when: `bash -n bootstrap.sh` passes AND the new block works in the harness (T0.2).
 
@@ -135,9 +139,12 @@ selected_environments="$SELECTED"
 # <<< PASTE T0.1 BLOCK HERE >>>
 ```
 
-Run four cases, resetting the log each time:
-`SELECTED="terminal" ./p0-harness.sh <<<"1,2"` (normal),
-`SELECTED="terminal" ./p0-harness.sh <<<"1"` after marking package 2 unticked
+Run four cases, resetting the log each time (fixture envs: list them first with
+`printf '%s\n' "${environment_names[@]}"` from the block under test).
+`chmod +x /tmp/p0-harness.sh` once, then invoke it by absolute path
+(`/tmp/p0-harness.sh`, never `./p0-harness.sh`):
+`SELECTED="terminal" /tmp/p0-harness.sh <<<"1,2"` (normal),
+`SELECTED="terminal" /tmp/p0-harness.sh <<<"1"` after marking package 2 unticked
 (deselect-some — adapt numbers to the fixture envs), `… <<<""` (deselect-all),
 `… <<<"abc"` (invalid).
 Assert: normal → both phases with right argv; deselect-some → phase 2 lists
@@ -154,15 +161,16 @@ Paste the harness log. Delete `/tmp/p0-harness.sh` and the log after.
 ## 4. P1 scaffold (no G1 needed)
 
 ### T1.0 — toolchain bench (first P1 command sequence; everything P1 needs this)
-1. `mise --version` → must be ≥2026.11.1, else `mise self-update --yes` and
-   re-verify. Record the version.
+1. `mise --version` → must be ≥2026.11.1, else run the full
+   `mise self-update --yes --no-plugins --minimum-release-age 0s`
+   (`bootstrap.sh:87` verbatim) and re-verify. Record the version.
 2. `mise ls-remote rust | grep -E "^1\.[0-9]+\.[0-9]+$" | tail -1` → latest
    stable; must be ≥1.99.1. Record it; this is the `channel` for the crate's
    `rust-toolchain.toml`.
 3. `command -v shellcheck && command -v cargo-llvm-cov` → both must resolve
    (via mise shims/aqua, as on this host). `cargo nextest --version` → if
    missing, T1.2 installs it. Record all versions.
-4. `tart --version` → ≥2.41 (installed 2026-11-06 from the official
+4. `tart --version` → ≥2.41 (installed 2026-11-05 from the official
    `openai/tart` release tarball: the `cirruslabs/cli` Homebrew tap is broken
    at HEAD — `depends_on :macos` DSL error, exact message recorded in session
    history; bundle installed intact at `~/Applications/tart.app` with a
@@ -184,7 +192,7 @@ Multi-crate direction rule (the `jackin-console` precedent: lib holds all logic,
 bins hold wiring): `main.rs` does clap parse + terminal setup + App wiring ONLY
 (anything else = reject); screens/state/backend live in the lib and never import
 the binary crate. No second binary in P1.
-Deps now — exact lines (versions verified 2026-11-06; re-check before use):
+Deps now — exact lines (versions verified 2026-11-05; re-check before use):
 `clap = { version = "4.6", features = ["derive"] }`,
 `serde = { version = "1", features = ["derive"] }`, `serde_json = "1"`.
 NO `junie-tui`, NO `ratatui` yet.
@@ -204,9 +212,10 @@ Install nextest executor-locally only if missing (T1.0 told you):
 ### T1.3 — CI via velnor-actions (never hand-write `.github/`)
 CI is generated, not written. Exact steps:
 1. Install the generator executor-locally (NO shared-config change in P1):
-   `mise install "github:tailrocks/velnor-new@0.1.73"` (pin observed 2026-11-06
-   in `/tmp/tcb/mise.toml:10`; re-check at use). Confirm `velnor-actions --version`
-   runs via mise shims; record the version in evidence.
+   `mise install "github:tailrocks/velnor-new@0.1.73"` (pin observed 2026-11-05
+   in `/tmp/tcb/mise.toml:10`; re-check at use), then ensure the shim resolves
+   (`mise reshim` if needed; `command -v velnor-actions` must print a path).
+   Confirm `velnor-actions --version`; record the version in evidence.
 2. Read `/tmp/tcb/docs/ci.md` fully (3.4K) for discovery semantics. If velnor
    requires a Cargo workspace at the repo root, STOP and report — do NOT
    restructure the repo to please CI (our crate is standalone in `apps/`).
@@ -214,7 +223,10 @@ CI is generated, not written. Exact steps:
    `apps/essential-mise-console/.config/nextest.toml` (pty group + functional
    profile; PTY tests flake without it).
 4. Write `.velnor/config.toml` with EXACTLY this content (adapted from
-   `/tmp/tcb/.velnor/config.toml`; only observed keys, nothing invented):
+   `/tmp/tcb/.velnor/config.toml` — re-diff against it at write time and copy
+   observed keys only; upstream has extra keys we deliberately omit, e.g. the
+   `design/interaction-polish` branch, dispatch inputs, and the `product`
+   configuration — nothing invented):
 
 ```toml
 schema = 1
@@ -320,28 +332,34 @@ sha256, and a fresh-VM install log (T5.3).
 ## 5. Backend + world (no G1 needed)
 
 ### T2.1 — `backend.rs` trait + live impl (read-only paths first)
-Implement exactly the trait in `implementation-spec.md` §4 (`StatusSnapshot`,
-`ApplyHandle`, `Backend: Send + Sync + 'static`, `origin_map → HashMap<ResId,
-Vec<String>>`). Command construction per L6. `spawn_apply` runs phase 1 then
+Files: create `apps/essential-mise-console/src/backend.rs` (trait + `MiseBackend`
++ `BackendError` + domain types from `implementation-spec.md` §4, which lives at
+`docs/specs/essential-mise-console/implementation-spec.md` — read it at write time).
+Command construction per L6. `spawn_apply` runs phase 1 then
 phase 2 (skip phase 2 on empty keep-list), streams `ApplyLine`, tees the FULL
 log to a temp file whose path is returned with the outcome (flow-comparison
 amendment 3). `sudo -v` + keepalive before phase 1; killed on done/cancel.
 `origin_map` parses `config.<env>.toml` `[bootstrap.packages]` tables of the
 requested envs only. Tolerant serde (`#[serde(default)]`, no `deny_unknown_fields`).
-Done when: `cargo build` + `cargo clippy` clean.
+Verify origin parsing without mise: `src/backend.rs` unit test
+`origin_map_reads_declaring_module` over a synthetic two-env TOML pair in
+`src/backend/tests.rs` (create it); run `cargo nextest run origin_map` (positional substring filter).
+Done when: `cargo build` + `RUSTFLAGS="-D warnings" cargo clippy --all-targets -- -D warnings` clean (R6 cwd).
 
 ### T2.2 — schema fixtures + unit tests
 Save real outputs (redact nothing; they are local state, no secrets). The
 fixtures dir does not exist yet — create it first or the redirects fail:
-`mkdir -p apps/essential-mise-console/tests/fixtures`, then
+`mkdir -p apps/essential-mise-console/tests/fixtures`, then (with `REPO`
+exported in-task: `REPO=$(git rev-parse --show-toplevel)`):
 `mise -C "$REPO" bootstrap plan --json > apps/essential-mise-console/tests/fixtures/plan.json`
-`mise -C "$REPO" bootstrap status --json > …/status.json`.
+`mise -C "$REPO" bootstrap status --json > apps/essential-mise-console/tests/fixtures/status.json`.
 Tests assert: entry keys exactly `{action,current,desired,id}`; no origin field;
 unknown-action and missing-`summary` inputs parse without panic; multi-declare
 origin yields `Vec` of length 2 in a synthetic TOML fixture.
 Two tiers, no exceptions: tier 1 (fixtures, always run) for determinism; tier 2
 (live read-only `plan`/`status` against the host config) behind `#[ignore]`,
-run by operators via `cargo nextest run --run-ignored tier2` — CI never touches
+run by operators via `cargo nextest run --run-ignored all -- tier2` (`--run-ignored`
+takes `default|only|all`, never a filter name) — CI never touches
 the host config. Forbidden test shapes (reject on sight): no assertions,
 `assert!(true)`, tests that only check mocks return what the mock was told,
 snapshots of volatile fields (versions, timestamps).
@@ -352,13 +370,18 @@ follow-up tasks, not waived.
 Done when: green, pasted.
 
 ### T2.3 — mock backend
-`MockBackend` returning the fixtures; used by all T4 screenshot tests.
-Done when: compiles, one test loads plan fixture through the mock.
+File: `apps/essential-mise-console/src/backend/mock.rs` (`MockBackend` returning
+the T2.2 fixtures; used by all T4 screenshot tests).
+Verify: `cargo nextest run mock_loads_plan_fixture` — one test loads
+the plan fixture through the mock and asserts ≥1 entry parsed.
+Done when: compiles, that test green.
 
 ## 6. CLI (needs T2.1, no G1)
 
 ### T3.1 — clap tree per `implementation-spec.md` §2 verbatim
-Commands `modules packages plan apply status verify tui`; global `-E` (stock
+File: `apps/essential-mise-console/src/main.rs` (wiring only per T1.1 rule).
+Commands `modules packages plan apply status verify setup tui` (all eight —
+`setup` owns stages 1–5 per T3.4); global `-E` (stock
 repeatable/comma form, never reimplemented); `--manager` on `packages` is
 console-side filtering via `origin_map` (no `-m` passthrough — `packages status`
 has no `-m`, verified); `--only`/`--skip` with `conflicts_with`; exit 3 =
@@ -369,17 +392,20 @@ Done when: `--help` output for every subcommand pasted; no invented flags
 (diff each flag against `mise help`, one line of evidence per command).
 
 ### T3.2 — dry-run golden tests
-`apply --dry-run` and `plan --json` against fixtures via MockBackend; assert exit
+File: `apps/essential-mise-console/tests/cli_dry_run.rs`. Cases: `apply --dry-run`
+and `plan --json` against fixtures via MockBackend; assert exit
 codes (0/1/3 mapping) and that `--dry-run` never spawns a child (assert on
 mock call log). Same two tiers and forbidden shapes as T2.2 (tier-2 here =
 `--help` text diffed against `mise help`, catching upstream flag drift).
-`cargo nextest run` green.
+Verify: `cargo nextest run --test cli_dry_run`.
+Done when: green.
 
 ### T3.3 — persistence primitive investigation (small, informs Q4)
 mise 2026.11.1 added `mise bootstrap --save-env` (writes `-E` envs to
-`miserc.local.toml`) and named `env_sets`. Read-only evaluation only:
-`mise help bootstrap --save-env` (or parent help), plus `--dry-run` if the flag
-supports one. Deliver a 10-line verdict in the task evidence: can the console's
+`miserc.local.toml`) and named `env_sets`. Read-only evaluation only — first
+confirm the gate (`mise --version` ≥2026.11.1 per T1.0; on older mise the flag
+does not exist). Probes: `mise bootstrap --help | grep save-env`, then the
+flag's own `--help` if listed. Deliver a 10-line verdict in the task evidence: can the console's
 persistence story shell out to `--save-env` (stock engine, no TOML writer of our
 own), or does Q4 still need a P2 editor? Do NOT change the P1 read-only-hint
 scope on a hunch — evidence first.
@@ -413,24 +439,35 @@ parsed from `bootstrap.sh` `environment_names`/`environment_descriptions`
 (regex on the arrays — re-verify array location by grep, never hardcode);
 S1 pre-ticks from `miserc.local.toml` `env` (read-only; flow-comparison
 amendment 2). Keys exactly per §3.
+Files: `apps/essential-mise-console/src/screens/modules.rs`.
+Verify: `cargo nextest run modules` (parse + pre-tick + badge tests).
 Done when: tuiscotti baseline screenshot test passes (T4.6 pattern).
 
 ### T4.3 — S2 Packages
 `ListBox` multi-select mode OR `OptionList` — NEVER `Checkbox`-in-`ListBox`
 (unimplementable: rows are data, verified). Group headers non-focusable,
 `Panel::card(Some(name))`. All-unticked → "Apply base only". Keys per §3.
+Files: `apps/essential-mise-console/src/screens/packages.rs`.
+Verify: `cargo nextest run packages` (toggle/keep-count unit tests); covered by
+the T4.6 baseline.
 
 ### T4.4 — S3 Apply
 StepRail + TextViewport (wrap, sender-side-bounded) + ProgressBar +
 `Button::danger` cancel + `InfoDialog` failure modal (copy key `y` inside,
 `c` outside) + copy via shell `Clipboard` (OSC52). Event flow exactly the
-`app.rs`/`tests/external.rs` pattern (NOT cockpit.rs — it holds no channel
+`app.rs`/`tests/external.rs` pattern (NOT `apps/jackin/src/screens/cockpit.rs` — it holds no channel
 code, verified). Hook PENDING → `Pending`, exit 0.
+Files: `apps/essential-mise-console/src/screens/apply.rs`.
+Verify: `cargo nextest run apply` (cancel-posts-Cancelled + rerun-format tests
+with MockBackend); covered by the T4.6 baseline.
 
 ### T4.5 — S4 Result
 Auto `Backend::status` on entry; per-part table via `DataGrid` (`grid.rs:382`)
 or `PropsList` (NOT `table.rs:168` `DataTable` — wrong tone, verified);
 follow-ups read-only; `R` re-check, `B` back to S2, Done exits 0 only if all ok.
+Files: `apps/essential-mise-console/src/screens/result.rs`.
+Verify: `cargo nextest run result` (drift-table + Done-gate tests with MockBackend);
+covered by the T4.6 baseline.
 
 ### T4.6 — tuiscotti baselines + interaction tests
 Create `tests/functional/main.rs` (+ `support.rs` PTY helper + `baselines/` dir),
@@ -449,8 +486,9 @@ Done when: `cargo nextest run` green and baselines committed.
 ### T5.1 — end-to-end dry run (host-safe)
 `cargo run --manifest-path apps/essential-mise-console/Cargo.toml -- -E terminal plan --json` and
 `apply --dry-run` against the live repo config; assert exit codes and that no
-child mutated anything (`status --json` before/after identical — paste both
-hashes: `… | shasum`).
+child mutated anything: `REPO=$(git rev-parse --show-toplevel)` then
+`mise -C "$REPO" -E terminal bootstrap status --json | shasum -a 256` before
+and after (paste both hashes — they must match).
 ### T5.2 — push + CI
 Commit per task (missed commits: squash per task now, one commit each), push,
 paste the CI workflow result link. Red CI = fix before proceeding (never leave
@@ -466,19 +504,23 @@ what evidence to bring back (screenshots/Cua log). Do NOT run it. State
 When a proven gap needs a generic widget or a library fix (P1 stop-reports from
 R7, or productization candidates), it goes upstream under that repo's rules —
 read `/tmp/tcb/AGENTS.md` fully at write time; the load-bearing ones observed
-2026-11-06: fix behaviour in the shared layer (`src/core`, `src/ui`,
+2026-11-05: fix behaviour in the shared layer (`src/core`, `src/ui`,
 `src/widgets`), never per screen; no duplicated logic (a duplicate found in
 review is a defect); every new public API gets its line in `src/catalog.rs`;
 every capability gets a showcase demo plus coverage-gate entry; snapshots only
 tuiscotti pinned to exact main rev; tests only `cargo nextest`; never
 vendor or patch upstream to get around a pin.
-Process (all steps, no skipping):
+Process (all steps, no skipping; `gh` must be authenticated — check `gh auth status`):
 1. Branch in a fresh clone of `tailrocks/terminal-components-baseline` at main
    tip; implement; gates green (`nextest` + clippy + fmt + tuiscotti).
-2. Open the PR against `main`. In the PR body, state what P1/P2 screen needs it.
-3. Post two comments on the PR: `@codex review` and `@codex security review`.
-4. Address EVERY finding: all human review threads AND both codex reviews.
-   Request re-review after each round; paste the review links in evidence.
+2. Open the PR against `main` with `gh pr create --base main --title … --body …`
+   (body states what P1/P2 screen needs it). Record the PR number as `$PR`.
+3. Post two comments: `gh pr comment $PR --body '@codex review'` and
+   `gh pr comment $PR --body '@codex security review'`. Record both comment URLs
+   (`gh pr view $PR --comments`).
+4. Address EVERY finding: all human review threads AND both codex reviews
+   (re-list with `gh pr view $PR --comments` each round). Request re-review after
+   each round; paste the review links in evidence.
 5. Merge only when CI is green, all threads resolved, both codex reviews clean.
    Never merge with open threads, never leave the PR unmerged over a weekend —
    small scope, prompt rounds (operator merges per that repo's order).
