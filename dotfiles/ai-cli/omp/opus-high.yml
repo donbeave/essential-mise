@@ -1,0 +1,33 @@
+enabledProviders:
+  - anthropic
+enabledModels:
+  - anthropic/claude-opus-5-5
+defaultThinkingLevel: high
+statusLine:
+  compactThinkingLevel: false
+modelRoles:
+  default: anthropic/claude-opus-5-5:high
+  smol: anthropic/claude-opus-5-5:high
+  slow: anthropic/claude-opus-5-5:high
+  plan: anthropic/claude-opus-5-5:high
+  task: anthropic/claude-opus-5-5:high
+  advisor: anthropic/claude-opus-5-5:high
+  vision: anthropic/claude-opus-5-5:high
+  judge: anthropic/claude-opus-5-5:high
+  commit: anthropic/claude-opus-5-5:high
+  tiny: anthropic/claude-opus-5-5:high
+  memory: anthropic/claude-opus-5-5:high
+task:
+  enableEffort: true
+  maxEffort: high
+  perCallModel: "off"
+  agentModelOverrides:
+    task: anthropic/claude-opus-5-5:high
+    implementer: anthropic/claude-opus-5-5:high
+    analyst: anthropic/claude-opus-5-5:high
+    reviewer: anthropic/claude-opus-5-5:high
+    security-reviewer: anthropic/claude-opus-5-5:high
+    scout: anthropic/claude-opus-5-5:high
+    verifier: anthropic/claude-opus-5-5:high
+    seance: anthropic/claude-opus-5-5:high
+    sonic: anthropic/claude-opus-5-5:high

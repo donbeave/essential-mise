@@ -188,11 +188,20 @@ alias omp-mimo-yolo='omp --profile mimo --approval-mode=yolo'
 function _omp-anthropic-api {
   local profile="$1" ref="$2"
   shift 2
+  local -a args=()
+  local arg
+  for arg in "$@"; do
+    if [[ "$arg" == "--opus-high" ]]; then
+      args+=(--config "${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/dotfiles/ai-cli/omp/opus-high.yml")
+    else
+      args+=("$arg")
+    fi
+  done
   local key="${ANTHROPIC_API_KEY:-}"
   if [[ -z "$key" ]]; then
     key="$(op read "$ref")" || return 1
   fi
-  ANTHROPIC_API_KEY="$key" omp --profile "$profile" "$@"
+  ANTHROPIC_API_KEY="$key" omp --profile "$profile" "${args[@]}"
 }
 function omp-anthropic-api-patrick {
   _omp-anthropic-api anthropic-api-patrick 'op://Private/53j26amq3moddo2za2ldjqovxe/key' "$@"
