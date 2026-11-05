@@ -808,5 +808,8 @@ impl ApplyHandle {
     }
 }
 
+/// Deterministic backend over the T2.2 fixtures (unit + screenshot tests).
+pub mod mock;
+
 #[cfg(test)]
 mod tests;

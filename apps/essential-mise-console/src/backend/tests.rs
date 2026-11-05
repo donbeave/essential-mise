@@ -193,6 +193,18 @@ fn spawn_apply_dry_run_spawns_nothing() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+#[test]
+fn mock_loads_plan_fixture() {
+    let backend = super::mock::MockBackend::new();
+    let entries = backend
+        .plan(&["terminal".to_string()])
+        .expect("mock plan parses");
+    assert!(
+        !entries.is_empty(),
+        "mock loads at least one plan entry from the fixture"
+    );
+}
+
 /// Host config dir for tier-2 live tests: `$EMC_TEST_CONFIG_DIR`, else the
 /// repo root.
 fn host_config_dir() -> PathBuf {
