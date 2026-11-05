@@ -11,7 +11,8 @@ librarian, CLI designer, TUI designer, TUI engineer) re-verified against live
   names + descriptions live in `environment_names` / `environment_descriptions`
   arrays (`bootstrap.sh:159+`); the console parses them, never hardcodes.
 - No `first-mac.sh` exists. Flow is `bootstrap.sh` + `docs/first-mac.md`.
-- No `verify-current-inventory.py` exists. P0 exit gate is `tests/test_plugin_lifecycle.py`.
+- No `verify-current-inventory.py` host gate exists. P0 exit gate is `tests/test_plugin_lifecycle.py`.
+  (`scripts/vm/verify-current-inventory.py` exists but is guest-side VM tooling.)
 - `plan --json` carries no origin field (keys exactly `{action,current,desired,id}`),
   confirmed twice. Origin is derived from TOML parsing — required, not optional.
 - `plan` covers only accounts/packages/files/services/firewall/compose — **not**
@@ -310,6 +311,10 @@ driven to merge — no orphans.
   hook-owned prune false-positives need their own design).
 - Q3 Visual identity — RECOMMENDED functional-first P1, D-style baseline review P2.
 - Q4 `miserc.local.toml` editing — RECOMMENDED read-only hint P1 (§5 row 8), editor P2.
-- Q5 distribution — OPEN (from `flow-comparison.md`): stage 0 stays curl+bash;
-  lock before P1 how the console installs (candidate: `cargo install --git`
-  with pinned rev after `development-rust`, or a mise tool backend).
+- Q5 distribution — RESOLVED 2026-11-06: prebuilt release binaries via the velnor
+  release flow (versioned per-target artifacts + sha256 manifest, the
+  `release-manifest.json` pattern). `bootstrap.sh` stays minimal bash: stages 1–5,
+  then downloads the pinned `essential-mise-console` binary for
+  `aarch64-apple-darwin`, verifies sha256, and execs into it for select/apply/verify.
+- P0 bash deselect — SUPERSEDED 2026-11-06 (no bash selection investment; step-6
+  numbers stay until the first release; effort moves to the binary + release pipeline).

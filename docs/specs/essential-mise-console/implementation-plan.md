@@ -61,9 +61,9 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
   CI generator pin (from `/tmp/tcb/mise.toml:10`): `github:tailrocks/velnor-new`
   `0.1.73`, binary `velnor-actions`.
 - L5. Decisions (operator-overridable, proceed as locked): Q2 unapply=P2, Q3
-  functional-first P1, Q4 read-only persistence hint P1, Q5 stage-0 stays
-  curl+bash and console installs via `git clone <tag>` + `cargo install --path
-  apps/essential-mise-console --locked` after `development-rust`.
+  functional-first P1, Q4 read-only persistence hint P1 (T3.3 may promote
+  `--save-env`), Q5 RESOLVED 2026-11-06: release binaries via velnor release
+  flow; P0 SUPERSEDED 2026-11-06 (no bash selection logic; see §3).
 - L6. Backend argv shape (observed flows): `mise -C <config-dir> -E <envs>
   bootstrap …` with `MISE_CEILING_PATHS=<config-dir>`; config dir resolves from
   `--config-dir`, else `$MISE_CONFIG_DIR`, else `~/.config/mise`.
@@ -74,18 +74,24 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
 ## 2. Gate G1 — baseline PR #1 merged (do this before any junie-tui code)
 
 Task dependency map (nothing starts before its needs are evidenced done):
-G1 → T4.1–T4.6. T1.0 → every P1 task (no toolchain evidence, no code). T1.1 → T1.2, T2.1. T1.2 → T1.3. T2.1 → T2.2, T2.3, T3.1. T2.2 + T2.3 → T3.2,
+G1 → T4.1–T4.6. T1.0 → every P1 task (no toolchain evidence, no code). T1.1 → T1.2, T2.1, T1.4. T1.2 → T1.3. T1.3 → T1.4 (release needs CI). T2.1 → T2.2, T2.3, T3.1. T2.2 + T2.3 → T3.2,
 T4.6. T3.1 → T3.2, T5.1. T1.0 → T3.3 (read-only). T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3.
 T0.1 → T0.2 → T0.3 (independent of all P1 tasks).
 
 1. `git -C /tmp/tcb fetch origin && git -C /tmp/tcb ls-remote --heads origin`
 2. If `feature/openshell-native` still exists and `main` lacks its merge: STOP.
-   Do P0 + T1.1–T1.3 + T2.x (no UI deps) and wait.
+   Do T1.1–T1.3 + T2.x (no UI deps) and wait.
 3. If merged: `REV=$(git -C /tmp/tcb rev-parse origin/main)` after fetch; record
    REV in the task evidence. Use exactly this REV in `Cargo.toml`.
 4. Done when: REV is a full 40-char sha on `origin/main`, evidence pasted.
 
-## 3. P0 — bash per-package deselect (unblocked, no gate)
+## 3. P0 — SUPERSEDED 2026-11-06 (do not implement)
+
+Per user directive, no bash selection logic is built: `bootstrap.sh` step 6 keeps
+its numbered list until the first signed release, then delegates to the release
+binary (see T1.4). The T0.1–T0.3 tasks below are retained for reference only.
+P0 exit gate (`tests/test_plugin_lifecycle.py`) still applies to any
+`bootstrap.sh` touch.
 
 ### T0.1 — implement the second-level prompt
 Inputs: `bootstrap.sh:207-237` (category validation → sudo → apply).
@@ -147,7 +153,15 @@ Paste the harness log. Delete `/tmp/p0-harness.sh` and the log after.
 3. `command -v shellcheck && command -v cargo-llvm-cov` → both must resolve
    (via mise shims/aqua, as on this host). `cargo nextest --version` → if
    missing, T1.2 installs it. Record all versions.
-Done when: four version strings pasted (mise, rust, shellcheck, llvm-cov).
+4. `tart --version` → ≥2.41 (installed 2026-11-06 from the official
+   `openai/tart` release tarball: the `cirruslabs/cli` Homebrew tap is broken
+   at HEAD — `depends_on :macos` DSL error, exact message recorded in session
+   history; bundle installed intact at `~/Applications/tart.app` with a
+   `/opt/homebrew/bin/tart` shim, signature verified Notarized Developer ID).
+   `cua-driver --version` → present via `cuadriver` Homebrew cask (0.38.0).
+   Do NOT reinstall working tools; record versions only.
+Done when: six version strings pasted (mise, rust, shellcheck, llvm-cov, tart,
+cua-driver).
 
 ### T1.1 — crate skeleton
 Create exactly: `apps/essential-mise-console/Cargo.toml` (package
@@ -248,6 +262,25 @@ target = "host"
    change `.velnor/config.toml` and regenerate instead.
 Done when: generated CI committed; live result arrives after push in T5.2
 (green, or exactly one config-only fix + regenerate per R4, then stop).
+
+### T1.4 — release pipeline (velnor release flow; gates the fresh-Mac path)
+1. Re-read `/tmp/tcb/.velnor/release-manifest.json` at write time (pattern:
+   versioned per-target artifacts + sha256, commit-pinned generator). Extend
+   `.velnor/config.toml` with the release stanza for
+   `essential-mise-console` on `aarch64-apple-darwin` ONLY (the single
+   supported target; x86_64/Linux entries are forbidden until a VM exists to
+   test them); regenerate; commit.
+2. Cut the first release ONLY after T5.1 is green. Record artifact URL + sha256.
+3. THEN, and only then, add the minimal `bootstrap.sh` step-6 block: download
+   the pinned artifact to a mktemp path (reuse `run_official_installer` hygiene:
+   curl -fsSL, non-empty check), verify sha256 against the pinned hash
+   (hardcoded beside the version pin — two constants, updated together),
+   `exec` the binary with the selected envs. Any download/verify failure =
+   `fail` (fail-closed; never fall through to partial state).
+Forbidden: building releases per-commit (tag-gated only), `latest`-URL
+consumption (pinned version always), touching step-6 selection semantics.
+Done when: release published; bootstrap block merged; evidence = artifact URL,
+sha256, and a fresh-VM install log (T5.3).
 
 ## 5. Backend + world (no G1 needed)
 
@@ -376,14 +409,16 @@ paste the CI workflow result link. Red CI = fix before proceeding (never leave
 a PR/commit red; small fixes only).
 ### T5.3 — OPERATOR VM handoff (executor STOPS here)
 Prepare `VM-HANDOFF.md` in the crate dir: exact 2-module selection, expected
-S1→S4 walk, VM recipe (Tart disposable macOS, synthetic accounts, never host),
+S1→S4 walk, VM recipe (Tart disposable macOS 27.2 guest from the `baseline-27-2`
+baseline VM, `admin`/`admin` synthetic account, Cua Driver automation, never host),
 what evidence to bring back (screenshots/Cua log). Do NOT run it. State
 "blocked on operator" and stop.
 
 ## 9. Whole-goal definition of done
 
-- [ ] P0 merged: deselect works, shellcheck + `test_plugin_lifecycle.py` pass,
-      behavior unchanged when nothing deselected.
+- [ ] P0 SUPERSEDED (no bash selection logic); `bootstrap.sh` untouched except the
+      T1.4 download+exec block after the first release.
+- [ ] First signed release published (aarch64-apple-darwin + sha256 manifest).
 - [ ] CLI `--help` complete, exit codes 0/1/3 as specified, no invented flags;
       T3.3 `--save-env` verdict recorded.
 - [ ] 4 screens match wireframes; shared filter/rerun modules exist once each;

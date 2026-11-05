@@ -1,5 +1,10 @@
 # Agent rules
 
+- New product code in this repo is Rust. The only sanctioned exception is the
+  zero-dependency stage-0 `bootstrap.sh` (bash + curl), which stays minimal and
+  delegates to a downloaded release binary as soon as stages 1-5 complete.
+  Existing `bin/` hooks and `scripts/vm/` glue migrate to Rust after the first
+  signed release; until then they stay bash/python3 and stay working.
 - All application runtime and graphical verification must be performed inside the dedicated disposable Tart macOS VM using guest-side Cua Driver automation. Never launch or manipulate the application on the host Mac. Provide actual VM test evidence for every completed UI-affecting task and explicitly identify untested behavior.
 - Handle guest clicks, typing, prompts, and verification autonomously with Cua or verified guest-side automation. Do not ask the user to perform routine guest actions; use the synthetic `admin`/`admin` credential where authorized.
 - Use the latest stable macOS release supported by the project, currently macOS 27.2, on Apple Silicon. Never silently substitute an older guest OS. Prefer Homebrew as the package source, but declare working Homebrew dependencies through native mise `brew`/`brew-cask` resources first. Only after a reproduced current-mise incompatibility may an explicitly approved real-Homebrew hook be used, with its exact error, installation owner, health check, upgrade, removal, and native-prune limitation documented. Use an official installation link only when Homebrew is unavailable or outdated.
