@@ -208,6 +208,11 @@ impl App {
     /// Send a quit key, then wait for process exit.
     pub fn finish_with_key(&self, key: &str) {
         self.key(key);
+        self.finish_wait();
+    }
+
+    /// Wait for process exit (the app already quit itself).
+    pub fn finish_wait(&self) {
         self.session
             .execute(Operation::WaitExit {
                 timeout_ms: Some(10_000),

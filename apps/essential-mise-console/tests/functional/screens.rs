@@ -65,7 +65,7 @@ fn s3_apply_and_s4_result_match_baselines() {
     app.wait_text("4/4 Result");
     app.visual("emc/s4-result");
     app.key("enter");
-    app.finish_with_key("enter");
+    app.finish_wait();
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn s3_failure_modal_matches_baseline() {
     app.key("enter");
     app.wait_text("4/4 Result");
     app.key("enter");
-    app.finish_with_key("enter");
+    app.finish_wait();
 }
 
 #[test]
