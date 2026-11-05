@@ -266,8 +266,18 @@ impl MiseBackend {
         cmd
     }
 
+    /// Config dir passed as `-C` and `MISE_CEILING_PATHS`.
+    pub fn config_dir(&self) -> &Path {
+        &self.config_dir
+    }
+
+    /// mise binary invoked for every child.
+    pub fn mise_bin(&self) -> &Path {
+        &self.mise_bin
+    }
+
     /// Phase 1 argv: `bootstrap --skip packages [--only/--skip …] [--update] [--upgrade]`.
-    fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String> {
+    pub fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String> {
         let mut argv = vec![
             "bootstrap".to_string(),
             "--skip".to_string(),
@@ -290,6 +300,28 @@ impl MiseBackend {
             argv.push("--dry-run".to_string());
         }
         argv
+    }
+
+    /// Phase 2 argv (`None` when the keep-list is empty and no manager is
+    /// set: a bare `packages apply` means *every* package, so it is skipped).
+    pub fn phase2_argv(&self, req: &ApplyRequest) -> Option<Vec<String>> {
+        if req.keep.is_empty() && req.manager.is_none() {
+            return None;
+        }
+        let mut argv = vec![
+            "bootstrap".to_string(),
+            "packages".to_string(),
+            "apply".to_string(),
+        ];
+        if let Some(ref m) = req.manager {
+            argv.push("--manager".to_string());
+            argv.push(m.clone());
+        }
+        if req.dry_run {
+            argv.push("--dry-run".to_string());
+        }
+        argv.extend(req.keep.iter().cloned());
+        Some(argv)
     }
 }
 
@@ -437,24 +469,7 @@ impl Backend for MiseBackend {
         let worker_current = Arc::clone(&current);
 
         let phase1 = self.phase1_argv(req);
-        let phase2: Option<Vec<String>> = if req.keep.is_empty() && req.manager.is_none() {
-            None
-        } else {
-            let mut argv = vec![
-                "bootstrap".to_string(),
-                "packages".to_string(),
-                "apply".to_string(),
-            ];
-            if let Some(ref m) = req.manager {
-                argv.push("--manager".to_string());
-                argv.push(m.clone());
-            }
-            if req.dry_run {
-                argv.push("--dry-run".to_string());
-            }
-            argv.extend(req.keep.iter().cloned());
-            Some(argv)
-        };
+        let phase2 = self.phase2_argv(req);
 
         let thread_name = format!("emc-apply-{}", worker_req.envs.join(","));
         let worker = std::thread::Builder::new()
