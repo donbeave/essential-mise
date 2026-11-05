@@ -1,7 +1,7 @@
 //! S4 Result: verify screen with drift table, Done gate, and re-check.
 //!
 //! State + logic live here; painting lands in T4.6. Entry auto-runs
-//! [`Backend::status`](super::super::backend::Backend::status); the drift
+//! [`Backend::status`](crate::backend::Backend::status); the drift
 //! verdict joins plan entries (per-package, mapped `package`→`packages`)
 //! with the status parts, and the per-part table is shaped for
 //! [`DataGrid`](junie_tui::widgets::grid::DataGrid) (`set_rows` over

@@ -5,7 +5,7 @@
 //! group section, never `Checkbox`-in-`ListBox`), group headers are section
 //! titles rendered as [`Panel::card`](junie_tui::widgets::panel::Panel)
 //! (non-focusable by construction), and filtering reuses the shared
-//! [`FilterState`](super::filter::FilterState) — hidden rows keep state.
+//! [`FilterState`](crate::screens::filter::FilterState) — hidden rows keep state.
 //! Checked state crosses to the widget by index at render time
 //! (`ListBox::set_checked`); the source of truth here is the stable
 //! `(manager, name)` keep-set.

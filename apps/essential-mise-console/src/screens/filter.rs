@@ -3,7 +3,7 @@
 //! The rule: filtering hides rows but never mutates row state. Selection,
 //! pre-ticks, and keep-flags live on stable row ids outside the filter, so a
 //! row hidden by the query keeps its state when the query changes. Screens
-//! must not reimplement this; they call [`FilterState::matches`] over row
+//! must not reimplement this; they call [`FilterState::matches`](crate::screens::filter::FilterState::matches) over row
 //! text and keep state keyed by id.
 
 /// Live-substring filter over row text.

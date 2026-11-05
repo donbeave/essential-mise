@@ -4,7 +4,7 @@
 //! harness. Row/badge widgets use inventoried components only
 //! ([`ListRow`](junie_tui::widgets::list_detail::ListRow),
 //! [`Prop`](junie_tui::widgets::props::Prop)) via the shared
-//! [`FilterState`](super::filter::FilterState) and [`chrome`](super::chrome)
+//! [`FilterState`](crate::screens::filter::FilterState) and [`chrome`](crate::screens::chrome)
 //! helpers — no per-screen widget copies.
 //!
 //! Environment names/descriptions are parsed from `bootstrap.sh`

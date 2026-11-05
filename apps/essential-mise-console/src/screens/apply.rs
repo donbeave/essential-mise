@@ -2,17 +2,17 @@
 //!
 //! State + logic live here; painting lands in T4.6. Event flow mirrors the
 //! `app.rs`/`external.rs` precedent exactly: the worker streams
-//! [`ApplyLine`] values through [`ExternalSender`](junie_tui::runtime::ExternalSender),
+//! [`ApplyLine`](crate::backend::ApplyLine) values through [`ExternalSender`](junie_tui::runtime::ExternalSender),
 //! the app drains the receiver per frame and feeds each as
-//! `Input::External`, and the screen consumes them in [`on_external`](ApplyScreen::on_external)
+//! `Input::External`, and the screen consumes them in [`on_external`](crate::screens::apply::ApplyScreen::on_external)
 //! via `downcast_ref` (the `cockpit.rs` screen holds no channel code and is
 //! not the pattern). Failure copy goes through the shell
 //! [`Clipboard`](junie_tui::shell::clipboard::Clipboard) (OSC52), `y`
 //! inside the modal and `c` outside; cancel runs a destructive confirm then
-//! [`ApplyHandle::cancel`](super::super::backend::ApplyHandle::cancel).
-//! The queue is sender-side bounded ([`APPLY_LOG_CAP`]); overflow drops the
+//! [`ApplyHandle::cancel`](crate::backend::ApplyHandle::cancel).
+//! The queue is sender-side bounded ([`APPLY_LOG_CAP`](crate::screens::apply::APPLY_LOG_CAP)); overflow drops the
 //! oldest lines and records a gap marker for the log pane.
-//! Hook `PENDING` routes to [`ApplyScreen::note_hook_pending`] and renders
+//! Hook `PENDING` routes to [`ApplyScreen::note_hook_pending`](crate::screens::apply::ApplyScreen::note_hook_pending) and renders
 //! `Pending` without touching the outcome (exit 0 preserved).
 
 use std::collections::VecDeque;

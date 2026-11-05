@@ -1,7 +1,7 @@
 //! TUI screens (P1, gated on G1).
 //!
-//! Shared modules come first (Termrock rule): [`filter`] (S1+S2),
-//! [`rerun_fmt`] (S3+S4), [`chrome`] (all screens). Per-screen modules land
+//! Shared modules come first (Termrock rule): [`filter`](crate::screens::filter) (S1+S2),
+//! [`rerun_fmt`](crate::screens::rerun_fmt) (S3+S4), [`chrome`](crate::screens::chrome) (all screens). Per-screen modules land
 //! in T4.2–T4.5 and must reuse these — no per-screen copies.
 
 /// S3 Apply: live two-phase apply with progress, cancel, and rerun.

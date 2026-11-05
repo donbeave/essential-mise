@@ -3,10 +3,10 @@
 //!
 //! The command is the full `mise` argv the backend runs (L6 shape), so the
 //! modal text and the log header always agree with what actually ran. Argv
-//! comes from [`MiseBackend`](super::super::backend::MiseBackend) builders —
+//! comes from [`MiseBackend`](crate::backend::MiseBackend) builders —
 //! the single source of truth — this module only formats.
 //!
-//! Screens must not reimplement this; they call [`rerun_command`].
+//! Screens must not reimplement this; they call [`rerun_command`](crate::screens::rerun_fmt::rerun_command).
 
 use std::path::Path;
 

@@ -1,4 +1,4 @@
-//! [`MockBackend`]: deterministic [`Backend`] over the T2.2 fixtures.
+//! [`MockBackend`](crate::backend::mock::MockBackend): deterministic [`Backend`] over the T2.2 fixtures.
 //!
 //! Used by unit tests and, later, all T4 screenshot tests. Parses the exact
 //! committed `tests/fixtures/plan.json` and `tests/fixtures/status.json`, so

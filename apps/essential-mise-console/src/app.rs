@@ -3,7 +3,7 @@
 //! The app owns one screen at a time (S1→S2→S3→S4, with `Back` restoring
 //! the previous selection state) plus the apply event receiver. Key routing
 //! mirrors `app.rs::handle_input`: `Input::External` drains through
-//! [`App::pump`] exactly like the `external.rs` test pump (drain, feed each
+//! [`App::pump`](crate::app::App::pump) exactly like the `external.rs` test pump (drain, feed each
 //! event, collect outcomes). Painting lands below in `render_*` (T4.6
 //! harness); the state machine here is fully headless-testable.
 
