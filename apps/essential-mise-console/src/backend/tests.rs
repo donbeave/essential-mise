@@ -206,6 +206,47 @@ fn mock_loads_plan_fixture() {
     );
 }
 
+#[test]
+fn status_parts_derive_ok_and_drift() {
+    // Fixture host state is fully clean: every part ok.
+    let fixture = super::snapshot_from_raw(&fixture_text("status.json"));
+    assert!(!fixture.parts.is_empty(), "real schema yields parts");
+    assert!(
+        fixture.parts.iter().all(|p| p.state == "ok"),
+        "clean host has no drift: {:?}",
+        fixture
+            .parts
+            .iter()
+            .filter(|p| p.state != "ok")
+            .collect::<Vec<_>>()
+    );
+    // Drifted packages inventory.
+    let drifted = super::snapshot_from_raw(
+        r#"{"packages": {"brew": {"available": true, "packages": [
+            {"package": "jq", "requested_version": "latest", "desired_state": "present", "state": "absent", "managed_by": "mise"}
+        ]}}}"#,
+    );
+    let packages = drifted
+        .parts
+        .iter()
+        .find(|p| p.part == "packages")
+        .expect("packages part");
+    assert_eq!(packages.state, "drift");
+    assert!(packages.drift.iter().any(|d| d.contains("brew:jq")));
+    // Pending-work list with entries.
+    let pending = super::snapshot_from_raw(r#"{"files": [{"x": 1}]}"#);
+    assert_eq!(pending.parts[0].state, "drift");
+    // Uninstalled tool.
+    let tools = super::snapshot_from_raw(
+        r#"{"tools": [{"tool": "rust", "requested_version": "latest", "resolved_version": "1.99.1", "state": "missing", "installed": false}]}"#,
+    );
+    assert_eq!(tools.parts[0].state, "drift");
+    // Legacy parts array still parses.
+    let legacy =
+        super::snapshot_from_raw(r#"{"parts": [{"part": "x", "state": "ok", "drift": []}]}"#);
+    assert_eq!(legacy.parts.len(), 1);
+}
+
 /// Host config dir for tier-2 live tests: `$EMC_TEST_CONFIG_DIR`, else the
 /// repo root.
 fn host_config_dir() -> PathBuf {

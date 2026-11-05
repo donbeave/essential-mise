@@ -16,3 +16,5 @@ pub mod modules;
 pub mod packages;
 /// Exact rerun-command formatting (S3+S4).
 pub mod rerun_fmt;
+/// S4 Result: verify screen with drift table and Done gate.
+pub mod result;
