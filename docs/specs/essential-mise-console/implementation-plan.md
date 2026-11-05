@@ -37,6 +37,12 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
   `cargo <cmd>` with cwd `apps/essential-mise-console/`. From the repo root,
   always add `--manifest-path apps/essential-mise-console/Cargo.toml`, and for
   `cargo run` use `--manifest-path …` (never `-p`, which requires a workspace).
+- R7. Reuse-first (Termrock components): every screen maps ONLY to components
+  inventoried on the pinned main tip (`/tmp/tcb`, checked out at the pin).
+  Custom widgets, vendored copies, and per-screen reimplementations are
+  forbidden in P1. A gap that blocks a P1 screen = STOP and report (it becomes
+  a P2 upstream item for T6.1) — never fork, never vendor (upstream AGENTS.md
+  forbids both).
 
 ## 1. Locked inputs (do not re-decide)
 
@@ -52,9 +58,9 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
   see T3.3). `mbx` (mr-boxington's cargo shim, `/tmp/tcb/mise.toml:12`) is a CI
   concern only (`compile_driver = "mbx"` in velnor config): local builds use
   plain cargo + rust-toolchain.toml; do NOT add `[wrappers.cargo]` to shared config.
-- L3. `junie-tui`: git dependency, rev = **merge commit of baseline PR #1**
-  (tailrocks/terminal-components-baseline#1). Current branch HEAD `a4e81a4` is
-  NOT the pin. Gate G1 (below) produces the rev.
+- L3. `junie-tui`: git dependency, rev = **`2e9e60f`** (baseline PR #1 merge,
+  tailrocks/terminal-components-baseline `origin/main` tip verified 2026-11-06).
+  Re-verify the tip at write time; pin the sha, never a branch.
 - L4. Test pins (from live `/tmp/tcb/Cargo.toml`, re-verify at use):
   `tuiscotti` git rev `d8d54155947f6303a41dfd6079b53c0abc16f29a`,
   `tui-test` (=tuiscotti-tui-test) `=0.2.1`, `ratatui 0.30`, `clap 4.6` with `derive`.
@@ -71,19 +77,22 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
   §"Must-fix" amendments (S1 pre-tick from `miserc.local.toml`, log spill file,
   `exec` documented out-of-scope). Wireframes in §3 are normative for layout.
 
-## 2. Gate G1 — baseline PR #1 merged (do this before any junie-tui code)
+## 2. Gate G1 — SATISFIED 2026-11-06 (baseline PR #1 merged)
+
+PR #1 merged as `2e9e60f` (`feat: add the jackin console screens to the baseline`).
+`origin/main` tip verified 2026-11-06; `external_channel` at `src/runtime.rs:84`
+and all inventoried widgets present on main. Steps:
+1. `git -C /tmp/tcb fetch origin && git -C /tmp/tcb rev-parse origin/main`
+2. Check out the pinned tip locally (`git -C /tmp/tcb checkout <REV>`); all
+   `/tmp/tcb` cites in this plan refer to main, never the old feature branch.
+3. Pin exactly this REV in `Cargo.toml` (re-verify the tip at write time; never
+   a branch, never `a4e81a4`). Record REV in evidence.
+Done when: REV is a full 40-char sha on `origin/main`, evidence pasted.
 
 Task dependency map (nothing starts before its needs are evidenced done):
 G1 → T4.1–T4.6. T1.0 → every P1 task (no toolchain evidence, no code). T1.1 → T1.2, T2.1, T1.4. T1.2 → T1.3. T1.3 → T1.4 (release needs CI). T2.1 → T2.2, T2.3, T3.1. T2.2 + T2.3 → T3.2,
-T4.6. T3.1 → T3.2, T3.4, T5.1. T1.0 → T3.3 (read-only). T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3.
+T4.6. T3.1 → T3.2, T3.4, T5.1. T1.0 → T3.3 (read-only). T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3. P1 stop-reports → T6.1 (P2).
 T0.1 → T0.2 → T0.3 (independent of all P1 tasks).
-
-1. `git -C /tmp/tcb fetch origin && git -C /tmp/tcb ls-remote --heads origin`
-2. If `feature/openshell-native` still exists and `main` lacks its merge: STOP.
-   Do T1.1–T1.3 + T2.x (no UI deps) and wait.
-3. If merged: `REV=$(git -C /tmp/tcb rev-parse origin/main)` after fetch; record
-   REV in the task evidence. Use exactly this REV in `Cargo.toml`.
-4. Done when: REV is a full 40-char sha on `origin/main`, evidence pasted.
 
 ## 3. P0 — SUPERSEDED 2026-11-06 (do not implement)
 
@@ -452,6 +461,29 @@ S1→S4 walk, VM recipe (Tart disposable macOS 27.2 guest from the `baseline-27-
 baseline VM, `admin`/`admin` synthetic account, Cua Driver automation, never host),
 what evidence to bring back (screenshots/Cua log). Do NOT run it. State
 "blocked on operator" and stop.
+
+### T6.1 — upstream PRs to junie-tui (P2 ONLY, never in P1)
+When a proven gap needs a generic widget or a library fix (P1 stop-reports from
+R7, or productization candidates), it goes upstream under that repo's rules —
+read `/tmp/tcb/AGENTS.md` fully at write time; the load-bearing ones observed
+2026-11-06: fix behaviour in the shared layer (`src/core`, `src/ui`,
+`src/widgets`), never per screen; no duplicated logic (a duplicate found in
+review is a defect); every new public API gets its line in `src/catalog.rs`;
+every capability gets a showcase demo plus coverage-gate entry; snapshots only
+tuiscotti pinned to exact main rev; tests only `cargo nextest`; never
+vendor or patch upstream to get around a pin.
+Process (all steps, no skipping):
+1. Branch in a fresh clone of `tailrocks/terminal-components-baseline` at main
+   tip; implement; gates green (`nextest` + clippy + fmt + tuiscotti).
+2. Open the PR against `main`. In the PR body, state what P1/P2 screen needs it.
+3. Post two comments on the PR: `@codex review` and `@codex security review`.
+4. Address EVERY finding: all human review threads AND both codex reviews.
+   Request re-review after each round; paste the review links in evidence.
+5. Merge only when CI is green, all threads resolved, both codex reviews clean.
+   Never merge with open threads, never leave the PR unmerged over a weekend —
+   small scope, prompt rounds (operator merges per that repo's order).
+Done when: merged to upstream main; our `Cargo.toml` rev bumped to a main tip
+containing it (same pin discipline as G1); evidence = PR link + review links.
 
 ## 9. Whole-goal definition of done
 

@@ -16,7 +16,7 @@ built on Termrock (`junie-tui`) as a component library.
 
 - Engine stays `mise bootstrap`; TOML modules stay the source of truth.
 - P0 (bash per-package deselect in `bootstrap.sh`) ships before any Rust work.
-- P1 starts only after `tailrocks/terminal-components-baseline#1` merges (pin the merged rev, never a branch).
+- P1 starts on the merged `tailrocks/terminal-components-baseline` main tip (pinned rev `2e9e60f`, never a branch).
 - In-repo crate in `essential-mise` (subdirectory TBD), depending on `junie-tui` by git rev (pinned merged commit, never a branch).
 - Any PR created for this work is driven to merge promptly: small, green CI, no orphan stacks.
 

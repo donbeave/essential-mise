@@ -23,10 +23,9 @@ result — without reimplementing any install logic.
 
 ## 3. Background and constraints
 
-- Depends on `tailrocks/terminal-components-baseline#1` (open, 166
-  commits, `feature/openshell-native` → `main`). P1 starts after it
-  merges; the crate pins the merged rev, never the branch. Merge order
-  there is baseline → jackin → roles, operator merges.
+- Depends on `tailrocks/terminal-components-baseline` main tip `2e9e60f` (PR #1
+  merged 2026-11-06). The crate pins that rev, never the branch. Upstream gaps go
+  back as PRs with full review rounds (plan T6.1).
 - Upstream mise capabilities used (all verified against mise 2026.10.x):
   `bootstrap plan --json` → per-resource `{id, current, desired,
   action}`; `bootstrap status --json` → per-part state;
@@ -108,7 +107,7 @@ Out of P1 (P2 candidates): `unapply` screen, remote-host inventory,
   `--skip packages` + `apply <kept>`. Exit: same behavior as today
   when nothing is deselected; `verify-current-inventory.py` still
   passes.
-- **P1 — thin Rust frontend (days, after baseline PR #1 merges).**
+- **P1 — thin Rust frontend (days, unblocked 2026-11-06).**
   In-repo crate, rev-pinned `junie-tui`, the 4 screens above against live
   mise JSON. Exit: fresh-VM dry run + apply of a 2-module selection
   through the TUI; tuiscotti smoke baselines for the 4 screens;
@@ -132,17 +131,15 @@ Out of P1 (P2 candidates): `unapply` screen, remote-host inventory,
 
 | Risk | Mitigation |
 |---|---|
-| Termrock pre-1.0 API churn (166 commits in one PR) | Pin exact rev; monthly bumps per upstream policy; keep our usage to stable widgets (`Select`, `ListDetail`, `Dialog`, terminal pane) |
+| Termrock pre-1.0 API churn (merged as `2e9e60f`, still moving) | Pin exact rev (`2e9e60f`); monthly bumps per upstream policy; keep our usage to stable widgets (`Select`, `ListDetail`, `Dialog`, terminal pane) |
 | `plan --json` schema drift (no `origin` field today) | Derive origin from TOML parsing (no mise dependency); isolate JSON parsing behind `backend.rs` with schema tests |
-| P1 blocked on external PR #1 merge | P0 ships the user-visible capability first; P1 scaffolding (repo, CI, empty screens) can proceed without the pin |
 | TUI verification cost (VM time per change) | P1 gates on tuiscotti + nextest; VM evidence reserved for P2 and releases |
 
 ## 9. PR hygiene
 
 Any PR created for this work is driven to merge promptly: small scope,
 green CI (nextest + clippy + fmt + tuiscotti), no orphan stacks, no
-unmerged PRs left behind. PR #1 itself belongs to the operator's merge
-order and is not ours to merge.
+unmerged PRs left behind.
 
 ## 10. Open questions
 

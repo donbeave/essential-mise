@@ -13,9 +13,7 @@ library — same split as tailrocks/terminal-components-baseline
 apps/jackin (jackin-console): our crate holds screens + a Backend trait
 that shells out to `mise bootstrap plan/status --json` and apply
 commands; all install logic stays stock mise; TOML stays the source of
-truth. P0 (bash per-package deselect in bootstrap.sh) ships before any
-Rust work; P1 starts only after baseline PR #1
-(tailrocks/terminal-components-baseline#1) merges and pins its rev.
+truth. P1 pins the merged main-tip rev; P0 is superseded (see spec.md).
 Decisions locked and open questions are in README.md §Open questions
 and spec.md §10.
 

@@ -11,17 +11,15 @@ CONTEXT (verified 2026-11-04, re-verify before citing):
   stages 0-5). Read bootstrap.sh, config.toml, 2-3 config.*.toml modules,
   docs/manual-actions.md fully before designing anything.
 - Component library checkout: /tmp/tcb
-  (tailrocks/terminal-components-baseline, branch
-  feature/openshell-native; re-fetch, it may be stale). Package
+  (tailrocks/terminal-components-baseline `origin/main`; re-fetch, it may be stale). Package
   `junie-tui`, lib `junie_tui`; precedent consumer apps/jackin
   (jackin-console). Crate name "termrock" does not exist — it is the
   design-system name; cite real paths.
 - Locked decisions (see README.md + spec.md §10, Q1 resolved 2026-11-04):
   in-repo crate in essential-mise; junie-tui by pinned git rev, never a
   branch; TOML is source of truth; stock `mise bootstrap` stays the
-  engine, the console only shells out (plan/status --json, apply); P0 bash
-  per-package deselect ships before any Rust; P1 starts after baseline
-  PR #1 merges. Toolchain: Rust 1.99, edition 2024, clap for CLI,
+  engine, the console only shells out (plan/status --json, apply); P1 pins the
+  merged main-tip rev (see implementation-spec.md). Toolchain: Rust 1.99, edition 2024, clap for CLI,
   ratatui + junie-tui for TUI.
 
 TEAM (spawn parallel workers, one role each):

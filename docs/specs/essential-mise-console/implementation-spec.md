@@ -2,7 +2,7 @@
 
 Draft for adversarial review. Sources: worker briefs 2026-11-05 (researcher,
 librarian, CLI designer, TUI designer, TUI engineer) re-verified against live
-`/tmp/tcb` (`a4e81a4`, `feature/openshell-native`) and `mise help` / live
+`/tmp/tcb` (merged main tip, `2e9e60f` at review time) and `mise help` / live
 `plan --json` / `status --json`. Evidence wins over this draft.
 
 ## 0. Corrections to prior spec (`spec.md`)
@@ -287,9 +287,9 @@ on_external → downcast_ref` (`:394,235-244`); test pump
   untick, then `--skip packages` + `apply <kept>`; `sudo -v` + keepalive
   preserved. Exit: identical behavior when nothing deselected;
   `tests/test_plugin_lifecycle.py` passes.
-- **P1 — console (days, after baseline PR #1 merges).** In-repo crate
-  (subdirectory TBD); `junie-tui` by git rev pinned at the PR #1 **merge commit**
-  (current `a4e81a4` is branch HEAD — do NOT pin it); CLI §2 + screens §3 against
+- **P1 — console (days, unblocked 2026-11-06).** In-repo crate
+  (subdirectory TBD); `junie-tui` by git rev pinned at `2e9e60f` (merged main tip,
+  re-verify at use); CLI §2 + screens §3 against
   live JSON; `Backend` §4 with mock. Exit: fresh-VM dry run + 2-module apply via
   TUI; tuiscotti baselines for 4 screens; nextest + clippy + fmt green.
 - **P2 — productization (weeks).** Unapply/prune/persistent-env/sysprefs screens,
