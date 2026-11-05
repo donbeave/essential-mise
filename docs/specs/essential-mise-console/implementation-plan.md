@@ -43,8 +43,15 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
 - L1. Crate dir: `apps/essential-mise-console/` (mirrors baseline `apps/jackin`).
   Binary `essential-mise-console`, lib `essential_mise_console`. Safe: nothing in
   the repo walks the root (`tests/` uses temp dirs; verified 2026-11-06).
-- L2. Toolchain: Rust 1.99.1, edition 2024 (`/tmp/tcb/rust-toolchain.toml`).
-  Crate ships its own `rust-toolchain.toml` (copy that file verbatim).
+- L2. Toolchain: latest stable Rust, never below 1.99.1 (1.99.1 is latest stable
+  per `mise ls-remote rust`, verified 2026-11-06; re-resolve at start, record it).
+  Edition 2024. Crate ships its own `rust-toolchain.toml` (copy
+  `/tmp/tcb/rust-toolchain.toml` verbatim, bump `channel` to the resolved latest).
+  mise itself must be ≥2026.11.1 (`mise self-update --yes`, same command as
+  `bootstrap.sh:87`; 2026.11.1 adds `bootstrap --save-env` and lockfile v4 —
+  see T3.3). `mbx` (mr-boxington's cargo shim, `/tmp/tcb/mise.toml:12`) is a CI
+  concern only (`compile_driver = "mbx"` in velnor config): local builds use
+  plain cargo + rust-toolchain.toml; do NOT add `[wrappers.cargo]` to shared config.
 - L3. `junie-tui`: git dependency, rev = **merge commit of baseline PR #1**
   (tailrocks/terminal-components-baseline#1). Current branch HEAD `a4e81a4` is
   NOT the pin. Gate G1 (below) produces the rev.
@@ -67,8 +74,8 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
 ## 2. Gate G1 — baseline PR #1 merged (do this before any junie-tui code)
 
 Task dependency map (nothing starts before its needs are evidenced done):
-G1 → T4.1–T4.6. T1.1 → T1.2, T2.1. T2.1 → T2.2, T2.3, T3.1. T2.2 + T2.3 → T3.2,
-T4.6. T3.1 → T3.2, T5.1. T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3.
+G1 → T4.1–T4.6. T1.0 → every P1 task (no toolchain evidence, no code). T1.1 → T1.2, T2.1. T1.2 → T1.3. T2.1 → T2.2, T2.3, T3.1. T2.2 + T2.3 → T3.2,
+T4.6. T3.1 → T3.2, T5.1. T1.0 → T3.3 (read-only). T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3.
 T0.1 → T0.2 → T0.3 (independent of all P1 tasks).
 
 1. `git -C /tmp/tcb fetch origin && git -C /tmp/tcb ls-remote --heads origin`
@@ -123,11 +130,24 @@ only kept; deselect-all → no `packages apply` line at all; invalid → exit 1.
 Paste the harness log. Delete `/tmp/p0-harness.sh` and the log after.
 
 ### T0.3 — repo gates + commit
-1. `bash -n bootstrap.sh`; `python3 tests/test_plugin_lifecycle.py` (if it fails
-   for missing `/opt/homebrew/bin/jq`, paste the error and mark OPERATOR-VM).
+1. `bash -n bootstrap.sh`; `shellcheck -S warning bootstrap.sh` (zero warnings;
+   shellcheck rides mise shims per T1.0); `python3 tests/test_plugin_lifecycle.py`
+   (if it fails for missing `/opt/homebrew/bin/jq`, paste the error and mark
+   OPERATOR-VM).
 2. Commit (`-s`), push. Done when: pushed, evidence pasted.
 
 ## 4. P1 scaffold (no G1 needed)
+
+### T1.0 — toolchain bench (first P1 command sequence; everything P1 needs this)
+1. `mise --version` → must be ≥2026.11.1, else `mise self-update --yes` and
+   re-verify. Record the version.
+2. `mise ls-remote rust | grep -E "^1\.[0-9]+\.[0-9]+$" | tail -1` → latest
+   stable; must be ≥1.99.1. Record it; this is the `channel` for the crate's
+   `rust-toolchain.toml`.
+3. `command -v shellcheck && command -v cargo-llvm-cov` → both must resolve
+   (via mise shims/aqua, as on this host). `cargo nextest --version` → if
+   missing, T1.2 installs it. Record all versions.
+Done when: four version strings pasted (mise, rust, shellcheck, llvm-cov).
 
 ### T1.1 — crate skeleton
 Create exactly: `apps/essential-mise-console/Cargo.toml` (package
@@ -135,8 +155,12 @@ Create exactly: `apps/essential-mise-console/Cargo.toml` (package
 `essential_mise_console` `src/lib.rs`, binary `src/main.rs`, `doctest = false`),
 `rust-toolchain.toml` (verbatim copy of `/tmp/tcb/rust-toolchain.toml`),
 `src/main.rs` (`fn main(){println!("essential-mise-console: UI lands in T4")}`),
-`src/lib.rs` (empty), `src/backend.rs` + `src/world.rs` (empty modules with
+`src/lib.rs` (starts with `#![warn(missing_docs)]`, then empty), `src/backend.rs` + `src/world.rs` (empty modules with
 `// T2`), `src/screens/mod.rs` (empty, `// T4, gated on G1`).
+Multi-crate direction rule (the `jackin-console` precedent: lib holds all logic,
+bins hold wiring): `main.rs` does clap parse + terminal setup + App wiring ONLY
+(anything else = reject); screens/state/backend live in the lib and never import
+the binary crate. No second binary in P1.
 Deps now — exact lines (versions verified 2026-11-06; re-check before use):
 `clap = { version = "4.6", features = ["derive"] }`,
 `serde = { version = "1", features = ["derive"] }`, `serde_json = "1"`.
@@ -144,9 +168,13 @@ NO `junie-tui`, NO `ratatui` yet.
 Done when: `cargo build --manifest-path apps/essential-mise-console/Cargo.toml`
 succeeds and `cargo --version` shows 1.99.1.
 
-### T1.2 — hygiene gates
-In the crate dir: `cargo fmt --check`, `cargo clippy -- -D warnings`.
-Install nextest executor-locally only if missing:
+### T1.2 — hygiene gates (strict from day one; baseline-observed + named extras)
+In the crate dir, EXACTLY (R6):
+`cargo fmt --check`,
+`RUSTFLAGS="-D warnings" cargo clippy --all-targets -- -D warnings`
+(`--all-targets` so tests are linted too; pedantic is explicitly OUT — noise
+over value, decision recorded here, revisit in P2).
+Install nextest executor-locally only if missing (T1.0 told you):
 `cargo install cargo-nextest --locked` (record version). Then `cargo nextest run`
 (zero tests = pass). No shared-config changes. Done when: all three green, pasted.
 
@@ -243,7 +271,17 @@ fixtures dir does not exist yet — create it first or the redirects fail:
 Tests assert: entry keys exactly `{action,current,desired,id}`; no origin field;
 unknown-action and missing-`summary` inputs parse without panic; multi-declare
 origin yields `Vec` of length 2 in a synthetic TOML fixture.
-Run `cargo nextest run`. Done when: green, pasted.
+Two tiers, no exceptions: tier 1 (fixtures, always run) for determinism; tier 2
+(live read-only `plan`/`status` against the host config) behind `#[ignore]`,
+run by operators via `cargo nextest run --run-ignored tier2` — CI never touches
+the host config. Forbidden test shapes (reject on sight): no assertions,
+`assert!(true)`, tests that only check mocks return what the mock was told,
+snapshots of volatile fields (versions, timestamps).
+Run `cargo nextest run`. Then `cargo llvm-cov --summary-only` (cargo-llvm-cov
+per T1.0) and paste the report: every `Backend` method and every screen
+transition in §3 needs at least one tier-1 test; uncovered ones are listed as
+follow-up tasks, not waived.
+Done when: green, pasted.
 
 ### T2.3 — mock backend
 `MockBackend` returning the fixtures; used by all T4 screenshot tests.
@@ -265,7 +303,18 @@ Done when: `--help` output for every subcommand pasted; no invented flags
 ### T3.2 — dry-run golden tests
 `apply --dry-run` and `plan --json` against fixtures via MockBackend; assert exit
 codes (0/1/3 mapping) and that `--dry-run` never spawns a child (assert on
-mock call log). `cargo nextest run` green.
+mock call log). Same two tiers and forbidden shapes as T2.2 (tier-2 here =
+`--help` text diffed against `mise help`, catching upstream flag drift).
+`cargo nextest run` green.
+
+### T3.3 — persistence primitive investigation (small, informs Q4)
+mise 2026.11.1 added `mise bootstrap --save-env` (writes `-E` envs to
+`miserc.local.toml`) and named `env_sets`. Read-only evaluation only:
+`mise help bootstrap --save-env` (or parent help), plus `--dry-run` if the flag
+supports one. Deliver a 10-line verdict in the task evidence: can the console's
+persistence story shell out to `--save-env` (stock engine, no TOML writer of our
+own), or does Q4 still need a P2 editor? Do NOT change the P1 read-only-hint
+scope on a hunch — evidence first.
 
 ## 7. Screens (G1 REQUIRED — do not start before gate evidence)
 
@@ -302,12 +351,16 @@ Auto `Backend::status` on entry; per-part table via `DataGrid` (`grid.rs:382`)
 or `PropsList` (NOT `table.rs:168` `DataTable` — wrong tone, verified);
 follow-ups read-only; `R` re-check, `B` back to S2, Done exits 0 only if all ok.
 
-### T4.6 — tuiscotti baselines
+### T4.6 — tuiscotti baselines + interaction tests
 Create `tests/functional/main.rs` (+ `support.rs` PTY helper + `baselines/` dir),
 mirroring the reference shape in `/tmp/tcb` (`tests/functional/main.rs`,
 `tests/functional/support.rs` with `tui_test::{Session,…}`, baselines under
 `tests/functional/baselines/` — re-list that dir at write time, do not assume
 its contents); one baseline per screen (S1–S4) with MockBackend; pins per L4.
+Beyond screenshots: one interaction test per screen transition in §3 (key press
+→ state change), driven through the `Input::External` drain pump exactly like
+`apps/jackin/tests/external.rs:27-40` (re-read it at write time). Same
+forbidden test shapes as T2.2.
 Done when: `cargo nextest run` green and baselines committed.
 
 ## 8. Integration + handoff
@@ -329,10 +382,16 @@ what evidence to bring back (screenshots/Cua log). Do NOT run it. State
 
 ## 9. Whole-goal definition of done
 
-- [ ] P0 merged: deselect works, `test_plugin_lifecycle.py` passes, behavior
-      unchanged when nothing deselected.
-- [ ] CLI `--help` complete, exit codes 0/1/3 as specified, no invented flags.
-- [ ] 4 screens match wireframes; shared filter/rerun modules exist once each.
-- [ ] nextest + clippy + fmt + tuiscotti green locally and in CI.
+- [ ] P0 merged: deselect works, shellcheck + `test_plugin_lifecycle.py` pass,
+      behavior unchanged when nothing deselected.
+- [ ] CLI `--help` complete, exit codes 0/1/3 as specified, no invented flags;
+      T3.3 `--save-env` verdict recorded.
+- [ ] 4 screens match wireframes; shared filter/rerun modules exist once each;
+      `main.rs` is wiring-only; `#![warn(missing_docs)]` on the lib.
+- [ ] nextest + clippy (`RUSTFLAGS="-D warnings"`, `--all-targets`) + fmt +
+      tuiscotti green locally and in CI; llvm-cov report pasted, every Backend
+      method and screen transition tier-1 tested; zero forbidden test shapes.
+- [ ] Toolchain evidence recorded (mise ≥2026.11.1, latest stable rust, nextest,
+      shellcheck, llvm-cov versions).
 - [ ] OPERATOR VM evidence recorded for a 2-module apply.
 - [ ] No unmerged branches, no red CI, no invented APIs (every cite re-verified).
