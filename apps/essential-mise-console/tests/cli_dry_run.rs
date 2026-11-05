@@ -164,6 +164,30 @@ fn live_backend_dry_run_spawns_nothing() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+#[test]
+fn setup_dry_run_prints_staged_plan_with_zero_subprocesses() {
+    let backend = MockBackend::new();
+    let (code, out) = run_with(&backend, &["emc", "setup", "--dry-run"]);
+    assert_eq!(code, EXIT_OK, "setup --dry-run exits 0, got:\n{out}");
+    for stage in 1..=5u8 {
+        assert!(
+            out.contains(&format!("stage {stage}/5")),
+            "staged plan lists stage {stage}/5, got:\n{out}"
+        );
+    }
+    for url in [
+        "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh",
+        "https://mise.run",
+    ] {
+        assert!(out.contains(url), "staged plan shows {url}, got:\n{out}");
+    }
+    assert!(
+        backend.calls().is_empty(),
+        "dry-run spawns nothing and touches no backend: {:?}",
+        backend.calls()
+    );
+}
+
 /// Passthrough flags and the mise subcommand whose `--help` must list them.
 /// Console-side flags (`--manager` on `packages`, `--json` envelopes) are
 /// excluded: they are filtered or added by the console, never passed through.

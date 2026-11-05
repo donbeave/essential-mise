@@ -742,20 +742,24 @@ fn display_argv(mise_bin: &Path, argv: &[String]) -> String {
     parts.join(" ")
 }
 
-/// Spawn one phase, stream stdout/stderr lines with sequence numbers, wait.
+/// Spawn one child, stream stdout/stderr lines with sequence numbers, wait.
 /// Returns `Ok(Some(code))` on nonzero exit, `Ok(None)` on success,
 /// `Err(tail)` when the child could not be spawned or waited on.
-fn stream_child(
-    mise_bin: &Path,
-    argv: &[String],
-    config_dir: &Path,
+///
+/// Shared worker pattern: `mise` apply phases (backend) and `setup` stages
+/// (cli) both stream through here. `program`/`args` are spawned verbatim;
+/// `ceiling` sets `MISE_CEILING_PATHS` (harmless for non-mise children).
+pub(crate) fn stream_child(
+    program: &Path,
+    args: &[String],
+    ceiling: &Path,
     emit: &mut impl FnMut(Stream, String, &mut std::io::BufWriter<std::fs::File>),
     log: &mut std::io::BufWriter<std::fs::File>,
     current: &Arc<Mutex<Option<Child>>>,
 ) -> Result<Option<i32>, String> {
-    let mut child = Command::new(mise_bin)
-        .args(argv)
-        .env("MISE_CEILING_PATHS", config_dir)
+    let mut child = Command::new(program)
+        .args(args)
+        .env("MISE_CEILING_PATHS", ceiling)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
