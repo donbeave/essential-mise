@@ -23,8 +23,7 @@ use junie_tui::widgets::steps::StepState;
 
 use super::rerun_fmt::rerun_command;
 use crate::backend::{
-    ApplyHandle, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend, BackendError,
-    MiseBackend, Stream,
+    ApplyHandle, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend, Stream,
 };
 
 /// Sender-side log bound, mirroring the viewport `.max_lines(5_000)` cap.
@@ -53,6 +52,8 @@ pub enum ApplyKey {
     ConfirmCancel,
     /// Dismiss the cancel confirm or failure modal.
     Dismiss,
+    /// Start the worker (idle only).
+    Start,
     /// Continue to S4 (only when finished).
     Done,
 }
@@ -70,9 +71,10 @@ pub enum ApplyAction {
 
 /// S3 apply state machine.
 pub struct ApplyScreen {
-    backend: MiseBackend,
+    backend: std::sync::Arc<dyn Backend>,
     req: ApplyRequest,
     handle: Option<ApplyHandle>,
+    receiver: Option<ExternalReceiver>,
     lines: VecDeque<ApplyLine>,
     dropped: u64,
     current_phase: ApplyPhase,
@@ -88,7 +90,7 @@ pub struct ApplyScreen {
 impl ApplyScreen {
     /// Build for a request. Phase count follows the keep-list: empty means
     /// phase 2 is skipped (a bare `packages apply` means *every* package).
-    pub fn new(backend: MiseBackend, req: ApplyRequest) -> Self {
+    pub fn new(backend: std::sync::Arc<dyn Backend>, req: ApplyRequest) -> Self {
         let phases_total = if req.keep.is_empty() && req.manager.is_none() {
             1
         } else {
@@ -98,6 +100,7 @@ impl ApplyScreen {
             backend,
             req,
             handle: None,
+            receiver: None,
             lines: VecDeque::new(),
             dropped: 0,
             current_phase: ApplyPhase::Base,
@@ -111,12 +114,45 @@ impl ApplyScreen {
         }
     }
 
-    /// Spawn the worker; returns the receiver the app drains per frame.
-    pub fn start(&mut self) -> Result<ExternalReceiver, BackendError> {
+    /// Start the worker if idle; the receiver stays on the screen for the
+    /// drain pump. A spawn failure becomes a `Failed` outcome with the
+    /// failure modal open (same path as a phase failure).
+    pub fn start(&mut self) {
+        if self.handle.is_some() {
+            return;
+        }
         let (tx, rx) = external_channel();
-        let handle = self.backend.spawn_apply(&self.req, tx)?;
-        self.handle = Some(handle);
-        Ok(rx)
+        match self.backend.spawn_apply(&self.req, tx) {
+            Ok(handle) => {
+                self.handle = Some(handle);
+                self.receiver = Some(rx);
+            }
+            Err(e) => {
+                self.on_outcome(ApplyOutcome::Failed {
+                    code: None,
+                    tail: format!("apply failed to start: {e}"),
+                    phase: ApplyPhase::Base,
+                });
+            }
+        }
+    }
+
+    /// Whether the worker was spawned.
+    pub fn started(&self) -> bool {
+        self.handle.is_some()
+    }
+
+    /// Drain pending lines from the worker channel (no-op before start).
+    pub fn drain(&self) -> Vec<junie_tui::core::event::External> {
+        self.receiver
+            .as_ref()
+            .map(|rx| rx.drain())
+            .unwrap_or_default()
+    }
+
+    /// The worker channel for the runtime auto-drain.
+    pub fn receiver(&self) -> Option<&ExternalReceiver> {
+        self.receiver.as_ref()
     }
 
     /// Consume one drained event; true when it was an apply line.
@@ -153,8 +189,13 @@ impl ApplyScreen {
         if key.is_char('y') && self.modal_open {
             return Some(ApplyKey::Copy);
         }
-        if key.is(KeyCode::Enter) && self.outcome.is_some() {
-            return Some(ApplyKey::Done);
+        if key.is(KeyCode::Enter) {
+            if self.outcome.is_some() {
+                return Some(ApplyKey::Done);
+            }
+            if !self.started() {
+                return Some(ApplyKey::Start);
+            }
         }
         None
     }
@@ -178,6 +219,10 @@ impl ApplyScreen {
             ApplyKey::Dismiss => {
                 self.cancel_armed = false;
                 self.modal_open = false;
+                ApplyAction::None
+            }
+            ApplyKey::Start => {
+                self.start();
                 ApplyAction::None
             }
             ApplyKey::Done => {
@@ -356,14 +401,15 @@ impl ApplyScreen {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backend::MiseBackend;
     use junie_tui::core::event::Key;
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
     fn screen() -> ApplyScreen {
-        let backend = MiseBackend::new(
+        let backend = std::sync::Arc::new(MiseBackend::new(
             std::path::PathBuf::from("/tmp/emc-test"),
             vec!["terminal".to_string()],
-        );
+        ));
         let req = ApplyRequest {
             envs: vec!["terminal".to_string()],
             keep: vec!["brew:jq".to_string()],
@@ -450,10 +496,10 @@ mod tests {
     #[test]
     fn failed_outcome_opens_modal_with_phase_rerun() {
         use crate::backend::mock::MockBackend;
-        let backend = MiseBackend::new(
+        let backend = std::sync::Arc::new(MiseBackend::new(
             std::path::PathBuf::from("/tmp/emc-test"),
             vec!["terminal".to_string()],
-        );
+        ));
         let failing = MockBackend::new().with_failure(ApplyPhase::Packages);
         let req = ApplyRequest {
             envs: vec!["terminal".to_string()],
@@ -513,8 +559,8 @@ mod tests {
         );
         assert_eq!(
             screen.map_key(&key(KeyCode::Enter)),
-            None,
-            "Enter needs a finished outcome"
+            Some(ApplyKey::Start),
+            "Enter starts the idle worker"
         );
     }
 }

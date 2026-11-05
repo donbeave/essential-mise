@@ -213,6 +213,11 @@ impl PackagesState {
         self.filtering
     }
 
+    /// Current filter query (for the filter input widget).
+    pub fn query(&self) -> &str {
+        self.filter.query()
+    }
+
     /// Replace the query (resets the cursor into the filtered view).
     pub fn set_query(&mut self, query: impl Into<String>) {
         self.filter.set_query(query);
@@ -247,31 +252,46 @@ impl PackagesState {
     /// Group sections for render: `(group, items)` in first-seen order.
     /// Headers render as `Panel::card` titles, never as rows.
     pub fn group_sections(&self) -> Vec<(String, Vec<ListItem>)> {
+        self.group_order()
+            .into_iter()
+            .map(|(group, indices)| {
+                let items = indices.iter().map(|&i| self.list_item(i)).collect();
+                (group, items)
+            })
+            .collect()
+    }
+
+    /// Groups with visible row indices, in first-seen order.
+    pub fn group_order(&self) -> Vec<(String, Vec<usize>)> {
         let mut order: Vec<String> = Vec::new();
-        let mut groups: HashMap<String, Vec<ListItem>> = HashMap::new();
+        let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
         for i in self.visible_indices() {
-            let r = &self.rows[i];
-            let kept = self.is_kept(&r.manager, &r.name);
-            let item = ListItem::new(&r.name)
-                .meta(&format!(
-                    "{} · {}",
-                    r.manager,
-                    if kept { "kept" } else { "omitted" }
-                ))
-                .meta_tone(if kept { Tone::Normal } else { Tone::Muted });
-            let group = r.group().to_string();
+            let group = self.rows[i].group().to_string();
             if !groups.contains_key(&group) {
                 order.push(group.clone());
             }
-            groups.entry(group).or_default().push(item);
+            groups.entry(group).or_default().push(i);
         }
         order
             .into_iter()
             .map(|g| {
-                let items = groups.remove(&g).unwrap_or_default();
-                (g, items)
+                let indices = groups.remove(&g).unwrap_or_default();
+                (g, indices)
             })
             .collect()
+    }
+
+    /// One checklist row as an inventoried [`ListItem`].
+    pub fn list_item(&self, row_idx: usize) -> ListItem {
+        let r = &self.rows[row_idx];
+        let kept = self.is_kept(&r.manager, &r.name);
+        ListItem::new(&r.name)
+            .meta(&format!(
+                "{} · {}",
+                r.manager,
+                if kept { "kept" } else { "omitted" }
+            ))
+            .meta_tone(if kept { Tone::Normal } else { Tone::Muted })
     }
 
     /// Detail props for the cursor row: origin modules + manager + keep state.

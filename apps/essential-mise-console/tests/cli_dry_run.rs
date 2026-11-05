@@ -17,7 +17,7 @@ fn parse(args: &[&str]) -> Cli {
     Cli::try_parse_from(args).expect("args parse")
 }
 
-fn run_with(backend: &dyn Backend, args: &[&str]) -> (u8, String) {
+fn run_with(backend: std::sync::Arc<dyn Backend>, args: &[&str]) -> (u8, String) {
     let cli = parse(args);
     let mut out = Vec::new();
     let code = cli::run(backend, &cli, &mut out);
@@ -26,9 +26,9 @@ fn run_with(backend: &dyn Backend, args: &[&str]) -> (u8, String) {
 
 #[test]
 fn apply_dry_run_exits_zero_and_spawns_nothing() {
-    let backend = MockBackend::new();
+    let backend = std::sync::Arc::new(MockBackend::new());
     let (code, out) = run_with(
-        &backend,
+        backend.clone(),
         &["emc", "-E", "terminal", "apply", "--dry-run", "brew:jq"],
     );
     assert_eq!(code, EXIT_OK, "dry-run apply exits 0, got output:\n{out}");
@@ -57,9 +57,14 @@ fn apply_dry_run_empty_keep_skips_phase_two() {
     // the real narration.
     let dir = std::env::temp_dir().join(format!("emc-test-cli-empty-keep-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create temp dir");
-    let backend = MiseBackend::new(dir.clone(), vec!["terminal".to_string()])
-        .with_mise_bin("/nonexistent/emc-test-mise");
-    let (code, out) = run_with(&backend, &["emc", "-E", "terminal", "apply", "--dry-run"]);
+    let backend = std::sync::Arc::new(
+        MiseBackend::new(dir.clone(), vec!["terminal".to_string()])
+            .with_mise_bin("/nonexistent/emc-test-mise"),
+    );
+    let (code, out) = run_with(
+        backend.clone(),
+        &["emc", "-E", "terminal", "apply", "--dry-run"],
+    );
     assert_eq!(code, EXIT_OK, "empty keep-list dry-run exits 0");
     assert!(
         out.contains("keep-list empty"),
@@ -74,8 +79,11 @@ fn apply_dry_run_empty_keep_skips_phase_two() {
 
 #[test]
 fn plan_json_envelope_matches_fixture_shape() {
-    let backend = MockBackend::new();
-    let (code, out) = run_with(&backend, &["emc", "-E", "terminal", "plan", "--json"]);
+    let backend = std::sync::Arc::new(MockBackend::new());
+    let (code, out) = run_with(
+        backend.clone(),
+        &["emc", "-E", "terminal", "plan", "--json"],
+    );
     assert_eq!(code, EXIT_OK, "plan --json exits 0, got:\n{out}");
     let doc: serde_json::Value =
         serde_json::from_str(&out).expect("stdout is the console envelope");
@@ -104,9 +112,9 @@ fn plan_json_envelope_matches_fixture_shape() {
 
 #[test]
 fn plan_detailed_exitcode_clean_fixture_is_zero() {
-    let backend = MockBackend::new();
+    let backend = std::sync::Arc::new(MockBackend::new());
     let (code, _) = run_with(
-        &backend,
+        backend.clone(),
         &[
             "emc",
             "-E",
@@ -125,9 +133,9 @@ fn apply_failure_exit_codes_zero_one_three() {
         (ApplyPhase::Base, EXIT_ERROR),
         (ApplyPhase::Packages, EXIT_PARTIAL),
     ] {
-        let backend = MockBackend::new().with_failure(phase);
+        let backend = std::sync::Arc::new(MockBackend::new().with_failure(phase));
         let (code, _) = run_with(
-            &backend,
+            backend.clone(),
             &["emc", "-E", "terminal", "-y", "apply", "brew:jq"],
         );
         assert_eq!(
@@ -166,8 +174,8 @@ fn live_backend_dry_run_spawns_nothing() {
 
 #[test]
 fn setup_dry_run_prints_staged_plan_with_zero_subprocesses() {
-    let backend = MockBackend::new();
-    let (code, out) = run_with(&backend, &["emc", "setup", "--dry-run"]);
+    let backend = std::sync::Arc::new(MockBackend::new());
+    let (code, out) = run_with(backend.clone(), &["emc", "setup", "--dry-run"]);
     assert_eq!(code, EXIT_OK, "setup --dry-run exits 0, got:\n{out}");
     for stage in 1..=5u8 {
         assert!(

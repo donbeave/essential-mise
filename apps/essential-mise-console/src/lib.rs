@@ -1,6 +1,8 @@
 #![warn(missing_docs)]
 //! essential_mise_console library.
 
+/// Console app: routing, selection memory, and the apply event pump.
+pub mod app;
 /// Stock-`mise bootstrap` backend: read-only queries plus two-phase apply.
 pub mod backend;
 /// Clap command tree (spec §2 verbatim) plus exit-code contract.

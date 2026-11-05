@@ -13,7 +13,7 @@ use junie_tui::runtime::ExternalSender;
 
 use super::{
     Action, ApplyHandle, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend, BackendError,
-    PlanEntry, ResId, StatusSnapshot, Stream, snapshot_from_raw,
+    MiseBackend, PlanEntry, ResId, StatusSnapshot, Stream, snapshot_from_raw,
 };
 
 /// One recorded [`MockBackend`] call, for golden-test assertions.
@@ -40,6 +40,7 @@ pub struct MockBackend {
     origins: HashMap<ResId, Vec<String>>,
     fail: Option<ApplyPhase>,
     calls: Arc<Mutex<Vec<MockCall>>>,
+    argv: MiseBackend,
 }
 
 impl MockBackend {
@@ -66,6 +67,7 @@ impl MockBackend {
             origins: HashMap::new(),
             fail: None,
             calls: Arc::new(Mutex::new(Vec::new())),
+            argv: MiseBackend::new("/tmp/emc-mock-config", Vec::new()),
         }
     }
 
@@ -176,5 +178,21 @@ impl Backend for MockBackend {
     fn origin_map(&self, _config_dir: &Path) -> Result<HashMap<ResId, Vec<String>>, BackendError> {
         self.record(MockCall::OriginMap);
         Ok(self.origins.clone())
+    }
+
+    fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String> {
+        self.argv.phase1_argv(req)
+    }
+
+    fn phase2_argv(&self, req: &ApplyRequest) -> Option<Vec<String>> {
+        self.argv.phase2_argv(req)
+    }
+
+    fn mise_bin(&self) -> &Path {
+        self.argv.mise_bin()
+    }
+
+    fn config_dir(&self) -> &Path {
+        self.argv.config_dir()
     }
 }

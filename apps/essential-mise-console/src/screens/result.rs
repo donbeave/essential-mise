@@ -17,7 +17,7 @@ use junie_tui::widgets::grid::{CellValue, ColumnSpec};
 use junie_tui::widgets::props::Prop;
 
 use super::rerun_fmt::rerun_command;
-use crate::backend::{Action, Backend, MiseBackend, PlanEntry, StatusSnapshot};
+use crate::backend::{Action, Backend, PlanEntry, StatusSnapshot};
 
 /// Per-part drift state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,7 +71,7 @@ pub enum ResultAction {
 
 /// S4 verify state. Owns the last `status` + `plan` snapshots.
 pub struct ResultScreen {
-    backend: MiseBackend,
+    backend: std::sync::Arc<dyn Backend>,
     envs: Vec<String>,
     keep: Vec<String>,
     parts: Vec<PartRow>,
@@ -84,7 +84,7 @@ pub struct ResultScreen {
 
 impl ResultScreen {
     /// Build for the selected envs and the S2 keep-list (for reruns).
-    pub fn new(backend: MiseBackend, envs: Vec<String>, keep: Vec<String>) -> Self {
+    pub fn new(backend: std::sync::Arc<dyn Backend>, envs: Vec<String>, keep: Vec<String>) -> Self {
         Self {
             backend,
             envs,
@@ -375,15 +375,16 @@ fn follow_ups(snapshot: &StatusSnapshot, drifted: usize, rerun: Option<String>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backend::MiseBackend;
     use crate::backend::mock::MockBackend;
     use junie_tui::core::event::Key;
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
-    fn test_backend() -> MiseBackend {
-        MiseBackend::new(
+    fn test_backend() -> std::sync::Arc<dyn Backend> {
+        std::sync::Arc::new(MiseBackend::new(
             std::path::PathBuf::from("/tmp/emc-test-result"),
             vec!["terminal".to_string()],
-        )
+        ))
     }
 
     fn result() -> ResultScreen {

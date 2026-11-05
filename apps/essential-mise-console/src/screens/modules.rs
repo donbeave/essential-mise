@@ -122,6 +122,17 @@ pub enum EnvBadge {
     Pending,
 }
 
+impl EnvBadge {
+    /// Short label for headers and detail panes.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Installed => "installed",
+            Self::Drift => "drift",
+            Self::Pending => "pending",
+        }
+    }
+}
+
 /// Aggregate an env badge: status drift wins, then empty means pending,
 /// all-`noop` means installed, anything else is drift.
 pub fn badge_for_env(actions: &[Action], parts_ok: bool) -> EnvBadge {
@@ -291,6 +302,18 @@ impl ModulesState {
     /// Whether filter typing is active.
     pub fn filtering(&self) -> bool {
         self.filtering
+    }
+
+    /// Current filter query (for the filter input widget).
+    pub fn query(&self) -> &str {
+        self.filter.query()
+    }
+
+    /// Cursor env, if any row is visible.
+    pub fn cursor_env(&self) -> Option<&ModuleInfo> {
+        self.visible_indices()
+            .get(self.cursor)
+            .and_then(|&i| self.envs.get(i))
     }
 
     /// Access the live filter (the app routes typing to the `TextInput`).

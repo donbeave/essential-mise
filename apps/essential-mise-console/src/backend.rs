@@ -223,6 +223,14 @@ pub trait Backend: Send + Sync + 'static {
     /// Map each `manager:package` key in the requested envs'
     /// `config.<env>.toml` `[bootstrap.packages]` tables to declaring envs.
     fn origin_map(&self, config_dir: &Path) -> Result<HashMap<ResId, Vec<String>>, BackendError>;
+    /// Phase 1 argv fragment (shared with rerun formatting).
+    fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String>;
+    /// Phase 2 argv fragment, or `None` when phase 2 is skipped.
+    fn phase2_argv(&self, req: &ApplyRequest) -> Option<Vec<String>>;
+    /// mise binary invoked for every child.
+    fn mise_bin(&self) -> &Path;
+    /// Config dir passed as `-C` and `MISE_CEILING_PATHS`.
+    fn config_dir(&self) -> &Path;
 }
 
 /// Live [`Backend`] over stock `mise bootstrap`.
@@ -264,64 +272,6 @@ impl MiseBackend {
         cmd.arg("bootstrap");
         cmd.env("MISE_CEILING_PATHS", &self.config_dir);
         cmd
-    }
-
-    /// Config dir passed as `-C` and `MISE_CEILING_PATHS`.
-    pub fn config_dir(&self) -> &Path {
-        &self.config_dir
-    }
-
-    /// mise binary invoked for every child.
-    pub fn mise_bin(&self) -> &Path {
-        &self.mise_bin
-    }
-
-    /// Phase 1 argv: `bootstrap --skip packages [--only/--skip …] [--update] [--upgrade]`.
-    pub fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String> {
-        let mut argv = vec![
-            "bootstrap".to_string(),
-            "--skip".to_string(),
-            "packages".to_string(),
-        ];
-        if !req.only_parts.is_empty() {
-            argv.push("--only".to_string());
-            argv.push(req.only_parts.join(","));
-        } else if !req.skip_parts.is_empty() {
-            argv.push("--skip".to_string());
-            argv.push(req.skip_parts.join(","));
-        }
-        if req.update {
-            argv.push("--update".to_string());
-        }
-        if req.upgrade {
-            argv.push("--upgrade".to_string());
-        }
-        if req.dry_run {
-            argv.push("--dry-run".to_string());
-        }
-        argv
-    }
-
-    /// Phase 2 argv (`None` when the keep-list is empty and no manager is
-    /// set: a bare `packages apply` means *every* package, so it is skipped).
-    pub fn phase2_argv(&self, req: &ApplyRequest) -> Option<Vec<String>> {
-        if req.keep.is_empty() && req.manager.is_none() {
-            return None;
-        }
-        let mut argv = vec![
-            "bootstrap".to_string(),
-            "packages".to_string(),
-            "apply".to_string(),
-        ];
-        if let Some(ref m) = req.manager {
-            argv.push("--manager".to_string());
-            argv.push(m.clone());
-        }
-        if req.dry_run {
-            argv.push("--dry-run".to_string());
-        }
-        argv.extend(req.keep.iter().cloned());
-        Some(argv)
     }
 }
 
@@ -520,6 +470,59 @@ impl Backend for MiseBackend {
         }
         Ok(map)
     }
+
+    fn config_dir(&self) -> &Path {
+        &self.config_dir
+    }
+
+    fn mise_bin(&self) -> &Path {
+        &self.mise_bin
+    }
+
+    fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String> {
+        let mut argv = vec![
+            "bootstrap".to_string(),
+            "--skip".to_string(),
+            "packages".to_string(),
+        ];
+        if !req.only_parts.is_empty() {
+            argv.push("--only".to_string());
+            argv.push(req.only_parts.join(","));
+        } else if !req.skip_parts.is_empty() {
+            argv.push("--skip".to_string());
+            argv.push(req.skip_parts.join(","));
+        }
+        if req.update {
+            argv.push("--update".to_string());
+        }
+        if req.upgrade {
+            argv.push("--upgrade".to_string());
+        }
+        if req.dry_run {
+            argv.push("--dry-run".to_string());
+        }
+        argv
+    }
+
+    fn phase2_argv(&self, req: &ApplyRequest) -> Option<Vec<String>> {
+        if req.keep.is_empty() && req.manager.is_none() {
+            return None;
+        }
+        let mut argv = vec![
+            "bootstrap".to_string(),
+            "packages".to_string(),
+            "apply".to_string(),
+        ];
+        if let Some(ref m) = req.manager {
+            argv.push("--manager".to_string());
+            argv.push(m.clone());
+        }
+        if req.dry_run {
+            argv.push("--dry-run".to_string());
+        }
+        argv.extend(req.keep.iter().cloned());
+        Some(argv)
+    }
 }
 
 /// Tolerant status part used until fixtures pin more of the schema.
@@ -535,24 +538,162 @@ struct RawStatusPart {
 
 /// Build a [`StatusSnapshot`] from raw `status --json` text.
 ///
-/// Best effort until fixtures pin more of the schema: accept an object with
-/// a `parts` array of `{part,state,drift}`, else empty parts. Never panics.
+/// Two shapes, both tolerant: the observed object keyed by part name
+/// (fixtures pin it) and a legacy object with a `parts` array of
+/// `{part,state,drift}`. Never panics; unrecognized shapes yield empty parts
+/// with the raw text preserved.
+///
+/// Part-state derivation (documented heuristic, pinned by unit tests and the
+/// T2.2 fixtures): `packages`/`tools` are state inventories checked entry
+/// by entry; every other list-shaped part reads as a pending-work list, so
+/// non-empty means drift and empty means clean (fail-closed: a wrong `ok`
+/// would wrongly enable Done). `login_shell: null` is unrecorded, not drift.
 pub(crate) fn snapshot_from_raw(raw: &str) -> StatusSnapshot {
-    let parts = serde_json::from_str::<serde_json::Value>(raw)
-        .ok()
-        .and_then(|v| v.get("parts").cloned())
-        .and_then(|p| serde_json::from_value::<Vec<RawStatusPart>>(p).ok())
-        .unwrap_or_default()
-        .into_iter()
-        .map(|p| StatusPart {
-            part: p.part,
-            state: p.state,
-            drift: p.drift,
+    let value: serde_json::Value = match serde_json::from_str(raw) {
+        Ok(v) => v,
+        Err(_) => {
+            return StatusSnapshot {
+                parts: Vec::new(),
+                raw_note: raw.to_string(),
+            };
+        }
+    };
+    let Some(obj) = value.as_object() else {
+        return StatusSnapshot {
+            parts: Vec::new(),
+            raw_note: raw.to_string(),
+        };
+    };
+    if let Some(legacy) = obj.get("parts") {
+        let parts = serde_json::from_value::<Vec<RawStatusPart>>(legacy.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| StatusPart {
+                part: p.part,
+                state: p.state,
+                drift: p.drift,
+            })
+            .collect();
+        return StatusSnapshot {
+            parts,
+            raw_note: raw.to_string(),
+        };
+    }
+    let mut parts: Vec<StatusPart> = obj
+        .iter()
+        .map(|(part, v)| {
+            let (state, drift) = part_state(part, v);
+            StatusPart {
+                part: part.clone(),
+                state,
+                drift,
+            }
         })
         .collect();
+    parts.sort_by(|a, b| a.part.cmp(&b.part));
     StatusSnapshot {
         parts,
         raw_note: raw.to_string(),
+    }
+}
+
+/// Derive `(state, drift)` for one status part. States are `ok`/`drift`.
+fn part_state(part: &str, value: &serde_json::Value) -> (String, Vec<String>) {
+    match part {
+        "packages" => packages_state(value),
+        "tools" => tools_state(value),
+        "login_shell" => ("ok".to_string(), vec!["not recorded".to_string()]),
+        _ => pending_list_state(value),
+    }
+}
+
+/// A pending-work list: empty reads clean, anything present reads drift.
+fn pending_list_state(value: &serde_json::Value) -> (String, Vec<String>) {
+    match value {
+        serde_json::Value::Null => ("ok".to_string(), vec!["clean".to_string()]),
+        serde_json::Value::Array(items) if items.is_empty() => {
+            ("ok".to_string(), vec!["clean".to_string()])
+        }
+        serde_json::Value::Array(items) => (
+            "drift".to_string(),
+            vec![format!("{} pending", items.len())],
+        ),
+        serde_json::Value::Object(map) => {
+            let pending: usize = map
+                .values()
+                .filter_map(|v| v.as_array())
+                .map(|a| a.len())
+                .sum();
+            if pending == 0 {
+                ("ok".to_string(), vec!["clean".to_string()])
+            } else {
+                ("drift".to_string(), vec![format!("{} pending", pending)])
+            }
+        }
+        _ => ("ok".to_string(), vec!["clean".to_string()]),
+    }
+}
+
+/// `packages` is a per-manager inventory: an entry reads drift unless its
+/// observed state matches its desired state.
+fn packages_state(value: &serde_json::Value) -> (String, Vec<String>) {
+    let mut drift = Vec::new();
+    if let Some(map) = value.as_object() {
+        let mut managers: Vec<&String> = map.keys().collect();
+        managers.sort();
+        for manager in managers {
+            let entries = map[manager]
+                .get("packages")
+                .and_then(|p| p.as_array())
+                .cloned()
+                .unwrap_or_default();
+            for e in &entries {
+                let name = e.get("package").and_then(|n| n.as_str()).unwrap_or("?");
+                let state = e.get("state").and_then(|s| s.as_str()).unwrap_or("");
+                let desired = e
+                    .get("desired_state")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("present");
+                let ok = (desired == "present" && state == "installed")
+                    || (desired == "absent" && state != "installed");
+                if !ok {
+                    drift.push(format!("{manager}:{name} ({state})"));
+                }
+            }
+        }
+    }
+    if drift.is_empty() {
+        ("ok".to_string(), vec!["in sync".to_string()])
+    } else {
+        ("drift".to_string(), drift)
+    }
+}
+
+/// `tools` is an inventory: an entry reads drift unless installed.
+fn tools_state(value: &serde_json::Value) -> (String, Vec<String>) {
+    let mut drift = Vec::new();
+    let mut installed = 0usize;
+    if let Some(entries) = value.as_array() {
+        for e in entries {
+            let name = e.get("tool").and_then(|n| n.as_str()).unwrap_or("?");
+            let is_installed = e
+                .get("installed")
+                .and_then(|i| i.as_bool())
+                .unwrap_or(false);
+            if is_installed {
+                installed += 1;
+            } else {
+                drift.push(format!("{name} not installed"));
+            }
+        }
+    }
+    if drift.is_empty() {
+        (
+            "ok".to_string(),
+            vec![format!("{installed} tools installed")],
+        )
+    } else {
+        ("drift".to_string(), drift)
     }
 }
 

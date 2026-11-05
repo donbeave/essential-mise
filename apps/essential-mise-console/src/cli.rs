@@ -196,16 +196,16 @@ fn unimplemented(command: &str) -> u8 {
 
 /// Dispatch a parsed CLI against a backend, writing envelopes and logs to
 /// `out` and human notes to stderr. Returns the process exit code.
-pub fn run(backend: &dyn Backend, cli: &Cli, out: &mut dyn std::io::Write) -> u8 {
+pub fn run(backend: std::sync::Arc<dyn Backend>, cli: &Cli, out: &mut dyn std::io::Write) -> u8 {
     match &cli.command {
-        None => unimplemented("tui"),
+        None => run_tui(backend, cli, None, out),
         Some(Commands::Modules { .. }) => unimplemented("modules"),
         Some(Commands::Packages { .. }) => unimplemented("packages"),
         Some(Commands::Plan {
             json,
             detailed_exitcode,
             jobs,
-        }) => run_plan(backend, cli, *json, *detailed_exitcode, *jobs, out),
+        }) => run_plan(&backend, cli, *json, *detailed_exitcode, *jobs, out),
         Some(Commands::Apply {
             skip,
             only_parts,
@@ -215,7 +215,7 @@ pub fn run(backend: &dyn Backend, cli: &Cli, out: &mut dyn std::io::Write) -> u8
             upgrade,
             dry_run,
         }) => run_apply(
-            backend,
+            &backend,
             cli,
             skip,
             only_parts,
@@ -229,14 +229,62 @@ pub fn run(backend: &dyn Backend, cli: &Cli, out: &mut dyn std::io::Write) -> u8
         Some(Commands::Status { .. }) => unimplemented("status"),
         Some(Commands::Verify { .. }) => unimplemented("verify"),
         Some(Commands::Setup { dry_run }) => run_setup(&SetupConfig::from_cli(cli), *dry_run, out),
-        Some(Commands::Tui { .. }) => unimplemented("tui"),
+        Some(Commands::Tui { screen }) => run_tui(backend, cli, *screen, out),
+    }
+}
+
+/// Mock backend for screenshots and headless runs (`EMC_MOCK=1`): the T2.2
+/// fixtures plus canned S2 origins for the fixture envs
+/// (`neovim`, `terminal`, `shell`). `EMC_MOCK_FAIL=packages|base` scripts a
+/// phase failure for the failure-modal baseline.
+pub fn mock_backend() -> super::backend::mock::MockBackend {
+    use super::backend::ApplyPhase;
+    let mut mock = super::backend::mock::MockBackend::new()
+        .with_origin("brew", "neovim", &["neovim"])
+        .with_origin("brew", "ripgrep", &["neovim"])
+        .with_origin("brew", "starship", &["terminal", "shell"])
+        .with_origin("brew", "bat", &["terminal"])
+        .with_origin("npm", "pyright", &["shell"]);
+    match std::env::var("EMC_MOCK_FAIL").as_deref() {
+        Ok("packages") => mock = mock.with_failure(ApplyPhase::Packages),
+        Ok("base") => mock = mock.with_failure(ApplyPhase::Base),
+        _ => {}
+    }
+    mock
+}
+
+/// `tui`: open the interactive console (mock when `EMC_MOCK=1` is set;
+/// the binary entrypoint selects the backend).
+pub fn run_tui(
+    backend: std::sync::Arc<dyn Backend>,
+    cli: &Cli,
+    screen: Option<TuiScreen>,
+    _out: &mut dyn std::io::Write,
+) -> u8 {
+    let config_dir = resolve_config_dir(cli.config_dir.as_deref());
+    let mut app = match crate::app::App::new(backend, &config_dir) {
+        Ok(app) => app,
+        Err(e) => {
+            eprintln!("essential-mise-console: cannot start the console: {e}");
+            return EXIT_ERROR;
+        }
+    };
+    if let Some(screen) = screen {
+        app.jump_to(screen);
+    }
+    match junie_tui::runtime::run(&mut app) {
+        Ok(()) => app.exit_code().unwrap_or(EXIT_ERROR),
+        Err(e) => {
+            eprintln!("essential-mise-console: console loop failed: {e}");
+            EXIT_ERROR
+        }
     }
 }
 
 /// `plan`: query the backend, print the console envelope
 /// `{"envs","resources","summary"}` on stdout and a human line on stderr.
 fn run_plan(
-    backend: &dyn Backend,
+    backend: &std::sync::Arc<dyn Backend>,
     cli: &Cli,
     json: bool,
     detailed_exitcode: bool,
@@ -329,7 +377,7 @@ fn run_plan(
 /// (phase 1 ok, phase 2 failed). `--dry-run` previews and never spawns.
 #[allow(clippy::too_many_arguments)]
 fn run_apply(
-    backend: &dyn Backend,
+    backend: &std::sync::Arc<dyn Backend>,
     cli: &Cli,
     skip: &[String],
     only: &[String],
