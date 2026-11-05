@@ -22,11 +22,11 @@ install_codex() {
 }
 
 install_omp() {
-  printf 'PENDING pstack/OMP: native integration awaits upstream PR 396 and a release; existing installations were not changed\n' >&2
+  printf 'PENDING pstack/OMP: shared native plugin caches can affect other scopes; existing installations were not changed\n' >&2
 }
 
 install_opencode() {
-  printf 'PENDING pstack/OpenCode: upstream PR 397 and a release are required; existing installations and legacy links were not changed\n' >&2
+  printf 'PENDING pstack/OpenCode: concurrent native configuration writes can lose changes; existing installations and legacy links were not changed\n' >&2
 }
 
 install_muse() {
