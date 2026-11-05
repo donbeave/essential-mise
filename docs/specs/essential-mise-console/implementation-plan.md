@@ -51,6 +51,8 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
 - L4. Test pins (from live `/tmp/tcb/Cargo.toml`, re-verify at use):
   `tuiscotti` git rev `d8d54155947f6303a41dfd6079b53c0abc16f29a`,
   `tui-test` (=tuiscotti-tui-test) `=0.2.1`, `ratatui 0.30`, `clap 4.6` with `derive`.
+  CI generator pin (from `/tmp/tcb/mise.toml:10`): `github:tailrocks/velnor-new`
+  `0.1.73`, binary `velnor-actions`.
 - L5. Decisions (operator-overridable, proceed as locked): Q2 unapply=P2, Q3
   functional-first P1, Q4 read-only persistence hint P1, Q5 stage-0 stays
   curl+bash and console installs via `git clone <tag>` + `cargo install --path
@@ -148,40 +150,76 @@ Install nextest executor-locally only if missing:
 `cargo install cargo-nextest --locked` (record version). Then `cargo nextest run`
 (zero tests = pass). No shared-config changes. Done when: all three green, pasted.
 
-### T1.3 — CI workflow (repo has no `.github/`; hand-written, deviation recorded)
-Create `.github/workflows/console.yml` with EXACTLY this content (only the
-toolchain version may be bumped to match L2 at write time):
+### T1.3 — CI via velnor-actions (never hand-write `.github/`)
+CI is generated, not written. Exact steps:
+1. Install the generator executor-locally (NO shared-config change in P1):
+   `mise install "github:tailrocks/velnor-new@0.1.73"` (pin observed 2026-11-06
+   in `/tmp/tcb/mise.toml:10`; re-check at use). Confirm `velnor-actions --version`
+   runs via mise shims; record the version in evidence.
+2. Read `/tmp/tcb/docs/ci.md` fully (3.4K) for discovery semantics. If velnor
+   requires a Cargo workspace at the repo root, STOP and report — do NOT
+   restructure the repo to please CI (our crate is standalone in `apps/`).
+3. Copy `/tmp/tcb/.config/nextest.toml` verbatim to
+   `apps/essential-mise-console/.config/nextest.toml` (pty group + functional
+   profile; PTY tests flake without it).
+4. Write `.velnor/config.toml` with EXACTLY this content (adapted from
+   `/tmp/tcb/.velnor/config.toml`; only observed keys, nothing invented):
 
-```yaml
-name: console
-on:
-  push:
-    paths: ["apps/essential-mise-console/**", ".github/workflows/console.yml"]
-  pull_request:
-    paths: ["apps/essential-mise-console/**"]
-jobs:
-  gates:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.99.1
-          components: clippy, rustfmt
-      - run: cargo fmt --check
-        working-directory: apps/essential-mise-console
-      - run: cargo clippy -- -D warnings
-        working-directory: apps/essential-mise-console
-      - run: cargo install cargo-nextest --locked
-        working-directory: apps/essential-mise-console
-      - run: cargo nextest run
-        working-directory: apps/essential-mise-console
+```toml
+schema = 1
+
+[workflow]
+policy = "consumer-v1"
+
+default_branch = "main"
+
+runner_label = "ubuntu-26.04"
+crate_timeout_minutes = 15
+
+plan_timeout_minutes = 15
+
+[stacks.rust]
+
+compile_driver = "mbx"
+
+test_runner = "cargo_nextest"
+
+run_ignored = "default"
+
+[discovery]
+
+exclude = ["docs/**"]
+
+[agents]
+
+claude_md = "symlink"
+
+[[stacks.rust.suites]]
+id = "functional"
+profile = "functional"
+run_ignored = "default"
+partitions = 1
+build = "inline"
+timeout_minutes = 15
+test_threads = 4
+required = true
+triggers = ["pull_request", "push", "workflow_dispatch"]
+artifacts = [{ name = "functional-terminal-evidence", paths = ["target/functional", "target/nextest/functional"], when = "failure", retention_days = 14 }]
+
+[[stacks.rust.configurations]]
+name = "default"
+features = ["default"]
+all_features = true
+target = "host"
 ```
 
-(Prior spec's velnor rule
-applies to the baseline repo, which has `.velnor/`; this repo has none, so a
-minimal hand-written workflow is correct here.)
-Done when: file created; live CI result arrives after push in T5.3.
+5. From the repo root run `velnor-actions generate`. Assert `git status`
+   shows ONLY generated paths (`.github/`, `.velnor/`); anything else = stop.
+   Commit the generated files. NEVER hand-edit anything under `.github/`
+   (workflows, actions, scripts, velnor, actionlint.yaml, AGENTS.md/CLAUDE.md):
+   change `.velnor/config.toml` and regenerate instead.
+Done when: generated CI committed; live result arrives after push in T5.2
+(green, or exactly one config-only fix + regenerate per R4, then stop).
 
 ## 5. Backend + world (no G1 needed)
 
