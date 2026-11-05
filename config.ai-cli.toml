@@ -186,32 +186,28 @@ alias omp-minimax-yolo='omp --profile minimax --approval-mode=yolo'
 alias omp-mimo='omp --profile mimo'
 alias omp-mimo-yolo='omp --profile mimo --approval-mode=yolo'
 function _omp-anthropic-api {
-  local profile="$1" ref_var="$2"
+  local profile="$1" ref="$2"
   shift 2
-  local ref="${(P)ref_var:-}" key="${ANTHROPIC_API_KEY:-}"
+  local key="${ANTHROPIC_API_KEY:-}"
   if [[ -z "$key" ]]; then
-    if [[ -z "$ref" ]]; then
-      printf '%s: set %s to a 1Password reference or export ANTHROPIC_API_KEY\n' "$profile" "$ref_var" >&2
-      return 1
-    fi
     key="$(op read "$ref")" || return 1
   fi
   ANTHROPIC_API_KEY="$key" omp --profile "$profile" "$@"
 }
 function omp-anthropic-api-patrick {
-  _omp-anthropic-api anthropic-api-patrick OMP_ANTHROPIC_API_PATRICK_REF "$@"
+  _omp-anthropic-api anthropic-api-patrick 'op://Private/53j26amq3moddo2za2ldjqovxe/key' "$@"
 }
 function omp-anthropic-api-patrick-yolo {
   omp-anthropic-api-patrick --approval-mode=yolo "$@"
 }
 function omp-anthropic-api-alexey {
-  _omp-anthropic-api anthropic-api-alexey OMP_ANTHROPIC_API_ALEXEY_REF "$@"
+  _omp-anthropic-api anthropic-api-alexey 'op://Private/xlhmzzy7ctcououatbzwchbppm/API Keys/TestWorkspace' "$@"
 }
 function omp-anthropic-api-alexey-yolo {
   omp-anthropic-api-alexey --approval-mode=yolo "$@"
 }
 function omp-anthropic-api-alexey2 {
-  _omp-anthropic-api anthropic-api-alexey2 OMP_ANTHROPIC_API_ALEXEY2_REF "$@"
+  _omp-anthropic-api anthropic-api-alexey2 'op://Private/mszj5cyjyk3hwmb664g3hyf44a/API Keys/TestWorkspace' "$@"
 }
 function omp-anthropic-api-alexey2-yolo {
   omp-anthropic-api-alexey2 --approval-mode=yolo "$@"

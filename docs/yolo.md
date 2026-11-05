@@ -37,7 +37,7 @@ One alias per account per agent; every entry also has a `-yolo` twin.
 | `codex-kimi`, `codex-zai`, `codex-minimax`, `codex-mimo` | Kimi / Z.AI / MiniMax / MiMo, alexey@chainargos.com | `~/.codex-kimi`, `~/.codex-zai`, `~/.codex-minimax`, `~/.codex-mimo` |
 | `omp-kimi`, `omp-minimax`, `omp-mimo` | Kimi / MiniMax / MiMo, alexey@chainargos.com | `omp --profile <name>` (created on first use) |
 | `omp-zai` | Z.AI, alexey@chainargos.com | `omp --profile zai` (created on first use; pick the model in-session with `/model` or `Ctrl+P`) |
-| `omp-anthropic-api-patrick`, `omp-anthropic-api-alexey`, `omp-anthropic-api-alexey2` | Anthropic API, patrick / alexey / alexey2 | `omp --profile anthropic-api-<account>`; key resolved at runtime via `op read` from `$OMP_ANTHROPIC_API_<ACCOUNT>_REF` (no `op://` refs committed) |
+| `omp-anthropic-api-patrick`, `omp-anthropic-api-alexey`, `omp-anthropic-api-alexey2` | Anthropic API, patrick / alexey / alexey2 | `omp --profile anthropic-api-<account>`; key resolved at runtime via `op read` from each account's 1Password item reference |
 | `kimi-chainargos` | Kimi, alexey@chainargos.com | Bare `kimi` |
 | `grok-chainargos` | Grok, alexey@chainargos.com | Bare `grok` |
 | `opencode-chainargos` | OpenCode Go, alexey@chainargos.com | Bare `opencode` |
