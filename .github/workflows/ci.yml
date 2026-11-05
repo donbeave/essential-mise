@@ -1083,7 +1083,7 @@ jobs:
           MISE_RUSTUP_HOME: ${{ runner.temp }}/velnor/rustup
           NEXTEST_TEST_THREADS: "4"
           RUSTUP_HOME: ${{ runner.temp }}/velnor/rustup
-        run: "sh -c 'unset ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_RUNTIME_TOKEN GITHUB_TOKEN MISE_GITHUB_TOKEN GH_TOKEN GH_HOST GH_CONFIG_DIR; mise --no-config --no-env --no-hooks exec rust@'\"${VELNOR_TOOL_RUST}\"' aqua:nextest-rs/nextest/cargo-nextest@0.9.151 -- mbx nextest run --workspace --no-tests fail --profile functional'"
+        run: "sh -c 'unset ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_RUNTIME_TOKEN GITHUB_TOKEN MISE_GITHUB_TOKEN GH_TOKEN GH_HOST GH_CONFIG_DIR; mise --no-config --no-env --no-hooks exec rust@'\"${VELNOR_TOOL_RUST}\"' aqua:nextest-rs/nextest/cargo-nextest@0.9.151 -- mbx nextest run --manifest-path apps/essential-mise-console/Cargo.toml --workspace --no-tests fail --profile functional'"
       - name: Record state producer success
         run: "sh -c 'unset ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_RUNTIME_TOKEN GITHUB_TOKEN MISE_GITHUB_TOKEN GH_TOKEN GH_HOST GH_CONFIG_DIR; set -eu; case \"$RUNNER_TEMP\" in /*) ;; *) printf '\\''%s\\n'\\'' '\\''RUNNER_TEMP must be absolute'\\'' >&2; exit 1 ;; esac; mkdir -p \"$RUNNER_TEMP/velnor\"; : > \"$RUNNER_TEMP/velnor/state-producer-ok\"'"
       - name: Upload suite artifact (functional-terminal-evidence)

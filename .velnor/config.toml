@@ -31,6 +31,7 @@ id = "functional"
 profile = "functional"
 run_ignored = "default"
 partitions = 1
+manifest_path = "apps/essential-mise-console/Cargo.toml"
 build = "inline"
 timeout_minutes = 15
 test_threads = 4
