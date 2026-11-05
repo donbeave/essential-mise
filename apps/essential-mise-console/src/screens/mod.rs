@@ -10,5 +10,7 @@ pub mod chrome;
 pub mod filter;
 /// S1 Modules: multi-select with search and badges.
 pub mod modules;
+/// S2 Packages: per-package checklist grouped by declaring module.
+pub mod packages;
 /// Exact rerun-command formatting (S3+S4).
 pub mod rerun_fmt;
