@@ -8,5 +8,7 @@
 pub mod chrome;
 /// Live-substring filter with hidden-rows-keep-state (S1+S2).
 pub mod filter;
+/// S1 Modules: multi-select with search and badges.
+pub mod modules;
 /// Exact rerun-command formatting (S3+S4).
 pub mod rerun_fmt;

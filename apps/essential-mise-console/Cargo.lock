@@ -443,6 +443,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "junie-tui",
+ "ratatui",
  "serde",
  "serde_json",
  "toml",
