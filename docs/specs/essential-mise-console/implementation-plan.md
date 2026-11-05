@@ -21,6 +21,10 @@ and hand off — never work around it.
   approach more than once. If blocked on a decision, credential, or the VM, stop.
 - R5. Keep diffs minimal. One task = one commit (`git commit -s`, committer must be
   `Alexey Zhokhov <alexey@zhokhov.com>`). Push only when the task says so.
+- R6. Cargo cwd rule (the repo root is NOT a workspace): run every bare
+  `cargo <cmd>` with cwd `apps/essential-mise-console/`. From the repo root,
+  always add `--manifest-path apps/essential-mise-console/Cargo.toml`, and for
+  `cargo run` use `--manifest-path …` (never `-p`, which requires a workspace).
 
 ## 1. Locked inputs (do not re-decide)
 
@@ -97,7 +101,10 @@ Create exactly: `apps/essential-mise-console/Cargo.toml` (package
 `src/main.rs` (`fn main(){println!("essential-mise-console: UI lands in T4")}`),
 `src/lib.rs` (empty), `src/backend.rs` + `src/world.rs` (empty modules with
 `// T2`), `src/screens/mod.rs` (empty, `// T4, gated on G1`).
-Deps now: `clap 4.6 derive`, `serde/serde_json`. NO `junie-tui`, NO `ratatui` yet.
+Deps now — exact lines (versions verified 2026-11-06; re-check before use):
+`clap = { version = "4.6", features = ["derive"] }`,
+`serde = { version = "1", features = ["derive"] }`, `serde_json = "1"`.
+NO `junie-tui`, NO `ratatui` yet.
 Done when: `cargo build --manifest-path apps/essential-mise-console/Cargo.toml`
 succeeds and `cargo --version` shows 1.99.1.
 
@@ -108,9 +115,34 @@ Install nextest executor-locally only if missing:
 (zero tests = pass). No shared-config changes. Done when: all three green, pasted.
 
 ### T1.3 — CI workflow (repo has no `.github/`; hand-written, deviation recorded)
-Create `.github/workflows/console.yml`: runs on `macos-14`, steps checkout →
-rustup 1.99.1 → `cargo fmt --check`, `cargo clippy -- -D warnings`,
-`cargo nextest run` in `apps/essential-mise-console`. (Prior spec's velnor rule
+Create `.github/workflows/console.yml` with EXACTLY this content (only the
+toolchain version may be bumped to match L2 at write time):
+
+```yaml
+name: console
+on:
+  push:
+    paths: ["apps/essential-mise-console/**", ".github/workflows/console.yml"]
+  pull_request:
+    paths: ["apps/essential-mise-console/**"]
+jobs:
+  gates:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with: { components: clippy, rustfmt }
+      - run: cargo fmt --check
+        working-directory: apps/essential-mise-console
+      - run: cargo clippy -- -D warnings
+        working-directory: apps/essential-mise-console
+      - run: cargo install cargo-nextest --locked
+        working-directory: apps/essential-mise-console
+      - run: cargo nextest run
+        working-directory: apps/essential-mise-console
+```
+
+(Prior spec's velnor rule
 applies to the baseline repo, which has `.velnor/`; this repo has none, so a
 minimal hand-written workflow is correct here.)
 Done when: file created; live CI result arrives after push in T5.3.
@@ -129,7 +161,9 @@ requested envs only. Tolerant serde (`#[serde(default)]`, no `deny_unknown_field
 Done when: `cargo build` + `cargo clippy` clean.
 
 ### T2.2 — schema fixtures + unit tests
-Save real outputs (redact nothing; they are local state, no secrets):
+Save real outputs (redact nothing; they are local state, no secrets). The
+fixtures dir does not exist yet — create it first or the redirects fail:
+`mkdir -p apps/essential-mise-console/tests/fixtures`, then
 `mise -C "$REPO" bootstrap plan --json > apps/essential-mise-console/tests/fixtures/plan.json`
 `mise -C "$REPO" bootstrap status --json > …/status.json`.
 Tests assert: entry keys exactly `{action,current,desired,id}`; no origin field;
@@ -195,14 +229,17 @@ or `PropsList` (NOT `table.rs:168` `DataTable` — wrong tone, verified);
 follow-ups read-only; `R` re-check, `B` back to S2, Done exits 0 only if all ok.
 
 ### T4.6 — tuiscotti baselines
-`tests/functional/main.rs` mirroring `/tmp/tcb` `tests/functional/` shape;
-one baseline per screen (S1–S4) with MockBackend; pins per L4.
+Create `tests/functional/main.rs` (+ `support.rs` PTY helper + `baselines/` dir),
+mirroring the reference shape in `/tmp/tcb` (`tests/functional/main.rs`,
+`tests/functional/support.rs` with `tui_test::{Session,…}`, baselines under
+`tests/functional/baselines/` — re-list that dir at write time, do not assume
+its contents); one baseline per screen (S1–S4) with MockBackend; pins per L4.
 Done when: `cargo nextest run` green and baselines committed.
 
 ## 8. Integration + handoff
 
 ### T5.1 — end-to-end dry run (host-safe)
-`cargo run -p essential-mise-console -- -E terminal plan --json` and
+`cargo run --manifest-path apps/essential-mise-console/Cargo.toml -- -E terminal plan --json` and
 `apply --dry-run` against the live repo config; assert exit codes and that no
 child mutated anything (`status --json` before/after identical — paste both
 hashes: `… | shasum`).
