@@ -157,20 +157,26 @@ function claude-mimo {
 function claude-mimo-yolo {
   CLAUDE_CONFIG_DIR="$HOME/.claude-mimo" _claude-yolo "$HOME/.claude-mimo" "$@"
 }
-alias codex-openai='CODEX_HOME="$HOME/.codex" codex'
-alias codex-openai-yolo='CODEX_HOME="$HOME/.codex" codex --yolo'
-alias codex-openai2='CODEX_HOME="$HOME/.codex-openai2" codex'
-alias codex-openai2-yolo='CODEX_HOME="$HOME/.codex-openai2" codex --yolo'
-alias codex-openai-zhokhov='CODEX_HOME="$HOME/.codex-openai-zhokhov" codex'
-alias codex-openai-zhokhov-yolo='CODEX_HOME="$HOME/.codex-openai-zhokhov" codex --yolo'
-alias codex-kimi='CODEX_HOME="$HOME/.codex-kimi" codex'
-alias codex-kimi-yolo='CODEX_HOME="$HOME/.codex-kimi" codex --yolo'
-alias codex-zai='CODEX_HOME="$HOME/.codex-zai" codex'
-alias codex-zai-yolo='CODEX_HOME="$HOME/.codex-zai" codex --yolo'
-alias codex-minimax='CODEX_HOME="$HOME/.codex-minimax" codex'
-alias codex-minimax-yolo='CODEX_HOME="$HOME/.codex-minimax" codex --yolo'
-alias codex-mimo='CODEX_HOME="$HOME/.codex-mimo" codex'
-alias codex-mimo-yolo='CODEX_HOME="$HOME/.codex-mimo" codex --yolo'
+function _codex-account {
+  local codex_home="$1"
+  shift
+  [[ -d "$codex_home" ]] || /bin/mkdir -p "$codex_home" || return
+  CODEX_HOME="$codex_home" codex "$@"
+}
+alias codex-openai='_codex-account "$HOME/.codex"'
+alias codex-openai-yolo='_codex-account "$HOME/.codex" --yolo'
+alias codex-openai2='_codex-account "$HOME/.codex-openai2"'
+alias codex-openai2-yolo='_codex-account "$HOME/.codex-openai2" --yolo'
+alias codex-openai-zhokhov='_codex-account "$HOME/.codex-openai-zhokhov"'
+alias codex-openai-zhokhov-yolo='_codex-account "$HOME/.codex-openai-zhokhov" --yolo'
+alias codex-kimi='_codex-account "$HOME/.codex-kimi"'
+alias codex-kimi-yolo='_codex-account "$HOME/.codex-kimi" --yolo'
+alias codex-zai='_codex-account "$HOME/.codex-zai"'
+alias codex-zai-yolo='_codex-account "$HOME/.codex-zai" --yolo'
+alias codex-minimax='_codex-account "$HOME/.codex-minimax"'
+alias codex-minimax-yolo='_codex-account "$HOME/.codex-minimax" --yolo'
+alias codex-mimo='_codex-account "$HOME/.codex-mimo"'
+alias codex-mimo-yolo='_codex-account "$HOME/.codex-mimo" --yolo'
 alias omp-kimi='omp --profile kimi'
 alias omp-kimi-yolo='omp --profile kimi --approval-mode=yolo'
 alias omp-zai='omp --profile zai'
