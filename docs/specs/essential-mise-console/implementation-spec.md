@@ -323,5 +323,8 @@ driven to merge — no orphans.
   TUI progress — calling the same official installers as subprocesses. The old
   "no stages 0–5 replacement" non-goal is lifted for orchestration only; install
   logic still stays stock (Apple/Homebrew/mise official installers).
+  The fetcher itself narrates: staged `==>` output (platform → download →
+  handoff), curl progress, checksum verdict, cached-binary reuse — exact
+  contract in the plan (T1.4). No silent minutes before the Rust UI appears.
 - P0 bash deselect — SUPERSEDED 2026-11-06 (no bash selection investment; step-6
   numbers stay until the first release; effort moves to the binary + release pipeline).

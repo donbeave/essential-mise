@@ -280,6 +280,31 @@ Done when: generated CI committed; live result arrives after push in T5.2
    `fail` (fail-closed; never fall through to partial state).
 Forbidden: building releases per-commit (tag-gated only), `latest`-URL
 consumption (pinned version always), touching step-6 selection semantics.
+Fetcher UX contract (bash, reusing today's `say`/`fail` helpers; stdout for
+progress, stderr for errors). Exact lines, `v0.1.0`/`e3b0…` illustrative:
+
+```
+essential-mise bootstrap (console v0.1.0)
+==> [1/3] Checking platform (Apple Silicon, macOS 27.2+)... ok
+==> [2/3] Downloading console v0.1.0 ...
+<curl progress bar here>
+    checksum ok (sha256:e3b0c44…)
+==> [3/3] Starting console v0.1.0 ...
+```
+
+Cached rerun (binary already in `${XDG_CACHE_HOME:-$HOME/.cache}/essential-mise/`,
+hash re-verified every time):
+
+```
+==> [2/3] Using cached console v0.1.0 ... checksum ok
+```
+
+Failures (all `fail`, exit 1, nothing executed afterwards):
+`ERROR: This setup runs only on Apple Silicon macOS 27.2+.`,
+`ERROR: Failed to download <url>.`,
+`ERROR: Checksum mismatch for <file> (expected <h>, got <h>). Refusing to run.`
+Stage 3 prints its line, then `exec`s (shell process replaced — all further
+output comes from Rust).
 Done when: release published; bootstrap block merged; evidence = artifact URL,
 sha256, and a fresh-VM install log (T5.3).
 
