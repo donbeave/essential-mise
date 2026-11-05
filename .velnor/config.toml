@@ -1,0 +1,45 @@
+schema = 1
+
+[workflow]
+policy = "consumer-v1"
+
+default_branch = "main"
+
+runner_label = "ubuntu-26.04"
+crate_timeout_minutes = 15
+
+plan_timeout_minutes = 15
+
+[stacks.rust]
+
+compile_driver = "mbx"
+
+test_runner = "cargo_nextest"
+
+run_ignored = "default"
+
+[discovery]
+
+exclude = ["docs/**"]
+
+[agents]
+
+claude_md = "symlink"
+
+[[stacks.rust.suites]]
+id = "functional"
+profile = "functional"
+run_ignored = "default"
+partitions = 1
+build = "inline"
+timeout_minutes = 15
+test_threads = 4
+required = true
+triggers = ["pull_request", "push", "workflow_dispatch"]
+artifacts = [{ name = "functional-terminal-evidence", paths = ["target/functional", "target/nextest/functional"], when = "failure", retention_days = 14 }]
+
+[[stacks.rust.configurations]]
+name = "default"
+features = ["default"]
+all_features = true
+target = "host"
