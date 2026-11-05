@@ -17,7 +17,7 @@ env = ["foundation", "terminal", "github", "security"]
 | `foundation` | `mas` CLI; `~/.local/bin` in `~/.zshenv`; native zsh activation | Installs the default App Store CLI; no optional configuration |
 | `terminal` | Stable Ghostty, JetBrainsMono Nerd Font, Starship, bat, watch, just, xh, wget, Bash, Nushell, Fish, git-standup, msedit, buf, gogcli; Oh My Zsh and zsh-autosuggestions | Starship is the only prompt renderer; Oh My Zsh self-update is disabled; Ghostty follows `XDG_CONFIG_HOME` through native variants; Fish activation uses an additive XDG-aware block |
 | `github` | GitHub CLI and Git LFS | Configures Git pulls to use merge commits; other Git tuning uses the manual commands in [Manual actions](manual-actions.md). GitHub CLI settings and the `co` and `prd` aliases use `gh` itself, preserving unrelated keys and honoring `GH_CONFIG_DIR`/custom XDG. A `~/.zshenv` `gh` function makes `gh pr create` open a draft ([Draft pull requests by default](gh-draft.md)). Identity, `git lfs install`, and `gh auth setup-git` are manual |
-| `security` | 1Password, 1Password CLI, and 1Password for Safari (`mas:1569813296`) | App Store sign-in, account unlock, SSH agent, extension enablement, and CLI auth are manual |
+| `security` | 1Password, 1Password CLI, and 1Password for Safari (`mas:1569813296`) | App Store sign-in, account unlock, SSH agent, extension enablement, and CLI auth are manual; `post-dotfiles` renders `dotfiles/security/ssh-chainargos.conf.tpl` through `op inject` into `~/.ssh/config` when 1Password CLI is signed in |
 
 ## Optional development stacks
 

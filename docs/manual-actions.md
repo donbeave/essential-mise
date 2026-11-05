@@ -24,7 +24,7 @@ Native mise installs and configures only declared resources. The following remai
 
   `core.excludesFile` points to the ignore source in the adopted checkout, so it works with default and custom XDG configuration homes. Review this override before changing or removing it. These commands do not set identity, credential helpers, or SSH commands.
 - Sign in to the App Store before applying MAS modules. Purchases/claims and paid apps are not automated. A second apply may be required.
-- Sign in to 1Password, enable its Safari extension and SSH agent, and authorize the CLI. The extension itself is installed with `mas:1569813296`.
+- Sign in to 1Password, enable its Safari extension and SSH agent, and authorize the CLI. The extension itself is installed with `mas:1569813296`. Once `op` is signed in, `MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E security bootstrap --only dotfiles --yes` materializes the 1Password-backed ChainArgos SSH host block in `~/.ssh/config` from `dotfiles/security/ssh-chainargos.conf.tpl` without storing hostnames, usernames, or IP addresses in the repository.
 
 ## Applications and runtimes
 
