@@ -385,21 +385,7 @@ impl Backend for MiseBackend {
             )));
         }
         let raw_note = String::from_utf8_lossy(&out.stdout).into_owned();
-        // Best effort until T2.2 fixtures pin the schema: accept an object
-        // with a `parts` array of `{part,state,drift}`, else empty parts.
-        let parts = serde_json::from_str::<serde_json::Value>(&raw_note)
-            .ok()
-            .and_then(|v| v.get("parts").cloned())
-            .and_then(|p| serde_json::from_value::<Vec<RawStatusPart>>(p).ok())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| StatusPart {
-                part: p.part,
-                state: p.state,
-                drift: p.drift,
-            })
-            .collect();
-        Ok(StatusSnapshot { parts, raw_note })
+        Ok(snapshot_from_raw(&raw_note))
     }
 
     fn spawn_apply(
@@ -490,7 +476,7 @@ impl Backend for MiseBackend {
     }
 }
 
-/// Tolerant status part used until T2.2 fixtures pin the schema.
+/// Tolerant status part used until fixtures pin more of the schema.
 #[derive(Debug, Default, serde::Deserialize)]
 struct RawStatusPart {
     #[serde(default)]
@@ -499,6 +485,29 @@ struct RawStatusPart {
     state: String,
     #[serde(default)]
     drift: Vec<String>,
+}
+
+/// Build a [`StatusSnapshot`] from raw `status --json` text.
+///
+/// Best effort until fixtures pin more of the schema: accept an object with
+/// a `parts` array of `{part,state,drift}`, else empty parts. Never panics.
+pub(crate) fn snapshot_from_raw(raw: &str) -> StatusSnapshot {
+    let parts = serde_json::from_str::<serde_json::Value>(raw)
+        .ok()
+        .and_then(|v| v.get("parts").cloned())
+        .and_then(|p| serde_json::from_value::<Vec<RawStatusPart>>(p).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| StatusPart {
+            part: p.part,
+            state: p.state,
+            drift: p.drift,
+        })
+        .collect();
+    StatusSnapshot {
+        parts,
+        raw_note: raw.to_string(),
+    }
 }
 
 /// Number of log tail lines kept for the failure modal.

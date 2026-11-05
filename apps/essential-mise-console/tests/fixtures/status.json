@@ -1,0 +1,89 @@
+{
+  "secrets": [],
+  "packages": {
+    "brew-cask": {
+      "available": true,
+      "packages": [
+        {
+          "package": "jetbrains-toolbox",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "3.9.1,3.9.1.89198",
+          "auto_updates": true,
+          "managed_by": "mise"
+        }
+      ]
+    }
+  },
+  "accounts": [],
+  "files": [],
+  "services": [],
+  "user_services": [],
+  "firewall": [],
+  "compose": [],
+  "repos": [],
+  "dotfiles": {
+    "files": [],
+    "edits": []
+  },
+  "mise_shell_activate": [],
+  "macos_login_items": {
+    "entries": []
+  },
+  "macos_defaults": {
+    "entries": []
+  },
+  "launchd": {
+    "agents": []
+  },
+  "systemd": {
+    "units": []
+  },
+  "login_shell": null,
+  "tools": [
+    {
+      "tool": "rust",
+      "requested_version": "latest",
+      "resolved_version": "1.99.1",
+      "state": "installed",
+      "installed": true
+    },
+    {
+      "tool": "mr-boxington",
+      "requested_version": "latest",
+      "resolved_version": "1.29.2",
+      "state": "installed",
+      "installed": true
+    },
+    {
+      "tool": "aqua:nextest-rs/nextest/cargo-nextest",
+      "requested_version": "latest",
+      "resolved_version": "0.9.151",
+      "state": "installed",
+      "installed": true
+    },
+    {
+      "tool": "aqua:taiki-e/cargo-llvm-cov",
+      "requested_version": "latest",
+      "resolved_version": "0.9.1",
+      "state": "installed",
+      "installed": true
+    },
+    {
+      "tool": "aqua:EmbarkStudios/cargo-deny",
+      "requested_version": "latest",
+      "resolved_version": "0.20.2",
+      "state": "installed",
+      "installed": true
+    },
+    {
+      "tool": "github:Canop/bacon",
+      "requested_version": "latest",
+      "resolved_version": "3.26.0",
+      "state": "installed",
+      "installed": true
+    }
+  ],
+  "plugin_deps": []
+}

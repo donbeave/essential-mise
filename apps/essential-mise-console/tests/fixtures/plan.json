@@ -1,0 +1,20 @@
+{
+  "resources": [
+    {
+      "id": {
+        "kind": "package",
+        "name": "brew-cask:jetbrains-toolbox"
+      },
+      "current": "installed (3.9.1,3.9.1.89198)",
+      "desired": "installed (any version)",
+      "action": "noop"
+    }
+  ],
+  "summary": {
+    "create": 0,
+    "update": 0,
+    "remove": 0,
+    "unchanged": 1,
+    "unknown": 0
+  }
+}
