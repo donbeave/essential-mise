@@ -75,7 +75,7 @@ setup. You are done when §9's checklist is fully checked with pasted evidence.
 
 Task dependency map (nothing starts before its needs are evidenced done):
 G1 → T4.1–T4.6. T1.0 → every P1 task (no toolchain evidence, no code). T1.1 → T1.2, T2.1, T1.4. T1.2 → T1.3. T1.3 → T1.4 (release needs CI). T2.1 → T2.2, T2.3, T3.1. T2.2 + T2.3 → T3.2,
-T4.6. T3.1 → T3.2, T5.1. T1.0 → T3.3 (read-only). T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3.
+T4.6. T3.1 → T3.2, T3.4, T5.1. T1.0 → T3.3 (read-only). T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3.
 T0.1 → T0.2 → T0.3 (independent of all P1 tasks).
 
 1. `git -C /tmp/tcb fetch origin && git -C /tmp/tcb ls-remote --heads origin`
@@ -271,11 +271,12 @@ Done when: generated CI committed; live result arrives after push in T5.2
    supported target; x86_64/Linux entries are forbidden until a VM exists to
    test them); regenerate; commit.
 2. Cut the first release ONLY after T5.1 is green. Record artifact URL + sha256.
-3. THEN, and only then, add the minimal `bootstrap.sh` step-6 block: download
+3. THEN, and only then, shrink `bootstrap.sh` to the fetcher: arch guard, download
    the pinned artifact to a mktemp path (reuse `run_official_installer` hygiene:
    curl -fsSL, non-empty check), verify sha256 against the pinned hash
    (hardcoded beside the version pin — two constants, updated together),
-   `exec` the binary with the selected envs. Any download/verify failure =
+   `exec` the binary (which runs `setup`, then select/apply/verify).
+   Everything else in `bootstrap.sh` is deleted. Any download/verify failure =
    `fail` (fail-closed; never fall through to partial state).
 Forbidden: building releases per-commit (tag-gated only), `latest`-URL
 consumption (pinned version always), touching step-6 selection semantics.
@@ -348,6 +349,19 @@ supports one. Deliver a 10-line verdict in the task evidence: can the console's
 persistence story shell out to `--save-env` (stock engine, no TOML writer of our
 own), or does Q4 still need a P2 editor? Do NOT change the P1 read-only-hint
 scope on a hunch — evidence first.
+
+### T3.4 — `setup` subcommand (stages 1–5 orchestration in Rust)
+Needs T2.1 (Backend spawning patterns), no G1. Implement `setup` per
+`implementation-spec.md` §2: platform/arch guards, CLT trigger + `/dev/tty`
+wait, official Homebrew + mise installers as subprocesses (same URLs/flags as
+today's `bootstrap.sh:50-87` — re-read at write time), adoption + foundation
+via stock `mise bootstrap`, then continue into the module flow in-process.
+All installer I/O streams to the S3-style log pane (reuse the worker pattern).
+Fail-closed at every stage with the stage number in the error (mirror today's
+`fail` messages). Host execution forbidden: develop against fixtures; first
+real run is the T5.3 VM.
+Done when: `setup --dry-run` prints the staged plan with zero subprocesses
+spawned (assert via mock call log); `cargo nextest run` green.
 
 ## 7. Screens (G1 REQUIRED — do not start before gate evidence)
 

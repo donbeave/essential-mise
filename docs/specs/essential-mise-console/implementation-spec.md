@@ -41,7 +41,8 @@ via an `ApplyHandle` owning the child; queue bound sits at the sender;
 
 Goal: replace `bootstrap.sh` steps 6/7 free-text selection with a clap CLI plus a
 Ratatui TUI (modules → packages → apply → result) over stock `mise bootstrap`.
-Non-goals (locked): no reimplemented install logic; TOML stays source of truth;
+Non-goals (locked): no reimplemented install logic (official Apple/Homebrew/mise
+installers are called as subprocesses, including from `emc setup`); TOML stays source of truth;
 one-shot installs stay unrecorded (no `packages use` in P1); no stages 0–5
 replacement; no `junie-tui` contributions in P1; no `unapply`/prune/persistent-env
 editor/sysprefs-review screens in P1 (P2).
@@ -68,6 +69,9 @@ emc [--mise PATH] [--config-dir DIR] [-E/--env …] [-y/--yes] [-v…|-q] <CMD>
   status [-E …] [-J/--json] [--missing]
   verify [-E …] [--json]                   # status --json + plan per env;
                                            # `foundation doctor` as hint only
+  setup                                    # stages 1-5 orchestration (CLT, brew,
+                                           # mise, adoption, foundation) calling
+                                           # official installers; fetcher execs this
   tui [modules|packages|apply|result] [-E …]
 ```
 
@@ -313,8 +317,11 @@ driven to merge — no orphans.
 - Q4 `miserc.local.toml` editing — RECOMMENDED read-only hint P1 (§5 row 8), editor P2.
 - Q5 distribution — RESOLVED 2026-11-06: prebuilt release binaries via the velnor
   release flow (versioned per-target artifacts + sha256 manifest, the
-  `release-manifest.json` pattern). `bootstrap.sh` stays minimal bash: stages 1–5,
-  then downloads the pinned `essential-mise-console` binary for
-  `aarch64-apple-darwin`, verifies sha256, and execs into it for select/apply/verify.
+  `release-manifest.json` pattern). `bootstrap.sh` shrinks to a ~15-line fetcher
+  (arch guard, download pinned binary, verify sha256, exec). The binary owns
+  everything after that — including stages 1–5 orchestration (`emc setup`) with
+  TUI progress — calling the same official installers as subprocesses. The old
+  "no stages 0–5 replacement" non-goal is lifted for orchestration only; install
+  logic still stays stock (Apple/Homebrew/mise official installers).
 - P0 bash deselect — SUPERSEDED 2026-11-06 (no bash selection investment; step-6
   numbers stay until the first release; effort moves to the binary + release pipeline).
