@@ -4,6 +4,18 @@ For a literal-minded executor. Follow tasks in order; do not skip verification
 steps; do not invent flags, APIs, or paths. Anything marked OPERATOR means stop
 and hand off — never work around it.
 
+## Goal (what you are building and why)
+
+Build a clap CLI plus a Ratatui TUI (`essential-mise-console`) that replaces
+`bootstrap.sh` steps 6/7 free-text category selection with: module multi-select
+with search and installed/drift badges → per-package checklist grouped by
+declaring module → live two-phase apply with progress, cancel, and a copyable
+rerun command → verify screen re-running `status --json`/`plan --json` per
+selected env. The engine stays stock `mise bootstrap`; TOML stays the source of
+truth; one-shot installs stay unrecorded. Phase P0 (bash deselect) ships first
+and works on fresh Macs; the Rust console (P1) targets operators with a working
+setup. You are done when §9's checklist is fully checked with pasted evidence.
+
 ## 0. Executor rules (read first, obey always)
 
 - R0. Workdir is the repo root. Resolve it once: `REPO=$(git rev-parse --show-toplevel)`.
@@ -52,6 +64,11 @@ and hand off — never work around it.
 
 ## 2. Gate G1 — baseline PR #1 merged (do this before any junie-tui code)
 
+Task dependency map (nothing starts before its needs are evidenced done):
+G1 → T4.1–T4.6. T1.1 → T1.2, T2.1. T2.1 → T2.2, T2.3, T3.1. T2.2 + T2.3 → T3.2,
+T4.6. T3.1 → T3.2, T5.1. T4.1 → T4.2–T4.5. All code tasks → T5.1 → T5.2 → T5.3.
+T0.1 → T0.2 → T0.3 (independent of all P1 tasks).
+
 1. `git -C /tmp/tcb fetch origin && git -C /tmp/tcb ls-remote --heads origin`
 2. If `feature/openshell-native` still exists and `main` lacks its merge: STOP.
    Do P0 + T1.1–T1.3 + T2.x (no UI deps) and wait.
@@ -79,12 +96,29 @@ Forbidden: changing validation semantics, touching stages 1-5/7, `packages use`.
 Done when: `bash -n bootstrap.sh` passes AND the new block works in the harness (T0.2).
 
 ### T0.2 — harness-test the new block (no host mutation)
-1. Copy the new block into `/tmp/p0-harness.sh` with stub `mise()` and `sudo()`
-   functions that echo their argv to a log file; feed it scripted selections
-   (normal, deselect-some, deselect-all, invalid input).
-2. Assert: normal → both phases with right argv; deselect-some → phase 2 lists
-   only kept; deselect-all → phase 2 absent; invalid → exit 1.
-3. Paste the harness log. Delete `/tmp/p0-harness.sh` after.
+Write `/tmp/p0-harness.sh` with EXACTLY this scaffold, then paste the T0.1 block
+in place of the `# <<< PASTE T0.1 BLOCK HERE >>>` marker (only the package-list,
+package-read, and phase-split lines — not the sudo keepalive, which the stubs
+cover):
+
+```bash
+#!/bin/bash
+LOG=/tmp/p0-harness.log; : >"$LOG"
+mise() { printf 'mise %s\n' "$*" >>"$LOG"; }
+sudo() { printf 'sudo %s\n' "$*" >>"$LOG"; }
+fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+selected_environments="$SELECTED"
+# <<< PASTE T0.1 BLOCK HERE >>>
+```
+
+Run four cases, resetting the log each time:
+`SELECTED="terminal" ./p0-harness.sh <<<"1,2"` (normal),
+`SELECTED="terminal" ./p0-harness.sh <<<"1"` after marking package 2 unticked
+(deselect-some — adapt numbers to the fixture envs), `… <<<""` (deselect-all),
+`… <<<"abc"` (invalid).
+Assert: normal → both phases with right argv; deselect-some → phase 2 lists
+only kept; deselect-all → no `packages apply` line at all; invalid → exit 1.
+Paste the harness log. Delete `/tmp/p0-harness.sh` and the log after.
 
 ### T0.3 — repo gates + commit
 1. `bash -n bootstrap.sh`; `python3 tests/test_plugin_lifecycle.py` (if it fails
@@ -130,8 +164,10 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.99.1
-        with: { components: clippy, rustfmt }
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          components: clippy, rustfmt
       - run: cargo fmt --check
         working-directory: apps/essential-mise-console
       - run: cargo clippy -- -D warnings
