@@ -4,6 +4,8 @@
 //! [`rerun_fmt`] (S3+S4), [`chrome`] (all screens). Per-screen modules land
 //! in T4.2–T4.5 and must reuse these — no per-screen copies.
 
+/// S3 Apply: live two-phase apply with progress, cancel, and rerun.
+pub mod apply;
 /// PageHeader/StatusBar/HintBar wiring (all screens).
 pub mod chrome;
 /// Live-substring filter with hidden-rows-keep-state (S1+S2).

@@ -842,6 +842,11 @@ pub struct ApplyHandle {
 }
 
 impl ApplyHandle {
+    /// True when the worker thread finished (join will not block).
+    pub fn is_finished(&self) -> bool {
+        self.worker.as_ref().is_some_and(|w| w.is_finished())
+    }
+
     /// Cancel the apply: kill the running child; the worker cleans up.
     pub fn cancel(&mut self) -> ApplyOutcome {
         self.cancel_flag.store(true, Ordering::Relaxed);
