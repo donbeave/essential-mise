@@ -67,7 +67,7 @@ impl MockBackend {
             origins: HashMap::new(),
             fail: None,
             calls: Arc::new(Mutex::new(Vec::new())),
-            argv: MiseBackend::new("/tmp/emc-mock-config", Vec::new()),
+            argv: MiseBackend::new("/tmp/emc-mock-config"),
         }
     }
 

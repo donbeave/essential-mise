@@ -208,7 +208,7 @@ impl From<std::io::Error> for BackendError {
     }
 }
 
-/// Stock-`mise bootstrap` backend over a config dir and requested envs.
+/// Stock-`mise bootstrap` backend over a config dir.
 pub trait Backend: Send + Sync + 'static {
     /// Run `bootstrap plan --json` for the requested envs.
     fn plan(&self, envs: &[String], jobs: Option<u64>) -> Result<Vec<PlanEntry>, BackendError>;
@@ -220,8 +220,8 @@ pub trait Backend: Send + Sync + 'static {
         req: &ApplyRequest,
         tx: ExternalSender,
     ) -> Result<ApplyHandle, BackendError>;
-    /// Map each `manager:package` key in the requested envs'
-    /// `config.<env>.toml` `[bootstrap.packages]` tables to declaring envs.
+    /// Map each `manager:package` key in every `config.<env>.toml`
+    /// `[bootstrap.packages]` table to its declaring envs.
     fn origin_map(&self, config_dir: &Path) -> Result<HashMap<ResId, Vec<String>>, BackendError>;
     /// Phase 1 argv fragment (shared with rerun formatting).
     fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String>;
@@ -238,18 +238,15 @@ pub trait Backend: Send + Sync + 'static {
 pub struct MiseBackend {
     /// Config dir passed as `-C` and `MISE_CEILING_PATHS`.
     config_dir: PathBuf,
-    /// Requested envs (used by [`Backend::origin_map`]).
-    envs: Vec<String>,
     /// Mise binary; defaults to `mise` on `PATH`.
     mise_bin: PathBuf,
 }
 
 impl MiseBackend {
-    /// Build a backend for `config_dir` with the requested `envs`.
-    pub fn new(config_dir: impl Into<PathBuf>, envs: Vec<String>) -> Self {
+    /// Build a backend for `config_dir`.
+    pub fn new(config_dir: impl Into<PathBuf>) -> Self {
         Self {
             config_dir: config_dir.into(),
-            envs,
             mise_bin: PathBuf::from("mise"),
         }
     }
@@ -448,12 +445,33 @@ impl Backend for MiseBackend {
     }
 
     fn origin_map(&self, config_dir: &Path) -> Result<HashMap<ResId, Vec<String>>, BackendError> {
+        let mut paths = std::fs::read_dir(config_dir)
+            .map_err(BackendError::Spawn)?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(BackendError::Spawn)?
+            .into_iter()
+            .filter(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| {
+                        name.strip_prefix("config.")
+                            .and_then(|name| name.strip_suffix(".toml"))
+                            .is_some_and(|env| !env.is_empty())
+                    })
+            })
+            .collect::<Vec<_>>();
+        paths.sort();
+
         let mut map: HashMap<ResId, Vec<String>> = HashMap::new();
-        for env in &self.envs {
-            let path = config_dir.join(format!("config.{env}.toml"));
-            if !path.exists() {
-                continue;
-            }
+        for path in paths {
+            let env = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(|name| name.strip_prefix("config."))
+                .and_then(|name| name.strip_suffix(".toml"))
+                .expect("filtered module config filename")
+                .to_string();
             let text = std::fs::read_to_string(&path).map_err(BackendError::Spawn)?;
             let doc: EnvDoc = toml::from_str(&text)
                 .map_err(|e| BackendError::Parse(format!("{}: {e}", path.display())))?;
@@ -463,7 +481,7 @@ impl Backend for MiseBackend {
                     None => ("unknown".to_string(), key.clone()),
                 };
                 let envs = map.entry(ResId { kind, name }).or_default();
-                if !envs.contains(env) {
+                if !envs.contains(&env) {
                     envs.push(env.clone());
                 }
             }

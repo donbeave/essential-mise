@@ -38,7 +38,7 @@ fn origin_map_reads_declaring_module() {
         "[bootstrap.packages]\n\"brew:shared\" = \"latest\"\n\"npm:only-beta\" = \"1.2.3\"\n",
     );
 
-    let backend = MiseBackend::new(dir.clone(), vec!["alpha".to_string(), "beta".to_string()]);
+    let backend = MiseBackend::new(dir.clone());
     let map = backend.origin_map(&dir).expect("origin_map parses");
 
     let shared = ResId {
@@ -58,6 +58,30 @@ fn origin_map_reads_declaring_module() {
         map.get(&alpha_only),
         Some(&vec!["alpha".to_string()]),
         "single-declare origin lists one env"
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn origin_map_does_not_depend_on_cli_env_selection() {
+    let dir = test_dir("origin-without-cli-envs");
+    write_env(
+        &dir,
+        "terminal",
+        "[bootstrap.packages]\n\"brew:ripgrep\" = \"latest\"\n",
+    );
+
+    let backend = MiseBackend::new(dir.clone());
+    let map = backend.origin_map(&dir).expect("origin_map parses");
+
+    assert_eq!(
+        map.get(&ResId {
+            kind: "brew".to_string(),
+            name: "ripgrep".to_string(),
+        }),
+        Some(&vec!["terminal".to_string()]),
+        "interactive module selection must work without initial CLI environments"
     );
 
     std::fs::remove_dir_all(&dir).ok();
@@ -157,7 +181,7 @@ fn status_fixture_parses_without_panic() {
 #[test]
 fn spawn_apply_dry_run_spawns_nothing() {
     let dir = test_dir("dry-run");
-    let backend = MiseBackend::new(dir.clone(), vec!["terminal".to_string()]);
+    let backend = MiseBackend::new(dir.clone());
     let (tx, rx) = junie_tui::runtime::external_channel();
     let req = ApplyRequest {
         envs: vec!["terminal".to_string()],
@@ -265,7 +289,7 @@ fn host_config_dir() -> PathBuf {
 #[ignore]
 fn tier2_live_plan_readonly_matches_fixture_shape() {
     let dir = host_config_dir();
-    let backend = MiseBackend::new(dir.clone(), vec!["terminal".to_string()]).with_mise_bin("mise");
+    let backend = MiseBackend::new(dir.clone()).with_mise_bin("mise");
     let entries = backend
         .plan(&["terminal".to_string()], None)
         .expect("live plan --json parses");
@@ -280,7 +304,7 @@ fn tier2_live_plan_readonly_matches_fixture_shape() {
 #[ignore]
 fn tier2_live_status_readonly_parses() {
     let dir = host_config_dir();
-    let backend = MiseBackend::new(dir, vec!["terminal".to_string()]).with_mise_bin("mise");
+    let backend = MiseBackend::new(dir).with_mise_bin("mise");
     let snapshot = backend
         .status(&["terminal".to_string()])
         .expect("live status --json parses");

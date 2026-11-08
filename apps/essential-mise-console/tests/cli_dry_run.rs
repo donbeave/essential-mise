@@ -58,8 +58,7 @@ fn apply_dry_run_empty_keep_skips_phase_two() {
     let dir = std::env::temp_dir().join(format!("emc-test-cli-empty-keep-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create temp dir");
     let backend = std::sync::Arc::new(
-        MiseBackend::new(dir.clone(), vec!["terminal".to_string()])
-            .with_mise_bin("/nonexistent/emc-test-mise"),
+        MiseBackend::new(dir.clone()).with_mise_bin("/nonexistent/emc-test-mise"),
     );
     let (code, out) = run_with(
         backend.clone(),
@@ -151,8 +150,7 @@ fn live_backend_dry_run_spawns_nothing() {
     // (or sudo preflight) would fail, but dry-run succeeds.
     let dir = std::env::temp_dir().join(format!("emc-test-cli-dry-run-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create temp dir");
-    let backend = MiseBackend::new(dir.clone(), vec!["terminal".to_string()])
-        .with_mise_bin("/nonexistent/emc-test-mise");
+    let backend = MiseBackend::new(dir.clone()).with_mise_bin("/nonexistent/emc-test-mise");
     let (tx, _rx) = junie_tui::runtime::external_channel();
     let req = ApplyRequest {
         envs: vec!["terminal".to_string()],
