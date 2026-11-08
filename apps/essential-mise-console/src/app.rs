@@ -857,6 +857,35 @@ mod tests {
     }
 
     #[test]
+    fn module_wheel_reveals_later_environments() {
+        let mut app = mock_app_many_groups();
+        let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 22))
+            .expect("test terminal");
+        draw(&mut app, &mut terminal);
+        let master = WidgetId::of("emc.s1.master");
+        let area = app
+            .shell
+            .hits
+            .regions()
+            .iter()
+            .find(|region| region.id == master)
+            .map(|region| region.area)
+            .expect("module master hit region");
+        let pos = ratatui::layout::Position::new(area.x + 2, area.y + 1);
+        for _ in 0..5 {
+            app.handle(Input::Mouse(junie_tui::core::event::Mouse::new(
+                junie_tui::core::event::MouseKind::WheelDown,
+                pos,
+            )));
+            draw(&mut app, &mut terminal);
+        }
+        assert!(
+            buffer_text(&terminal).contains("e5"),
+            "wheel input must reveal the final environment"
+        );
+    }
+
+    #[test]
     fn viewport_scrolling_anchors_during_new_output() {
         let mut app = mock_app();
         app.handle_key(&key(KeyCode::Enter));

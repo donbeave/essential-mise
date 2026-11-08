@@ -250,6 +250,7 @@ impl App {
             self.session
                 .write_bytes(bytes.as_bytes())
                 .expect("wheel through application PTY");
+            std::thread::sleep(Duration::from_millis(10));
         }
     }
 
