@@ -40,3 +40,29 @@ pub fn status_item(text: impl Into<String>, tone: Tone) -> StatusItem {
 pub fn hint_layer(hints: &[(&'static str, &'static str)]) -> HintLayer {
     HintLayer::new(hints.iter().map(|(k, a)| hint(k, a)).collect())
 }
+
+use junie_tui::theme::Theme;
+use junie_tui::ui::ctx::RenderCtx;
+use junie_tui::widgets::hintbar::HintBar;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+
+/// Paint the shared page header.
+pub fn render_header(step: u8, screen: &str, area: Rect, buf: &mut Buffer, theme: &Theme) {
+    page_header(step, screen).render(area, buf, theme);
+}
+
+/// Paint the shared static hint bar.
+pub fn render_hints(
+    hints: &[(&'static str, &'static str)],
+    area: Rect,
+    buf: &mut Buffer,
+    theme: &Theme,
+) {
+    HintBar::render_at(area, buf, theme, &hint_layer(hints));
+}
+
+/// Paint the shared status bar with one muted left item.
+pub fn render_status(left: &str, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
+    status_bar(vec![status_item(left, Tone::Muted)], Vec::new()).render(area, buf, ctx);
+}

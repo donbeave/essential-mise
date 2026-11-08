@@ -1,14 +1,13 @@
-//! Trimmed PTY harness mirroring `/tmp/tcb` (`support.rs`):
-//! `tui_test::{Session, …}` spawn, text waits, stable snapshots, and frozen
-//! Tuiscotti baselines. No animations, no mouse: keyboard-only journeys.
+//! PTY harness for keyboard, paste, checked mouse, resize, cursor, and
+//! clipboard journeys, with stable snapshots and frozen Tuiscotti baselines.
 
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tui_test::{
-    KeyAction, LaunchEnvMode, LaunchOptions, OpenOptions, Operation, OperationResult, RunOptions,
-    Session, SnapshotCell, SnapshotScope, TerminalSnapshot,
+    CheckedMouseAction, KeyAction, LaunchEnvMode, LaunchOptions, MouseOptions, OpenOptions,
+    Operation, OperationResult, RunOptions, Session, SnapshotCell, SnapshotScope, TerminalSnapshot,
 };
 
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -203,6 +202,86 @@ impl App {
                 action: KeyAction::Press,
             })
             .unwrap_or_else(|e| panic!("key {key}: {e}"));
+    }
+
+    pub fn paste(&self, value: &str) {
+        self.log(format!("paste {} UTF-8 bytes", value.len()));
+        self.session
+            .paste(value)
+            .expect("paste using negotiated terminal mode");
+    }
+
+    pub fn point(&self, needle: &str) -> Point {
+        find(&self.wait_text(needle), needle)
+    }
+
+    fn mouse(&self, action: CheckedMouseAction) {
+        self.log(format!("mouse {action:?}"));
+        self.session
+            .mouse_checked(action)
+            .expect("application must negotiate SGR mouse input");
+    }
+
+    pub fn click(&self, point: Point) {
+        self.mouse(CheckedMouseAction::Press {
+            x: point.x,
+            y: point.y,
+            options: MouseOptions::default(),
+        });
+        self.mouse(CheckedMouseAction::Release {
+            x: point.x,
+            y: point.y,
+            options: MouseOptions::default(),
+        });
+    }
+
+    pub fn click_text(&self, needle: &str) {
+        self.click(self.point(needle));
+    }
+
+    pub fn wheel(&self, point: Point, down: bool, amount: usize) {
+        self.mouse(CheckedMouseAction::Motion {
+            x: point.x,
+            y: point.y,
+        });
+        let bytes = tui_test::input::mouse::scroll(point.x, point.y, !down);
+        self.log(format!("wheel {point:?} down={down} amount={amount}"));
+        for _ in 0..amount {
+            self.session
+                .write_bytes(bytes.as_bytes())
+                .expect("wheel through application PTY");
+        }
+    }
+
+    pub fn resize(&self, cols: u16, rows: u16) {
+        self.log(format!("resize {cols}x{rows}"));
+        self.session
+            .execute(Operation::Resize { cols, rows })
+            .expect("resize PTY");
+    }
+
+    pub fn wait_clipboard(&self, needle: &str) -> String {
+        self.log(format!("clipboard contains {needle}"));
+        let result = self
+            .session
+            .execute(Operation::wait_clipboard_match(needle, Some(10_000)))
+            .expect("wait for application clipboard output");
+        let OperationResult::Clipboard(text) = result else {
+            panic!("missing clipboard result: {result:?}")
+        };
+        text
+    }
+
+    pub fn expect_cursor_visible(&self) {
+        self.session
+            .execute(Operation::ExpectCursor {
+                visible: Some(true),
+                shape: None,
+                x: None,
+                y: None,
+                timeout_ms: Some(10_000),
+            })
+            .expect("focused input must install a visible terminal cursor");
     }
 
     /// Send a quit key, then wait for process exit.
