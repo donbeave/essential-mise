@@ -157,6 +157,22 @@ fn s2_marker_click_toggles_the_clicked_row() {
 }
 
 #[test]
+fn s2_wheel_reveals_groups_below_the_viewport() {
+    let app = app("s2-wheel-scroll", &[]);
+    app.wait_text("terminal");
+    app.key("a");
+    app.key("enter");
+    app.wait_text("ripgrep");
+    app.resize(100, 12);
+    let point = app.point("ripgrep");
+    app.wheel(point, true, 5);
+    app.wait_text("pyright");
+    app.key("backspace");
+    app.wait_text("terminal");
+    app.finish_with_key("escape");
+}
+
+#[test]
 fn s3_cancel_dialog_dismisses_and_confirms() {
     let app = app("s3-cancel-dialog", &[]);
     app.wait_text("terminal");
