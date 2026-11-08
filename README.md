@@ -20,7 +20,7 @@ Review the current `bootstrap.sh`, then run:
 /bin/bash -c "$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)"
 ```
 
-This always downloads the latest launcher from `main`, and adoption uses the repository's default `main` branch. Stage 0 prepares Command Line Tools, Homebrew, a compatible mise, the adopted checkout, and the `foundation` environment. It then lists every optional category with a number. Enter numbers separated by spaces or commas to install them, or press Return to skip. Selections are installed once and are not permanently selected. See [First Mac setup](docs/first-mac.md) for prompts, recovery, and the App Store flow.
+This always downloads the latest launcher from `main`, and adoption uses the repository's default `main` branch. The launcher verifies and starts the pinned console release. The console prepares Command Line Tools, Homebrew, a compatible mise, the adopted checkout, and the `foundation` environment, then opens the module-selection TUI. Select environments with Space, press Enter to review their packages, and confirm the apply. Selections are installed once and are not permanently selected. See [First Mac setup](docs/first-mac.md) for prompts, recovery, and the App Store flow.
 
 Set the configuration path in each new shell, then preview and apply the standard workstation:
 

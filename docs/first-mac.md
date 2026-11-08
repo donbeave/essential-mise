@@ -12,20 +12,19 @@ Review the current `bootstrap.sh`, then run:
 /bin/bash -c "$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)"
 ```
 
-This command always downloads the latest launcher from `main`. First adoption also uses the latest configuration from `main`; an existing-checkout rerun skips adoption and does not pull. The workflow has no commit parameter. `bash -c` preserves interactive installer input, and `curl -f` stops on download errors.
+This command always downloads the latest launcher from `main`. First adoption also uses the latest configuration from `main`; an existing-checkout rerun skips adoption and does not pull. The workflow has no commit parameter. `bash -c` preserves interactive installer input, and `curl -f` stops on download errors. The launcher verifies the pinned console archive's SHA-256 before executing it.
 
-Stage 0:
+Stage 0 and the console:
 
-1. Checks the platform, macOS version, and non-root user.
-2. Installs or verifies Apple Command Line Tools and Git. Finish Apple's dialog when prompted.
-3. Installs official Homebrew when absent, initializes its environment, and runs `brew update` to update Homebrew and package metadata. A successful empty `shellenv` result is valid when Homebrew is already initialized. This does not upgrade installed packages.
-4. Runs the official mise installer, then updates mise to the latest stable release, without waiting for the installer's default release-age threshold.
-5. Adopts the public configuration when the target is absent or empty. A nonempty non-Git target is preserved and stops the launcher; move it aside before adopting. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
-6. Applies and upgrades `foundation`, installing the `mas` CLI and configuring shell activation.
-7. Lists all optional categories with numbers. Enter numbers separated by spaces or commas to install or upgrade them, or press Return to skip. Noninteractive runs skip automatically. Before installation, the script requests the macOS administrator password in a clear prompt and keeps sudo authorization active for installers such as Zoom.
-8. Verifies a fresh login/interactive zsh.
+1. Check the platform, macOS version, and non-root user, then download and verify the pinned console release.
+2. Install or verify Apple Command Line Tools and Git. Finish Apple's dialog when prompted.
+3. Install official Homebrew when absent, initialize its environment, and run `brew update` to update Homebrew and package metadata. A successful empty `shellenv` result is valid when Homebrew is already initialized. This does not upgrade installed packages.
+4. Run the official mise installer, then update mise to the latest stable release, without waiting for the installer's default release-age threshold.
+5. Adopt the public configuration when the target is absent or empty. A nonempty non-Git target is preserved and stops the launcher; move it aside before adopting. Existing checkouts must be valid nonbare worktrees at the expected physical root with the expected origin.
+6. Apply and upgrade `foundation`, installing the `mas` CLI and configuring shell activation.
+7. Open the module-selection TUI automatically after a successful setup. Select environments with Space and press Enter to review the package checklist. Confirm the apply to install or upgrade the selected resources and reach the verification result. Administrator and installer prompts still require interaction.
 
-The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths (which cannot be represented safely in `MISE_CEILING_PATHS`), bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and prompts for optional categories again. Selections are installed once without changing the persistent environment selection.
+The default checkout is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths (which cannot be represented safely in `MISE_CEILING_PATHS`), bare repositories, repository subdirectories, and conflicting origins fail closed. Rerunning stage 0 skips adoption and opens the module-selection TUI again. Selections are installed once without changing the persistent environment selection.
 
 Open a fresh Terminal after success. Category selection does not change the persistent environment list; use `miserc.local.toml` for that as shown below.
 

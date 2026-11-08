@@ -228,7 +228,14 @@ pub fn run(backend: std::sync::Arc<dyn Backend>, cli: &Cli, out: &mut dyn std::i
         ),
         Some(Commands::Status { .. }) => unimplemented("status"),
         Some(Commands::Verify { .. }) => unimplemented("verify"),
-        Some(Commands::Setup { dry_run }) => run_setup(&SetupConfig::from_cli(cli), *dry_run, out),
+        Some(Commands::Setup { dry_run }) => {
+            let code = run_setup(&SetupConfig::from_cli(cli), *dry_run, out);
+            if *dry_run || code != EXIT_OK {
+                code
+            } else {
+                run_tui(backend, cli, None, out)
+            }
+        }
         Some(Commands::Tui { screen }) => run_tui(backend, cli, *screen, out),
     }
 }
@@ -634,7 +641,7 @@ pub fn setup_plan(cfg: &SetupConfig) -> Vec<SetupStage> {
 
 /// Run `setup`: dry-run prints the staged plan with zero subprocesses;
 /// otherwise execute stages 1–5 fail-closed with the stage number in every
-/// error, then point at the module flow (the T4 TUI continues in-process).
+/// error. Successful dispatch continues to the module flow in-process.
 pub fn run_setup(cfg: &SetupConfig, dry_run: bool, out: &mut dyn std::io::Write) -> u8 {
     let stages = setup_plan(cfg);
     if dry_run {
@@ -649,10 +656,7 @@ pub fn run_setup(cfg: &SetupConfig, dry_run: bool, out: &mut dyn std::io::Write)
     }
     match execute_setup_plan(cfg, &stages, out) {
         Ok(()) => {
-            let _ = writeln!(
-                out,
-                "setup complete; continue with `essential-mise-console tui` for module selection"
-            );
+            let _ = writeln!(out, "setup complete; starting module selection");
             EXIT_OK
         }
         Err((stage, message)) => {
