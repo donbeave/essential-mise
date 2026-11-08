@@ -56,7 +56,7 @@ fn s1_filter_accepts_typed_query() {
     let app = app("s1-filter-typing", &[]);
     app.wait_text("terminal");
     app.key("/");
-    for key in ["t", "e", "r", "m", "i", "n", "a", "l"] {
+    for key in ["g", "h", "o", "s", "t", "t", "y"] {
         app.key(key);
     }
     app.wait_text("showing 1 of 3");
@@ -125,7 +125,7 @@ fn s1_filter_paste_focus_and_continue_click() {
     app.wait_text("terminal");
     app.key("/");
     app.expect_cursor_visible();
-    app.paste("terminal");
+    app.paste("ghostty");
     app.wait_text("showing 1 of 3");
     app.key("escape");
     app.click_text("Continue");
@@ -212,7 +212,7 @@ fn static_screen_resize_redraws_and_preserves_filtering() {
     assert_eq!(screen.rows(), 24);
     assert!(super::support::row_text(&screen, 23).contains("search keeps selection"));
     app.key("/");
-    app.paste("terminal");
+    app.paste("ghostty");
     app.wait_text("showing 1 of 3");
     app.key("escape");
     app.finish_with_key("escape");
