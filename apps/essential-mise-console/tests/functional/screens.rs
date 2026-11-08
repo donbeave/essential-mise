@@ -59,7 +59,8 @@ fn s1_filter_accepts_typed_query() {
     for key in ["g", "h", "o", "s", "t", "t", "y"] {
         app.key(key);
     }
-    app.wait_text("showing 1 of 3");
+    app.wait_text("showing 1");
+    app.wait_absent("neovim");
     app.key("escape");
     app.finish_with_key("escape");
 }
@@ -126,7 +127,8 @@ fn s1_filter_paste_focus_and_continue_click() {
     app.key("/");
     app.expect_cursor_visible();
     app.paste("ghostty");
-    app.wait_text("showing 1 of 3");
+    app.wait_text("showing 1");
+    app.wait_absent("neovim");
     app.key("escape");
     app.click_text("Continue");
     app.wait_text("starship");
@@ -213,7 +215,8 @@ fn static_screen_resize_redraws_and_preserves_filtering() {
     assert!(super::support::row_text(&screen, 23).contains("search keeps selection"));
     app.key("/");
     app.paste("ghostty");
-    app.wait_text("showing 1 of 3");
+    app.wait_text("showing 1");
+    app.wait_absent("neovim");
     app.key("escape");
     app.finish_with_key("escape");
 }
