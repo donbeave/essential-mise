@@ -1,23 +1,35 @@
 //! S2 Packages: per-package checklist grouped by declaring module.
 //!
-//! State + logic live here; painting lands in T4.6. Rows are data
-//! ([`ListItem`](junie_tui::widgets::list::ListItem) values built per
-//! group section, never `Checkbox`-in-`ListBox`), group headers are section
-//! titles rendered as [`Panel::card`](junie_tui::widgets::panel::Panel)
-//! (non-focusable by construction), and filtering reuses the shared
-//! [`FilterState`](crate::screens::filter::FilterState) — hidden rows keep state.
-//! Checked state crosses to the widget by index at render time
-//! (`ListBox::set_checked`); the source of truth here is the stable
-//! `(manager, name)` keep-set.
+//! The screen owner retains one stable list per declaring group and an outer
+//! `ScrollView`, so filtered and off-screen groups keep their interaction
+//! state. Rows are data, never `Checkbox`-in-`ListBox`; group headers remain
+//! non-focusable `Panel::card` titles. The stable `(manager, name)` keep-set
+//! is authoritative, and hidden rows always keep state.
 //!
 //! A package declared by several selected envs appears once, under its
 //! first declaring env; the detail pane lists every declaring module.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-use junie_tui::theme::Tone;
-use junie_tui::widgets::list::ListItem;
+use junie_tui::core::edit::EditEntry;
+use junie_tui::core::event::{Key, Outcome};
+use junie_tui::core::focus::{BlurAction, Focus, FocusChange, FocusRing};
+use junie_tui::core::id::WidgetId;
+use junie_tui::core::intent::Phase;
+use junie_tui::core::pointer::{MouseTarget, PointerEvent};
+use junie_tui::core::response::Response;
+use junie_tui::theme::{Theme, Tone};
+use junie_tui::ui::ctx::RenderCtx;
+use junie_tui::ui::scroll_view::{Axes, ScrollView};
+use junie_tui::widgets::input::{InputAction, TextInput};
+use junie_tui::widgets::list::{ListBox, ListItem, SelectMode};
+use junie_tui::widgets::panel::Panel;
+use ratatui::buffer::Buffer;
+use ratatui::crossterm::event::KeyCode;
+use ratatui::layout::{Rect, Size};
+use ratatui::style::Color;
 
+use super::chrome::{render_header, render_hints, render_status};
 use super::filter::FilterState;
 use crate::backend::ResId;
 
@@ -249,6 +261,24 @@ impl PackagesState {
         self.keep.contains(&(manager.to_string(), name.to_string()))
     }
 
+    /// Move the flattened visible-row cursor.
+    pub fn set_cursor(&mut self, cursor: usize) {
+        self.cursor = cursor;
+        self.clamp_cursor();
+    }
+
+    /// Set one visible row's stable keep flag.
+    pub fn set_kept(&mut self, row: usize, kept: bool) {
+        if let Some(row) = self.rows.get(row) {
+            let key = (row.manager.clone(), row.name.clone());
+            if kept {
+                self.keep.insert(key);
+            } else {
+                self.keep.remove(&key);
+            }
+        }
+    }
+
     /// Group sections for render: `(group, items)` in first-seen order.
     /// Headers render as `Panel::card` titles, never as rows.
     pub fn group_sections(&self) -> Vec<(String, Vec<ListItem>)> {
@@ -336,6 +366,358 @@ impl PackagesState {
     fn clamp_cursor(&mut self) {
         let len = self.visible_indices().len();
         self.cursor = self.cursor.min(len.saturating_sub(1));
+    }
+}
+
+const S2_FILTER: WidgetId = WidgetId::of("emc.s2.filter");
+const S2_LIST: WidgetId = WidgetId::of("emc.s2.list");
+const S2_GROUPS: WidgetId = WidgetId::of("emc.s2.groups");
+
+fn group_height(rows: usize) -> u16 {
+    (rows as u16).saturating_add(3)
+}
+
+#[derive(Clone)]
+pub(crate) struct PackagesOwner {
+    pub(crate) state: PackagesState,
+    filter: TextInput,
+    lists: BTreeMap<String, ListBox>,
+    scroll: ScrollView,
+}
+
+impl PackagesOwner {
+    pub(crate) fn new(state: PackagesState) -> Self {
+        let filter = TextInput::new(S2_FILTER, "Filter")
+            .value(state.query())
+            .edit_entry(EditEntry::Immediate)
+            .blur_action(BlurAction::Commit);
+        let mut owner = Self {
+            state,
+            filter,
+            lists: BTreeMap::new(),
+            scroll: ScrollView::new(S2_GROUPS)
+                .axes(Axes::VERTICAL)
+                .follow_focus(true),
+        };
+        owner.project_domain_to_widgets();
+        owner
+    }
+
+    pub(crate) fn primary_focus(&self) -> WidgetId {
+        if self.state.filtering() {
+            return S2_FILTER;
+        }
+        self.group_at_cursor()
+            .map(|(group, _)| S2_LIST.sub(&group))
+            .unwrap_or(S2_FILTER)
+    }
+
+    fn group_at_cursor(&self) -> Option<(String, usize)> {
+        let mut start = 0;
+        for (group, indices) in self.state.group_order() {
+            if self.state.cursor() >= start && self.state.cursor() < start + indices.len() {
+                return Some((group, self.state.cursor() - start));
+            }
+            start += indices.len();
+        }
+        None
+    }
+
+    fn focused_group(&self, focus: Option<WidgetId>) -> Option<String> {
+        self.lists
+            .keys()
+            .find(|group| focus == Some(S2_LIST.sub(group)))
+            .cloned()
+            .or_else(|| self.group_at_cursor().map(|(group, _)| group))
+    }
+
+    fn project_domain_to_widgets(&mut self) {
+        let mut start = 0;
+        for (group, indices) in self.state.group_order() {
+            let items: Vec<ListItem> = indices.iter().map(|&i| self.state.list_item(i)).collect();
+            let checks: Vec<bool> = indices
+                .iter()
+                .map(|&i| {
+                    let row = &self.state.rows[i];
+                    self.state.is_kept(&row.manager, &row.name)
+                })
+                .collect();
+            let cursor = self
+                .state
+                .cursor()
+                .checked_sub(start)
+                .filter(|&cursor| cursor < indices.len());
+            let list = self.lists.entry(group.clone()).or_insert_with(|| {
+                ListBox::new(S2_LIST.sub(&group), items.clone(), SelectMode::Multi)
+            });
+            list.items = items;
+            if let Some(cursor) = cursor {
+                list.core.cursor = cursor.min(list.items.len().saturating_sub(1));
+            }
+            for (i, checked) in checks.into_iter().enumerate() {
+                list.set_checked(i, checked);
+            }
+            start += indices.len();
+        }
+    }
+
+    fn sync_from_group(&mut self, group: &str) -> Outcome {
+        let Some((_, indices)) = self
+            .state
+            .group_order()
+            .into_iter()
+            .find(|(name, _)| name == group)
+        else {
+            return Outcome::Ignored;
+        };
+        let before = self.state.cursor();
+        let mut changed = false;
+        let mut local = 0;
+        let mut start = 0;
+        for (name, rows) in self.state.group_order() {
+            if name == group {
+                let Some(list) = self.lists.get(group) else {
+                    return Outcome::Ignored;
+                };
+                local = list.core.cursor.min(indices.len().saturating_sub(1));
+                for (i, row) in indices.iter().copied().enumerate() {
+                    let checked = list.is_checked(i);
+                    let package = &self.state.rows[row];
+                    if self.state.is_kept(&package.manager, &package.name) != checked {
+                        self.state.set_kept(row, checked);
+                        changed = true;
+                    }
+                }
+                break;
+            }
+            start += rows.len();
+        }
+        self.state.set_cursor(start + local);
+        if changed || before != self.state.cursor() {
+            Outcome::Changed
+        } else {
+            Outcome::Ignored
+        }
+    }
+
+    fn sync_query_from_input(&mut self) -> Outcome {
+        if self.filter.text() == self.state.query() {
+            return Outcome::Ignored;
+        }
+        self.state.set_query(self.filter.text());
+        self.project_domain_to_widgets();
+        Outcome::Changed
+    }
+
+    fn leave_filter(&mut self, focus: &mut Focus) -> Outcome {
+        let out = self.sync_query_from_input();
+        self.filter.commit();
+        self.state.filtering = false;
+        let id = self.primary_focus();
+        focus.focus(id);
+        out.or(Outcome::Changed)
+    }
+
+    pub(crate) fn key(
+        &mut self,
+        key: &Key,
+        focus: &mut Focus,
+        _ring: &FocusRing,
+    ) -> Response<PackageAction> {
+        if self.state.filtering() {
+            if key.is(KeyCode::Esc) || key.is(KeyCode::Enter) {
+                return self.leave_filter(focus).into();
+            }
+            let (out, action) = self.filter.on_key(key);
+            let out = out.or(self.sync_query_from_input());
+            if matches!(
+                action,
+                Some(InputAction::Committed | InputAction::CommittedTab { .. })
+            ) {
+                self.state.filtering = false;
+            }
+            return out.into();
+        }
+
+        if key.is_char('/') {
+            self.state.filtering = true;
+            focus.focus(S2_FILTER);
+            self.filter.begin_edit();
+            return Outcome::Changed.into();
+        }
+        if key.is(KeyCode::Enter) {
+            return Response::emit(PackageAction::Apply);
+        }
+        if key.is(KeyCode::Backspace) {
+            return Response::emit(PackageAction::Back);
+        }
+        if key.is_char('A') || key.is_char('a') {
+            self.state.apply(PackageKey::KeepAllVisible);
+            self.project_domain_to_widgets();
+            return Outcome::Changed.into();
+        }
+        if key.is_char('N') || key.is_char('n') {
+            self.state.apply(PackageKey::KeepNoneVisible);
+            self.project_domain_to_widgets();
+            return Outcome::Changed.into();
+        }
+
+        let group = self.focused_group(focus.current());
+        if let Some(group) = group {
+            let before = self.state.cursor();
+            let out = match self.lists.get_mut(&group) {
+                Some(list) => list.on_key(key),
+                None => Outcome::Ignored,
+            };
+            let out = out.or(self.sync_from_group(&group));
+            if matches!(key.code, KeyCode::Up | KeyCode::Down) && self.state.cursor() == before {
+                let boundary = self.move_group_boundary(key, focus);
+                if boundary != Outcome::Ignored {
+                    return boundary.into();
+                }
+            }
+            if out != Outcome::Ignored {
+                return out.into();
+            }
+        }
+        self.scroll.on_key(key).unwrap_or(Outcome::Ignored).into()
+    }
+
+    fn move_group_boundary(&mut self, key: &Key, focus: &mut Focus) -> Outcome {
+        let visible = self.state.visible_indices().len();
+        let target = match key.code {
+            KeyCode::Up => self.state.cursor().checked_sub(1),
+            KeyCode::Down if self.state.cursor() + 1 < visible => Some(self.state.cursor() + 1),
+            _ => None,
+        };
+        let Some(target) = target else {
+            return Outcome::Ignored;
+        };
+        self.state.set_cursor(target);
+        let Some((group, local)) = self.group_at_cursor() else {
+            return Outcome::Ignored;
+        };
+        if let Some(list) = self.lists.get_mut(&group) {
+            list.core.cursor = local;
+        }
+        focus.focus(S2_LIST.sub(&group));
+        Outcome::Changed
+    }
+
+    pub(crate) fn paste(&mut self, text: &str, focus: &Focus) -> Outcome {
+        if !self.state.filtering() && focus.current() != Some(S2_FILTER) {
+            return Outcome::Ignored;
+        }
+        self.filter.on_paste(text).or(self.sync_query_from_input())
+    }
+
+    pub(crate) fn blur(&mut self, change: FocusChange) -> Outcome {
+        if change.from != S2_FILTER {
+            return Outcome::Ignored;
+        }
+        let _ = self.filter.on_blur();
+        let out = self.sync_query_from_input();
+        self.state.filtering = false;
+        out
+    }
+
+    pub(crate) fn pointer(
+        &mut self,
+        ev: &PointerEvent,
+        focus: &mut Focus,
+    ) -> Response<PackageAction> {
+        if let Some(response) = self.filter.route(ev) {
+            if ev.is(Phase::Click) {
+                self.state.filtering = true;
+            }
+            let out = response.outcome().or(self.sync_query_from_input());
+            return out.into();
+        }
+        let groups: Vec<String> = self.lists.keys().cloned().collect();
+        for group in groups {
+            let response = self.lists.get_mut(&group).and_then(|list| list.route(ev));
+            if let Some(response) = response {
+                if ev.is(Phase::Click) {
+                    focus.focus(S2_LIST.sub(&group));
+                }
+                let out = response.outcome().or(self.sync_from_group(&group));
+                return out.into();
+            }
+        }
+        if let Some(response) = self.scroll.pointer(ev) {
+            return response.lift();
+        }
+        Response::ignored()
+    }
+
+    pub(crate) fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
+        self.project_domain_to_widgets();
+        let theme: Theme = *ctx.theme;
+        let bg: Color = theme.canvas;
+        render_header(
+            2,
+            "Packages",
+            Rect::new(area.x, area.y, area.width, 1),
+            buf,
+            &theme,
+        );
+        let body = Rect::new(
+            area.x,
+            area.y + 1,
+            area.width,
+            area.height.saturating_sub(3),
+        );
+        let input_area = Rect::new(body.x, body.y, body.width, 3.min(body.height));
+        self.filter.render(input_area, buf, ctx, bg);
+        let groups_area = Rect::new(
+            body.x,
+            body.y + 3.min(body.height),
+            body.width,
+            body.height.saturating_sub(3),
+        );
+        let groups = self.state.group_order();
+        let height = groups.iter().fold(0u16, |height, (_, indices)| {
+            height.saturating_add(group_height(indices.len()))
+        });
+        let lists = &mut self.lists;
+        self.scroll.render(
+            groups_area,
+            Size::new(groups_area.width, height),
+            buf,
+            ctx,
+            |content, buf, ctx| {
+                let mut y = content.y;
+                for (group, indices) in &groups {
+                    let group_area =
+                        Rect::new(content.x, y, content.width, group_height(indices.len()));
+                    let inner = Panel::card(Some(group.as_str())).render(group_area, buf, &theme);
+                    if let Some(list) = lists.get_mut(group) {
+                        list.render(inner, buf, ctx, bg);
+                    }
+                    y = y.saturating_add(group_height(indices.len()));
+                }
+            },
+        );
+        let (kept, total) = self.state.counts();
+        render_hints(
+            &[
+                ("Space", "toggle"),
+                ("A", "keep-all"),
+                ("N", "keep-none"),
+                ("/", "filter"),
+                ("Enter", "apply"),
+                ("Bksp", "back"),
+            ],
+            Rect::new(area.x, area.bottom().saturating_sub(2), area.width, 1),
+            buf,
+            &theme,
+        );
+        render_status(
+            &format!("S2 · keeping {kept} of {total}"),
+            Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),
+            buf,
+            ctx,
+        );
     }
 }
 

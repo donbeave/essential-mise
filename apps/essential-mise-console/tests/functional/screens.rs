@@ -52,6 +52,40 @@ fn s2_packages_matches_baseline() {
 }
 
 #[test]
+fn s1_filter_accepts_typed_query() {
+    let app = app("s1-filter-typing", &[]);
+    app.wait_text("terminal");
+    app.key("/");
+    for key in ["g", "h", "o", "s", "t", "t", "y"] {
+        app.key(key);
+    }
+    app.wait_text("showing 1");
+    app.wait_absent("neovim");
+    app.key("escape");
+    app.finish_with_key("escape");
+}
+
+#[test]
+fn s2_arrow_navigation_toggles_the_cursor_row() {
+    let app = app("s2-arrow-navigation", &[]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.wait_text("starship");
+    app.key("down");
+    app.key("space");
+    let screen = app.stable_screen();
+    let point = super::support::find(&screen, "starship");
+    let row = super::support::row_text(&screen, point.y.into());
+    assert!(
+        row.contains("omitted"),
+        "Down then Space must omit starship, not the first row: {row}"
+    );
+    app.key("backspace");
+    app.wait_text("terminal");
+    app.finish_with_key("escape");
+}
+
+#[test]
 fn s3_apply_and_s4_result_match_baselines() {
     let app = app("s3-s4", &[]);
     app.wait_text("terminal");
@@ -84,6 +118,107 @@ fn s3_failure_modal_matches_baseline() {
     app.wait_text("4/4 Result");
     app.key("enter");
     app.finish_wait();
+}
+
+#[test]
+fn s1_filter_paste_focus_and_continue_click() {
+    let app = app("s1-filter-paste-focus", &[]);
+    app.wait_text("terminal");
+    app.key("/");
+    app.expect_cursor_visible();
+    app.paste("ghostty");
+    app.wait_text("showing 1");
+    app.wait_absent("neovim");
+    app.key("escape");
+    app.click_text("Continue");
+    app.wait_text("starship");
+    app.key("backspace");
+    app.wait_text("terminal");
+    app.finish_with_key("escape");
+}
+
+#[test]
+fn s2_marker_click_toggles_the_clicked_row() {
+    let app = app("s2-marker-click", &[]);
+    app.wait_text("terminal");
+    app.key("enter");
+    let point = app.point("starship");
+    app.click(super::support::Point {
+        x: point.x.saturating_sub(3),
+        y: point.y,
+    });
+    let screen = app.stable_screen();
+    let point = super::support::find(&screen, "starship");
+    let row = super::support::row_text(&screen, point.y.into());
+    assert!(row.contains("omitted"), "clicked row must toggle: {row}");
+    app.key("backspace");
+    app.wait_text("terminal");
+    app.finish_with_key("escape");
+}
+
+#[test]
+fn s3_cancel_dialog_dismisses_and_confirms() {
+    let app = app("s3-cancel-dialog", &[]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.key("enter");
+    app.wait_text("3/4 Apply");
+    app.key("escape");
+    app.wait_text("Cancel apply?");
+    app.key("enter");
+    app.wait_absent("Cancel apply?");
+    app.key("escape");
+    app.key("right");
+    app.key("enter");
+    app.wait_text("4/4 Result");
+    app.key("enter");
+    app.finish_wait();
+}
+
+#[test]
+fn s3_failure_copy_reaches_terminal_clipboard() {
+    let app = app("s3-failure-copy", &[("EMC_MOCK_FAIL", "packages")]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.key("enter");
+    app.key("enter");
+    app.wait_text("Apply failed");
+    app.key("y");
+    app.wait_clipboard("mise");
+    app.key("enter");
+    app.wait_text("4/4 Result");
+    app.key("enter");
+    app.finish_wait();
+}
+
+#[test]
+fn s4_copy_reaches_terminal_clipboard() {
+    let app = app("s4-copy", &[]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.key("enter");
+    app.key("enter");
+    app.wait_text("4/4 Result");
+    app.key("c");
+    app.wait_clipboard("parts ok");
+    app.key("enter");
+    app.finish_wait();
+}
+
+#[test]
+fn static_screen_resize_redraws_and_preserves_filtering() {
+    let app = app("s1-resize", &[]);
+    app.wait_text("terminal");
+    app.resize(80, 24);
+    let screen = app.wait_text("S1 · search keeps selection");
+    assert_eq!(screen.rows(), 24);
+    assert!(super::support::row_text(&screen, 23).contains("search keeps selection"));
+    app.key("/");
+    app.paste("ghostty");
+    app.wait_text("showing 1");
+    app.wait_absent("neovim");
+    app.key("escape");
+    app.finish_with_key("escape");
 }
 
 #[test]

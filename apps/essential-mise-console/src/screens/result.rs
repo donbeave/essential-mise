@@ -1,21 +1,30 @@
 //! S4 Result: verify screen with drift table, Done gate, and re-check.
 //!
-//! State + logic live here; painting lands in T4.6. Entry auto-runs
-//! [`Backend::status`](crate::backend::Backend::status); the drift
-//! verdict joins plan entries (per-package, mapped `package`→`packages`)
-//! with the status parts, and the per-part table is shaped for
-//! [`DataGrid`](junie_tui::widgets::grid::DataGrid) (`set_rows` over
-//! [`GridRows`](junie_tui::widgets::grid::GridRows)) — never the editable
-//! `DataTable`. Follow-ups stay read-only and are never auto-executed.
-//! `Done` exits 0 only when nothing drifts; `R` re-checks, `B` returns to
-//! S2 (selection preserved by the caller), `c` copies the summary.
+//! Entry auto-runs [`Backend::status`](crate::backend::Backend::status); the
+//! drift verdict joins plan entries with status parts. The screen owner keeps
+//! one read-only `DataGrid`, preserving navigation and scrolling across
+//! refreshes. Follow-ups stay read-only and are never auto-executed. `Done`
+//! exits 0 only when nothing drifts; `R` re-checks, `B` restores S2, and `c`
+//! copies the summary through the shell clipboard.
 
 use std::collections::HashMap;
 
-use junie_tui::theme::Tone;
-use junie_tui::widgets::grid::{CellValue, ColumnSpec};
-use junie_tui::widgets::props::Prop;
+use junie_tui::core::event::{Key, Outcome};
+use junie_tui::core::focus::{Focus, FocusChange, FocusRing};
+use junie_tui::core::id::WidgetId;
+use junie_tui::core::intent::Phase;
+use junie_tui::core::pointer::{MouseTarget, PointerEvent};
+use junie_tui::core::response::Response;
+use junie_tui::shell::clipboard::Clipboard;
+use junie_tui::theme::{Theme, Tone};
+use junie_tui::ui::ctx::RenderCtx;
+use junie_tui::widgets::grid::{CellValue, ColumnSpec, DataGrid, GridAction, GridRows, RowTotal};
+use junie_tui::widgets::props::{self, Prop};
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
 
+use super::chrome::{render_header, render_hints, render_status};
 use super::rerun_fmt::rerun_command;
 use crate::backend::{Action, Backend, PlanEntry, StatusSnapshot};
 
@@ -136,15 +145,24 @@ impl ResultScreen {
         None
     }
 
-    /// Apply an intent. `Recheck` re-runs against the given backend.
-    pub fn apply(&mut self, key: ResultKey, backend: &dyn Backend) -> ResultAction {
+    /// Apply an intent. `Recheck` re-runs against the given backend and `Copy`
+    /// queues the summary through the shared shell clipboard.
+    pub fn apply(
+        &mut self,
+        key: ResultKey,
+        backend: &dyn Backend,
+        clipboard: &Clipboard,
+    ) -> ResultAction {
         match key {
             ResultKey::Recheck => {
                 self.refresh(backend);
                 ResultAction::None
             }
             ResultKey::Back => ResultAction::Back,
-            ResultKey::Copy => ResultAction::None,
+            ResultKey::Copy => {
+                self.copy_summary(clipboard);
+                ResultAction::None
+            }
             ResultKey::Done => {
                 if self.can_done() {
                     ResultAction::Done
@@ -372,6 +390,167 @@ fn follow_ups(snapshot: &StatusSnapshot, drifted: usize, rerun: Option<String>) 
     out
 }
 
+const S4_GRID: WidgetId = WidgetId::of("emc.s4.grid");
+
+pub(crate) struct ResultOwner {
+    pub(crate) state: ResultScreen,
+    grid: DataGrid,
+}
+
+impl ResultOwner {
+    pub(crate) fn new(state: ResultScreen) -> Self {
+        let mut owner = Self {
+            grid: DataGrid::new(S4_GRID, ResultScreen::grid_columns()).editable(false),
+            state,
+        };
+        owner.sync_rows();
+        owner
+    }
+
+    pub(crate) fn primary_focus(&self) -> WidgetId {
+        S4_GRID
+    }
+
+    fn sync_rows(&mut self) {
+        self.grid.set_rows(GridRows {
+            rows: self.state.grid_rows(),
+            total: RowTotal::Exact(self.state.parts().len()),
+            more: false,
+        });
+    }
+
+    fn grid_response(
+        &mut self,
+        out: Outcome,
+        action: Option<GridAction>,
+        focus: &mut Focus,
+        ring: &FocusRing,
+        clipboard: &Clipboard,
+    ) -> Response<ResultAction> {
+        match action {
+            Some(GridAction::Copy(text)) => {
+                clipboard.copy(&text);
+                Response::changed()
+            }
+            Some(GridAction::Refresh) => {
+                let backend = self.state.backend.clone();
+                self.state.refresh(&*backend);
+                self.sync_rows();
+                Response::changed()
+            }
+            Some(GridAction::LeaveForward) => {
+                focus.next(ring);
+                Response::changed()
+            }
+            Some(GridAction::LeaveBackward) => {
+                focus.prev(ring);
+                Response::changed()
+            }
+            Some(GridAction::ReadOnly { .. }) => Response::consumed(),
+            _ => out.into(),
+        }
+    }
+
+    pub(crate) fn key(
+        &mut self,
+        key: &Key,
+        focus: &mut Focus,
+        ring: &FocusRing,
+        backend: &dyn Backend,
+        clipboard: &Clipboard,
+    ) -> Response<ResultAction> {
+        if let Some(mapped) = self.state.map_key(key) {
+            let action = self.state.apply(mapped, backend, clipboard);
+            if matches!(mapped, ResultKey::Recheck) {
+                self.sync_rows();
+            }
+            return match action {
+                ResultAction::Back | ResultAction::Done => Response::emit(action),
+                ResultAction::None => Response::changed(),
+            };
+        }
+        if focus.current() != Some(S4_GRID) {
+            return Response::ignored();
+        }
+        let (out, action) = self.grid.on_key(key);
+        self.grid_response(out, action, focus, ring, clipboard)
+    }
+
+    pub(crate) fn pointer(
+        &mut self,
+        ev: &PointerEvent,
+        focus: &mut Focus,
+        ring: &FocusRing,
+        clipboard: &Clipboard,
+    ) -> Response<ResultAction> {
+        let Some(response) = self.grid.route(ev) else {
+            return Response::ignored();
+        };
+        if ev.is(Phase::Click) {
+            focus.focus(S4_GRID);
+        }
+        let (out, action) = response.into_parts();
+        self.grid_response(out, action, focus, ring, clipboard)
+    }
+
+    pub(crate) fn blur(&mut self, change: FocusChange, clipboard: &Clipboard) -> Outcome {
+        if change.from != S4_GRID {
+            return Outcome::Ignored;
+        }
+        let (out, action) = self.grid.on_blur();
+        if let Some(GridAction::Copy(text)) = action {
+            clipboard.copy(&text);
+        }
+        out
+    }
+
+    pub(crate) fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
+        let theme: Theme = *ctx.theme;
+        let bg: Color = theme.canvas;
+        render_header(
+            4,
+            "Result",
+            Rect::new(area.x, area.y, area.width, 1),
+            buf,
+            &theme,
+        );
+        let body = Rect::new(
+            area.x,
+            area.y + 1,
+            area.width,
+            area.height.saturating_sub(3),
+        );
+        let table_h =
+            (self.state.parts().len() as u16 + 3).min(body.height.saturating_sub(4).max(4));
+        let table_area = Rect::new(body.x, body.y, body.width, table_h);
+        self.grid.render(table_area, buf, ctx, bg);
+        let follow_area = Rect::new(
+            body.x,
+            table_area.bottom(),
+            body.width,
+            body.height.saturating_sub(table_area.bottom() - body.y + 1),
+        );
+        props::render(follow_area, buf, &theme, &self.state.follow_up_props(), bg);
+        render_hints(
+            &[
+                ("R", "re-check"),
+                ("c", "copy"),
+                ("B", "back"),
+                ("Enter", "done"),
+            ],
+            Rect::new(area.x, area.bottom().saturating_sub(2), area.width, 1),
+            buf,
+            &theme,
+        );
+        render_status(
+            self.state.summary(),
+            Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),
+            buf,
+            ctx,
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -502,8 +681,14 @@ mod tests {
         assert_eq!(screen.map_key(&char_key('c')), Some(ResultKey::Copy));
         assert_eq!(screen.map_key(&key(KeyCode::Enter)), Some(ResultKey::Done));
         assert_eq!(screen.map_key(&char_key('D')), Some(ResultKey::Done));
-        assert_eq!(screen.apply(ResultKey::Back, &mock), ResultAction::Back);
-        assert_eq!(screen.apply(ResultKey::Done, &mock), ResultAction::Done);
+        assert_eq!(
+            screen.apply(ResultKey::Back, &mock, &Clipboard::new()),
+            ResultAction::Back
+        );
+        assert_eq!(
+            screen.apply(ResultKey::Done, &mock, &Clipboard::new()),
+            ResultAction::Done
+        );
     }
 
     #[test]
@@ -511,7 +696,10 @@ mod tests {
         let mock = MockBackend::new();
         let mut screen = result();
         screen.refresh(&mock);
-        assert_eq!(screen.apply(ResultKey::Recheck, &mock), ResultAction::None);
+        assert_eq!(
+            screen.apply(ResultKey::Recheck, &mock, &Clipboard::new()),
+            ResultAction::None
+        );
         assert_eq!(screen.checks(), 2);
     }
 

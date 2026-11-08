@@ -1,15 +1,10 @@
 //! S3 Apply: live two-phase apply with progress, cancel, and rerun.
 //!
-//! State + logic live here; painting lands in T4.6. Event flow mirrors the
-//! `app.rs`/`external.rs` precedent exactly: the worker streams
-//! [`ApplyLine`](crate::backend::ApplyLine) values through [`ExternalSender`](junie_tui::runtime::ExternalSender),
-//! the app drains the receiver per frame and feeds each as
-//! `Input::External`, and the screen consumes them in [`on_external`](crate::screens::apply::ApplyScreen::on_external)
-//! via `downcast_ref` (the `cockpit.rs` screen holds no channel code and is
-//! not the pattern). Failure copy goes through the shell
-//! [`Clipboard`](junie_tui::shell::clipboard::Clipboard) (OSC52), `y`
-//! inside the modal and `c` outside; cancel runs a destructive confirm then
-//! [`ApplyHandle::cancel`](crate::backend::ApplyHandle::cancel).
+//! The domain state machine and worker channel stay unchanged. The screen
+//! owner appends each external line to a retained viewport and routes keys and
+//! pointer input through the viewport, Cancel button, and typed modal stack.
+//! Failure copy uses the shell clipboard (`y` inside, `c` outside); confirmed
+//! cancellation still uses [`ApplyHandle::cancel`](crate::backend::ApplyHandle::cancel).
 //! The queue is sender-side bounded ([`APPLY_LOG_CAP`](crate::screens::apply::APPLY_LOG_CAP)); overflow drops the
 //! oldest lines and records a gap marker for the log pane.
 //! Hook `PENDING` routes to [`ApplyScreen::note_hook_pending`](crate::screens::apply::ApplyScreen::note_hook_pending) and renders
@@ -17,10 +12,29 @@
 
 use std::collections::VecDeque;
 
+use junie_tui::core::event::{External, Key, Outcome};
+use junie_tui::core::focus::{Focus, FocusRing};
+use junie_tui::core::id::WidgetId;
+use junie_tui::core::pointer::{MouseTarget, PointerEvent};
+use junie_tui::core::response::Response;
 use junie_tui::runtime::{ExternalReceiver, external_channel};
 use junie_tui::shell::clipboard::Clipboard;
-use junie_tui::widgets::steps::StepState;
+use junie_tui::theme::{Theme, Tone};
+use junie_tui::ui::ctx::RenderCtx;
+use junie_tui::ui::modal::ModalStack;
+use junie_tui::widgets::button::Button;
+use junie_tui::widgets::dialog::{Dialog, DialogResult};
+use junie_tui::widgets::info_dialog::{InfoDialog, InfoResult};
+use junie_tui::widgets::progress::ProgressBar;
+use junie_tui::widgets::props::Prop;
+use junie_tui::widgets::steps::{Step, StepRail, StepState};
+use junie_tui::widgets::viewport::{Span as ViewportSpan, TextViewport, ViewportAction};
+use ratatui::buffer::Buffer;
+use ratatui::crossterm::event::KeyCode;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
 
+use super::chrome::{render_header, render_hints, render_status};
 use super::rerun_fmt::rerun_command;
 use crate::backend::{
     ApplyHandle, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend, Stream,
@@ -35,15 +49,10 @@ pub const PHASE1_PREFIX: &str = "phase 1: base";
 /// Phase-2 header prefix (see [`PHASE1_PREFIX`]).
 pub const PHASE2_PREFIX: &str = "phase 2: packages";
 
-/// Key intent on the apply screen (§3: `Esc`/`Ctrl-C` cancels, `↑`/`↓`
-/// scroll the viewport, `c` copies, `y` copies inside the modal,
-/// `Enter` continues when done).
+/// Key intent on the apply screen. Viewport navigation is routed directly to
+/// the retained `TextViewport` by the screen owner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApplyKey {
-    /// Scroll the log up (viewport consumes at render).
-    ScrollUp,
-    /// Scroll the log down (viewport consumes at render).
-    ScrollDown,
     /// Copy the rerun command.
     Copy,
     /// Open the destructive cancel confirm.
@@ -167,8 +176,8 @@ impl ApplyScreen {
         }
     }
 
-    /// Map a key to an intent. `↑`/`↓` stay visible for the viewport;
-    /// `y` copies only inside the failure modal.
+    /// Map an application command to an intent. `y` copies only inside the
+    /// failure modal; scrolling belongs to the retained viewport.
     pub fn map_key(&self, key: &junie_tui::core::event::Key) -> Option<ApplyKey> {
         use ratatui::crossterm::event::KeyCode;
         if key.is(KeyCode::Esc) {
@@ -176,12 +185,6 @@ impl ApplyScreen {
         }
         if key.ctrl_char('c') {
             return Some(ApplyKey::Cancel);
-        }
-        if key.is(KeyCode::Up) {
-            return Some(ApplyKey::ScrollUp);
-        }
-        if key.is(KeyCode::Down) {
-            return Some(ApplyKey::ScrollDown);
         }
         if key.is_char('c') {
             return Some(ApplyKey::Copy);
@@ -203,7 +206,6 @@ impl ApplyScreen {
     /// Apply an intent; returns the screen-level action.
     pub fn apply(&mut self, key: ApplyKey, clipboard: &Clipboard) -> ApplyAction {
         match key {
-            ApplyKey::ScrollUp | ApplyKey::ScrollDown => ApplyAction::None,
             ApplyKey::Copy => {
                 self.copy_rerun(clipboard);
                 ApplyAction::None
@@ -398,6 +400,381 @@ impl ApplyScreen {
     }
 }
 
+const S3_LOG: WidgetId = WidgetId::of("emc.s3.log");
+const S3_CANCEL: WidgetId = WidgetId::of("emc.s3.cancel");
+const S3_CANCEL_CONFIRM: WidgetId = WidgetId::of("emc.s3.cancel_confirm");
+const S3_FAILURE: WidgetId = WidgetId::of("emc.s3.modal");
+
+pub(crate) enum ApplyModal {
+    Cancel(Box<Dialog>),
+    Failure(Box<InfoDialog>),
+}
+
+impl ApplyModal {
+    fn initial_focus(&self) -> WidgetId {
+        match self {
+            Self::Cancel(dialog) => dialog.initial_focus,
+            Self::Failure(dialog) => dialog.initial_focus(),
+        }
+    }
+
+    fn allows_outside_click(&self) -> bool {
+        match self {
+            Self::Cancel(dialog) => dialog.dismiss.outside_click,
+            Self::Failure(dialog) => dialog.dismiss.outside_click,
+        }
+    }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
+        match self {
+            Self::Cancel(dialog) => dialog.render(area, buf, ctx),
+            Self::Failure(dialog) => dialog.render(area, buf, ctx),
+        }
+    }
+}
+
+pub(crate) struct ApplyOwner {
+    pub(crate) state: ApplyScreen,
+    pub(crate) viewport: TextViewport,
+    cancel: Button,
+    modals: ModalStack<ApplyModal>,
+}
+
+impl ApplyOwner {
+    pub(crate) fn new(state: ApplyScreen) -> Self {
+        Self {
+            state,
+            viewport: TextViewport::new(S3_LOG)
+                .wrap(true)
+                .max_lines(APPLY_LOG_CAP),
+            cancel: Button::danger(S3_CANCEL, "Cancel"),
+            modals: ModalStack::new(),
+        }
+    }
+
+    pub(crate) fn primary_focus(&self) -> WidgetId {
+        self.modals
+            .top()
+            .map(ApplyModal::initial_focus)
+            .unwrap_or(S3_LOG)
+    }
+
+    pub(crate) fn layer_open(&self) -> bool {
+        !self.modals.is_empty()
+    }
+
+    pub(crate) fn on_external(&mut self, external: &External) -> bool {
+        let Some(line) = external.downcast_ref::<ApplyLine>() else {
+            return false;
+        };
+        if !self.state.on_external(external) {
+            return false;
+        }
+        self.viewport.push(view_line(line));
+        true
+    }
+
+    pub(crate) fn sync_modal_from_domain(&mut self, focus: &mut Focus) -> Outcome {
+        if !self.modals.is_empty() {
+            return Outcome::Ignored;
+        }
+        if self.state.cancel_armed() {
+            let dialog = Dialog::destructive(
+                S3_CANCEL_CONFIRM,
+                "Cancel apply?",
+                "Partial changes may already have been applied. The exact rerun command will be available after verification.",
+                "Cancel apply",
+            );
+            let initial = dialog.initial_focus;
+            self.modals
+                .push(ApplyModal::Cancel(Box::new(dialog)), focus, Some(initial));
+            return Outcome::Changed;
+        }
+        if self.state.modal_open()
+            && let Some(rerun) = self.state.rerun()
+        {
+            let mut prop = Prop::new("rerun", rerun);
+            prop.copyable = true;
+            let dialog = InfoDialog::new(S3_FAILURE, "Apply failed", vec![prop])
+                .intro(vec![(
+                    "Phase failed — copy the rerun command.".to_string(),
+                    Tone::Error,
+                )])
+                .detail(vec![rerun.to_string()]);
+            let initial = dialog.initial_focus();
+            self.modals
+                .push(ApplyModal::Failure(Box::new(dialog)), focus, Some(initial));
+            return Outcome::Changed;
+        }
+        Outcome::Ignored
+    }
+
+    fn arm_cancel(&mut self, focus: &mut Focus, clipboard: &Clipboard) -> Outcome {
+        self.state.apply(ApplyKey::Cancel, clipboard);
+        self.sync_modal_from_domain(focus).or(Outcome::Changed)
+    }
+
+    fn take_modal_result(
+        &mut self,
+        focus: &mut Focus,
+        clipboard: &Clipboard,
+    ) -> Response<ApplyAction> {
+        let Some(modal) = self.modals.top_mut() else {
+            return Response::ignored();
+        };
+        match modal {
+            ApplyModal::Cancel(dialog) => match dialog.result.take() {
+                Some(DialogResult::Action(1)) => {
+                    self.modals.pop(focus);
+                    let action = self.state.apply(ApplyKey::ConfirmCancel, clipboard);
+                    Response::emit(action)
+                }
+                Some(DialogResult::Action(_) | DialogResult::Cancelled) => {
+                    self.modals.pop(focus);
+                    self.state.apply(ApplyKey::Dismiss, clipboard);
+                    Response::changed()
+                }
+                None => Response::ignored(),
+            },
+            ApplyModal::Failure(dialog) => match dialog.result.take() {
+                Some(InfoResult::Copy(text)) => {
+                    clipboard.copy(&text);
+                    Response::changed()
+                }
+                Some(InfoResult::Closed) => {
+                    self.modals.pop(focus);
+                    self.state.apply(ApplyKey::Dismiss, clipboard);
+                    Response::emit(ApplyAction::Done)
+                }
+                Some(InfoResult::Action(_)) => Response::consumed(),
+                None => Response::ignored(),
+            },
+        }
+    }
+
+    pub(crate) fn key(
+        &mut self,
+        key: &Key,
+        focus: &mut Focus,
+        ring: &FocusRing,
+        clipboard: &Clipboard,
+    ) -> Response<ApplyAction> {
+        if key.is(KeyCode::Enter) && matches!(self.modals.top(), Some(ApplyModal::Failure(_))) {
+            self.modals.pop(focus);
+            self.state.apply(ApplyKey::Dismiss, clipboard);
+            return Response::emit(ApplyAction::Done);
+        }
+        if let Some(modal) = self.modals.top_mut() {
+            let out = match modal {
+                ApplyModal::Cancel(dialog) => dialog.on_key(key, focus, ring),
+                ApplyModal::Failure(dialog) => dialog.on_key(key, focus, ring),
+            };
+            let response = self.take_modal_result(focus, clipboard);
+            let (result_out, action) = response.into_parts();
+            return (out.or(result_out), action).into();
+        }
+
+        if key.is(KeyCode::Esc) || key.ctrl_char('c') {
+            return self.arm_cancel(focus, clipboard).into();
+        }
+        if key.is_char('c') {
+            self.state.apply(ApplyKey::Copy, clipboard);
+            return Outcome::Changed.into();
+        }
+        if focus.current() == Some(S3_CANCEL) {
+            let (out, fired) = self.cancel.on_key(key);
+            if fired {
+                return self.arm_cancel(focus, clipboard).into();
+            }
+            if out.consumed() {
+                return out.into();
+            }
+        }
+        if key.is(KeyCode::Enter) {
+            if self.state.outcome().is_some() {
+                return Response::emit(self.state.apply(ApplyKey::Done, clipboard));
+            }
+            if !self.state.started() {
+                self.state.apply(ApplyKey::Start, clipboard);
+                return Outcome::Changed.into();
+            }
+        }
+        if focus.current() == Some(S3_LOG) {
+            let (out, action) = self.viewport.on_key(key);
+            if let Some(ViewportAction::Copy(text)) = action {
+                clipboard.copy(&text);
+            }
+            return out.into();
+        }
+        Outcome::Ignored.into()
+    }
+
+    pub(crate) fn pointer(
+        &mut self,
+        ev: &PointerEvent,
+        focus: &mut Focus,
+        clipboard: &Clipboard,
+    ) -> Response<ApplyAction> {
+        if let Some(modal) = self.modals.top_mut() {
+            let response = match modal {
+                ApplyModal::Cancel(dialog) => dialog.pointer_in(ev, focus),
+                ApplyModal::Failure(dialog) => dialog.pointer_in(ev, focus),
+            };
+            let result = self.take_modal_result(focus, clipboard);
+            let (result_out, action) = result.into_parts();
+            return (response.outcome().or(result_out), action).into();
+        }
+        if let Some(response) = self.cancel.route(ev) {
+            let (out, fired) = response.into_parts();
+            if fired.is_some() {
+                return self.arm_cancel(focus, clipboard).into();
+            }
+            return out.into();
+        }
+        if let Some(response) = self.viewport.route(ev) {
+            return response.lift();
+        }
+        Response::ignored()
+    }
+
+    pub(crate) fn paste(&self, _text: &str) -> Outcome {
+        if self.layer_open() {
+            Outcome::Consumed
+        } else {
+            Outcome::Ignored
+        }
+    }
+
+    pub(crate) fn outside(
+        &mut self,
+        focus: &mut Focus,
+        clipboard: &Clipboard,
+    ) -> Response<ApplyAction> {
+        let allowed = self
+            .modals
+            .top()
+            .is_some_and(ApplyModal::allows_outside_click);
+        if !allowed {
+            return Response::consumed();
+        }
+        match self.modals.top() {
+            Some(ApplyModal::Cancel(_)) => {
+                self.modals.pop(focus);
+                self.state.apply(ApplyKey::Dismiss, clipboard);
+                Response::changed()
+            }
+            Some(ApplyModal::Failure(_)) => {
+                self.modals.pop(focus);
+                self.state.apply(ApplyKey::Dismiss, clipboard);
+                Response::emit(ApplyAction::Done)
+            }
+            None => Response::consumed(),
+        }
+    }
+
+    pub(crate) fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
+        let theme: Theme = *ctx.theme;
+        let bg: Color = theme.canvas;
+        render_header(
+            3,
+            "Apply",
+            Rect::new(area.x, area.y, area.width, 1),
+            buf,
+            &theme,
+        );
+        let body = Rect::new(
+            area.x,
+            area.y + 1,
+            area.width,
+            area.height.saturating_sub(3),
+        );
+        let step_states = self.state.step_states();
+        let mut rail = StepRail::new(
+            WidgetId::of("emc.s3.rail"),
+            step_states
+                .iter()
+                .map(|(label, _)| Step::new(label))
+                .collect(),
+        );
+        for (i, (_, step_state)) in step_states.iter().enumerate() {
+            rail.set_state(i, *step_state);
+        }
+        let rail_h = step_states.len() as u16;
+        rail.render(
+            Rect::new(body.x, body.y, body.width, rail_h.min(body.height)),
+            buf,
+            ctx,
+            bg,
+        );
+        let (done, total) = self.state.progress();
+        let progress = ProgressBar::new("apply", done as f64 / total.max(1) as f64);
+        progress.render(
+            Rect::new(
+                body.x,
+                body.y + rail_h.min(body.height.saturating_sub(1)),
+                body.width,
+                1.min(body.height.saturating_sub(rail_h + 1)),
+            ),
+            buf,
+            ctx,
+            bg,
+        );
+        let log_top = body.y + (rail_h + 1).min(body.height);
+        let log_area = Rect::new(
+            body.x,
+            log_top,
+            body.width,
+            body.height.saturating_sub(log_top - body.y + 1),
+        );
+        self.viewport.render(log_area, buf, ctx, bg);
+        if self.state.outcome().is_none() {
+            let width = self.cancel.width().min(body.width);
+            self.cancel.render(
+                Rect::new(
+                    body.x + body.width.saturating_sub(width),
+                    log_area.bottom().saturating_sub(1).max(body.y),
+                    width,
+                    1,
+                ),
+                buf,
+                ctx,
+                bg,
+            );
+        }
+        if let Some(modal) = self.modals.top_mut() {
+            modal.render(area, buf, ctx);
+        }
+        render_hints(
+            &[
+                ("Esc", "cancel"),
+                ("↑↓", "scroll"),
+                ("c", "copy"),
+                ("Enter", "done"),
+            ],
+            Rect::new(area.x, area.bottom().saturating_sub(2), area.width, 1),
+            buf,
+            &theme,
+        );
+        render_status(
+            "S3 · worker streams to External",
+            Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),
+            buf,
+            ctx,
+        );
+    }
+}
+
+fn view_line(line: &ApplyLine) -> Vec<ViewportSpan> {
+    vec![ViewportSpan::new(
+        line.text.clone(),
+        match line.stream {
+            Stream::Stdout => Tone::Normal,
+            Stream::Stderr => Tone::Error,
+            Stream::System => Tone::Secondary,
+        },
+    )]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -548,11 +925,8 @@ mod tests {
         assert_eq!(screen.map_key(&key(KeyCode::Esc)), Some(ApplyKey::Cancel));
         assert_eq!(screen.map_key(&char_key('c')), Some(ApplyKey::Copy));
         assert_eq!(screen.map_key(&char_key('y')), None);
-        assert_eq!(screen.map_key(&key(KeyCode::Up)), Some(ApplyKey::ScrollUp));
-        assert_eq!(
-            screen.map_key(&key(KeyCode::Down)),
-            Some(ApplyKey::ScrollDown)
-        );
+        assert_eq!(screen.map_key(&key(KeyCode::Up)), None);
+        assert_eq!(screen.map_key(&key(KeyCode::Down)), None);
         assert_eq!(
             screen.map_key(&key(KeyCode::Enter)),
             Some(ApplyKey::Start),
