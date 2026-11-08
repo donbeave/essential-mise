@@ -406,10 +406,8 @@ mod tests {
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
     fn screen() -> ApplyScreen {
-        let backend = std::sync::Arc::new(MiseBackend::new(
-            std::path::PathBuf::from("/tmp/emc-test"),
-            vec!["terminal".to_string()],
-        ));
+        let backend =
+            std::sync::Arc::new(MiseBackend::new(std::path::PathBuf::from("/tmp/emc-test")));
         let req = ApplyRequest {
             envs: vec!["terminal".to_string()],
             keep: vec!["brew:jq".to_string()],
@@ -496,10 +494,8 @@ mod tests {
     #[test]
     fn failed_outcome_opens_modal_with_phase_rerun() {
         use crate::backend::mock::MockBackend;
-        let backend = std::sync::Arc::new(MiseBackend::new(
-            std::path::PathBuf::from("/tmp/emc-test"),
-            vec!["terminal".to_string()],
-        ));
+        let backend =
+            std::sync::Arc::new(MiseBackend::new(std::path::PathBuf::from("/tmp/emc-test")));
         let failing = MockBackend::new().with_failure(ApplyPhase::Packages);
         let req = ApplyRequest {
             envs: vec!["terminal".to_string()],

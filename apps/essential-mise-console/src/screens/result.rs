@@ -381,10 +381,9 @@ mod tests {
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
     fn test_backend() -> std::sync::Arc<dyn Backend> {
-        std::sync::Arc::new(MiseBackend::new(
-            std::path::PathBuf::from("/tmp/emc-test-result"),
-            vec!["terminal".to_string()],
-        ))
+        std::sync::Arc::new(MiseBackend::new(std::path::PathBuf::from(
+            "/tmp/emc-test-result",
+        )))
     }
 
     fn result() -> ResultScreen {

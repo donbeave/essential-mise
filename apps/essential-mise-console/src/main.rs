@@ -19,7 +19,7 @@ fn main() -> ExitCode {
     let backend: Arc<dyn Backend> = if std::env::var("EMC_MOCK").as_deref() == Ok("1") {
         Arc::new(cli::mock_backend())
     } else {
-        Arc::new(MiseBackend::new(config_dir, cli::resolve_envs(&cli.env)))
+        Arc::new(MiseBackend::new(config_dir))
     };
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
