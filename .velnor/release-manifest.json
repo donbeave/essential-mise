@@ -1,23 +1,23 @@
 {
   "schema": 1,
-  "version": "0.1.77",
+  "version": "0.1.78",
   "repository": "tailrocks/velnor-new",
-  "commit": "d6a10a3bd599c895b4ba04e4fb2a4304e74b9df2",
+  "commit": "ff0f3ce3e7f87c172dbfc3b4ff9640f82c5a6905",
   "targets": [
     {
       "target": "x86_64-unknown-linux-gnu",
-      "artifact": "https://github.com/tailrocks/velnor-new/releases/download/v0.1.77/velnor-actions-0.1.77-x86_64-unknown-linux-gnu",
-      "sha256": "98404f136aab6346229d214197fd589ec7d9ba6aa4dfd7fb6c080eeaa64882f1"
+      "artifact": "https://github.com/tailrocks/velnor-new/releases/download/v0.1.78/velnor-actions-0.1.78-x86_64-unknown-linux-gnu",
+      "sha256": "3caad6b07553a6840496b9a729bfaac86efa8071be2d32268b06a63d2c1aa9e7"
     },
     {
       "target": "aarch64-apple-darwin",
-      "artifact": "https://github.com/tailrocks/velnor-new/releases/download/v0.1.77/velnor-actions-0.1.77-aarch64-apple-darwin",
-      "sha256": "0383af8e0c03964c88527c062dc47daa23a6b2ad4a1192647f4cd115a349692a"
+      "artifact": "https://github.com/tailrocks/velnor-new/releases/download/v0.1.78/velnor-actions-0.1.78-aarch64-apple-darwin",
+      "sha256": "c0435f5b4978ae3ecdb030b4870d2a172ea91fecd7ed23e583ecdd1bcd047ef8"
     },
     {
       "target": "x86_64-apple-darwin",
-      "artifact": "https://github.com/tailrocks/velnor-new/releases/download/v0.1.77/velnor-actions-0.1.77-x86_64-apple-darwin",
-      "sha256": "61f2427fbc7cb870a44b0385442eaeb3377f26d01d9f88f16bcaa70c056eb61c"
+      "artifact": "https://github.com/tailrocks/velnor-new/releases/download/v0.1.78/velnor-actions-0.1.78-x86_64-apple-darwin",
+      "sha256": "bd4099027b21685442d537d6af926336840d917536e4855bfa0d94cbaa735f02"
     }
   ]
 }

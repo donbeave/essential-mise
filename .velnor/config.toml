@@ -1,43 +1,33 @@
-schema = 1
+schema = 2
 
 [workflow]
+name = "CI"
 policy = "consumer-v1"
-
 default_branch = "main"
-
-runner_label = "ubuntu-26.04"
-crate_timeout_minutes = 15
-
+generator_validation = "bootstrap"
+max_parallel_jobs = 2
 plan_timeout_minutes = 15
+crate_timeout_minutes = 15
+pull_request_cache_policy = "read-only"
+runner_label = "ubuntu-26.04"
+
+[resources]
+compiler_process_budget = 2
+test_process_budget = 2
+
+[test_sharding]
+default_shards = 1
+
+[test_sharding.by_manifest]
+
+[stacks]
+ignore = []
 
 [stacks.rust]
-
 compile_driver = "mbx"
-
+compiled_state = "off"
 test_runner = "cargo_nextest"
-
 run_ignored = "default"
-
-[discovery]
-
-exclude = ["docs/**"]
-
-[agents]
-
-claude_md = "symlink"
-
-[[stacks.rust.suites]]
-id = "functional"
-profile = "functional"
-run_ignored = "default"
-partitions = 1
-manifest_path = "apps/essential-mise-console/Cargo.toml"
-build = "inline"
-timeout_minutes = 15
-test_threads = 4
-required = true
-triggers = ["pull_request", "push", "workflow_dispatch"]
-artifacts = [{ name = "functional-terminal-evidence", paths = ["target/functional", "target/nextest/functional"], when = "failure", retention_days = 14 }]
 
 [[stacks.rust.configurations]]
 name = "default"
@@ -45,32 +35,35 @@ features = ["default"]
 all_features = true
 target = "host"
 
+[stacks.rust.release]
+enabled = true
+manifest_path = "apps/essential-mise-console/Cargo.toml"
+packages = ["essential-mise-console"]
+publishable_workspace = false
+environment = "release"
+release_pr = true
+tag_name = "v{{ version }}"
+
 [stacks.rust.binary_release]
 manifest_path = "apps/essential-mise-console/Cargo.toml"
 version_package = "essential-mise-console"
 version_env = "ESSENTIAL_MISE_CONSOLE_VERSION_OVERRIDE"
-
-[stacks.rust.release]
-enabled = true
-registry = "git-tag"
-packages = ["essential-mise-console"]
-manifest_path = "apps/essential-mise-console/Cargo.toml"
-environment = "release"
-tag_name = "v{{ version }}"
+publication_timeout_minutes = 5
+companions = []
 
 [stacks.rust.binary_release.producer]
 task = "release:package"
-source = { mise_config = "mise.toml", working_directory = "." }
-inputs = ["apps/essential-mise-console/Cargo.lock", "apps/essential-mise-console/Cargo.toml", "mise.toml", "scripts/emc-release-package.sh"]
+output_directory = "dist/release"
+manifest = "dist/release/package-output.json"
 tools = ["rust"]
+inputs = ["apps/essential-mise-console/Cargo.lock", "apps/essential-mise-console/Cargo.toml", "mise.toml", "scripts/emc-release-package.sh"]
 runner = "xcode-27-arm64"
 timeout_minutes = 20
 build_jobs = 2
-output_directory = "dist/release"
-manifest = "dist/release/package-output.json"
 
-[stacks.rust.binary_release.evidence]
-profile = "signed-sbom-v1"
+[stacks.rust.binary_release.producer.source]
+mise_config = "mise.toml"
+working_directory = "."
 
 [[stacks.rust.binary_release.products]]
 id = "essential-mise-console"
@@ -79,40 +72,111 @@ bins = ["essential-mise-console"]
 targets = ["aarch64-apple-darwin"]
 archive = "tar.gz"
 
+[stacks.rust.binary_release.evidence]
+profile = "signed-sbom-v1"
+
 [stacks.rust.binary_release.preview]
 enabled = false
+versioning = "package-preview-commit-count-sha7"
+environment = "preview-publish"
 
 [stacks.rust.binary_release.stable]
 enabled = true
+environment = "release"
+
+[[stacks.rust.suites]]
+id = "functional"
+profile = "functional"
+run_ignored = "default"
+partitions = 1
+timeout_minutes = 15
+test_threads = 4
+triggers = ["pull_request", "push", "workflow_dispatch"]
+required = true
+manifest_path = "apps/essential-mise-console/Cargo.toml"
+
+[[stacks.rust.suites.artifacts]]
+name = "functional-terminal-evidence"
+paths = ["target/functional", "target/nextest/functional"]
+retention_days = 14
+
+[discovery]
+exclude = ["docs/**"]
+
+[actions.overrides]
+
+[agents]
+claude_md = "symlink"
+
+[execution]
+default_profile = "hosted"
+mode = "both"
+hosted_profile = "hosted"
+scale_set_profile = "local"
+
+[execution.profiles.hosted]
+kind = "github-hosted"
+label = "ubuntu-26.04"
+platform = "linux/amd64"
+
+[execution.profiles.local]
+kind = "github-scale-set"
+name = "ubuntu-26.04-scale-set"
+labels = ["velnor", "ubuntu-26.04-scale-set"]
+platform = "linux/amd64"
 
 [[qualified_tools]]
 id = "rust"
-backend = { kind = "core", tool = "rust" }
 version = "1.99.1"
-options = { kind = "rust", components = [], targets = [] }
 depends_on = []
+
+[qualified_tools.backend]
+kind = "core"
+tool = "rust"
+
+[qualified_tools.options]
+kind = "rust"
+components = []
+targets = []
+
 [[qualified_tools.platforms]]
 platform = "macos_arm64"
-artifacts = [
-  { url = "https://static.rust-lang.org/dist/2026-10-15/cargo-1.99.1-aarch64-apple-darwin.tar.gz", sha256 = "b5cc7634f919949c3e5e131123f813416dc47f6b809a5371d12f1f593595ae13" },
-  { url = "https://static.rust-lang.org/dist/2026-10-15/rust-std-1.99.1-aarch64-apple-darwin.tar.gz", sha256 = "c124006d63885ba1029aca49efd59e93be6b2b171c379318ff94a00ef5eba664" },
-  { url = "https://static.rust-lang.org/dist/2026-10-15/rustc-1.99.1-aarch64-apple-darwin.tar.gz", sha256 = "cc998c1dc8df006106472357aa87838b2da3f7b25446b98a94cfd58796cb0610" },
-]
 dependency_artifacts = []
 install_tree_sha256 = "8b6dc7388b6c27a3a85430a27a0abd553bcab11ba4c5ca8d563597005d09e451"
+
+[[qualified_tools.platforms.artifacts]]
+url = "https://static.rust-lang.org/dist/2026-10-15/cargo-1.99.1-aarch64-apple-darwin.tar.gz"
+sha256 = "b5cc7634f919949c3e5e131123f813416dc47f6b809a5371d12f1f593595ae13"
+
+[[qualified_tools.platforms.artifacts]]
+url = "https://static.rust-lang.org/dist/2026-10-15/rust-std-1.99.1-aarch64-apple-darwin.tar.gz"
+sha256 = "c124006d63885ba1029aca49efd59e93be6b2b171c379318ff94a00ef5eba664"
+
+[[qualified_tools.platforms.artifacts]]
+url = "https://static.rust-lang.org/dist/2026-10-15/rustc-1.99.1-aarch64-apple-darwin.tar.gz"
+sha256 = "cc998c1dc8df006106472357aa87838b2da3f7b25446b98a94cfd58796cb0610"
+
 [[qualified_tools.platforms.executables]]
 name = "cargo"
 path = "bin/cargo"
 sha256 = "6d576d8058f8ca643e8fce55b64ee3c614ba64c9da2e536bae843e6a2e1f3951"
-probe = { kind = "version", expected = "cargo 1.99.1 (5f94df478 2026-08-27)" }
+
+[qualified_tools.platforms.executables.probe]
+kind = "version"
+expected = "cargo 1.99.1 (5f94df478 2026-08-27)"
+
 [[qualified_tools.platforms.executables]]
 name = "rustc"
 path = "bin/rustc"
 sha256 = "1ba7bb8e273bd64125f4048d2ecce530e0a6470e565ab1b3aecf0b82b532f7b1"
-probe = { kind = "rustc_verbose", expected = """rustc 1.99.1 (58cf8f9c3 2026-10-13)
+
+[qualified_tools.platforms.executables.probe]
+kind = "rustc_verbose"
+expected = """
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
 binary: rustc
 commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
 commit-date: 2026-10-13
 host: aarch64-apple-darwin
 release: 1.99.1
-LLVM version: 23.1.1""" }
+LLVM version: 23.1.1"""
