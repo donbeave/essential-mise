@@ -110,7 +110,7 @@ claude_md = "symlink"
 
 [execution]
 default_profile = "hosted"
-mode = "both"
+mode = "hosted"
 hosted_profile = "hosted"
 scale_set_profile = "local"
 

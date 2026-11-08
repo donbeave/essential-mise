@@ -145,7 +145,6 @@ jobs:
         env:
           VELNOR_INTERNAL_OP: write-request-v1
           VELNOR_REQUEST_FILE: ${{ runner.temp }}/velnor/request/plan-v1-request.json
-          VELNOR_LANE_INVENTORY_JSON: "{\"mode\":\"both\",\"routes\":[{\"logical_job_id\":\"rust-essential-mise-console\",\"job_id\":\"rust-essential-mise-console__hosted\",\"variant\":\"hosted\",\"runner\":\"ubuntu-26.04\",\"target\":\"x86_64-unknown-linux-gnu\",\"task_ids\":[\"stack/rust/apps/essential-mise-console/build/default\",\"stack/rust/apps/essential-mise-console/clippy/default\",\"stack/rust/apps/essential-mise-console/doc/default\",\"stack/rust/apps/essential-mise-console/fmt/default\",\"stack/rust/apps/essential-mise-console/nextest/default\"]},{\"logical_job_id\":\"rust-essential-mise-console\",\"job_id\":\"rust-essential-mise-console__local\",\"variant\":\"scale_set\",\"runner\":\"scale-set:velnor+ubuntu-26.04-scale-set\",\"target\":\"x86_64-unknown-linux-gnu\",\"task_ids\":[\"stack/rust/apps/essential-mise-console/build/default\",\"stack/rust/apps/essential-mise-console/clippy/default\",\"stack/rust/apps/essential-mise-console/doc/default\",\"stack/rust/apps/essential-mise-console/fmt/default\",\"stack/rust/apps/essential-mise-console/nextest/default\"]}]}"
         run: "\"$RUNNER_TEMP\"'/velnor/bin/velnor-actions-0.1.78'"
       - name: Check generated files
         env:
