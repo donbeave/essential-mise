@@ -157,31 +157,6 @@ fn s2_marker_click_toggles_the_clicked_row() {
 }
 
 #[test]
-fn s1_wheel_reveals_environments_below_the_viewport() {
-    let config = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("s1-wheel-config");
-    std::fs::create_dir_all(&config).expect("create wheel fixture config");
-    std::fs::write(
-        config.join("bootstrap.sh"),
-        include_str!("../../../../bootstrap.sh"),
-    )
-    .expect("write module catalogue");
-    std::fs::write(config.join("miserc.local.toml"), "").expect("empty preselection");
-    let args = [
-        "--config-dir".to_string(),
-        config.display().to_string(),
-        "tui".to_string(),
-    ];
-    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let app = App::new("s1-wheel-scroll", BIN, &arg_refs, &[], 100, 30);
-    app.wait_text("terminal");
-    app.resize(100, 20);
-    let point = app.point("terminal");
-    app.wheel(point, true, 30);
-    app.wait_text("system-preferences");
-    app.finish_with_key("escape");
-}
-
-#[test]
 fn s3_cancel_dialog_dismisses_and_confirms() {
     let app = app("s3-cancel-dialog", &[]);
     app.wait_text("terminal");

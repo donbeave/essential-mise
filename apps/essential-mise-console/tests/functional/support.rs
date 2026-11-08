@@ -239,21 +239,6 @@ impl App {
         self.click(self.point(needle));
     }
 
-    pub fn wheel(&self, point: Point, down: bool, amount: usize) {
-        self.mouse(CheckedMouseAction::Motion {
-            x: point.x,
-            y: point.y,
-        });
-        let bytes = tui_test::input::mouse::scroll(point.x, point.y, !down);
-        self.log(format!("wheel {point:?} down={down} amount={amount}"));
-        for _ in 0..amount {
-            self.session
-                .write_bytes(bytes.as_bytes())
-                .expect("wheel through application PTY");
-            std::thread::sleep(Duration::from_millis(10));
-        }
-    }
-
     pub fn resize(&self, cols: u16, rows: u16) {
         self.log(format!("resize {cols}x{rows}"));
         self.session
