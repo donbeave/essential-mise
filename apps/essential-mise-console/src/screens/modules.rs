@@ -619,11 +619,11 @@ impl ModulesOwner {
             let out = response.outcome().or(self.sync_query_from_input());
             return out.into();
         }
-        if let Some(out) = self.list.on_pointer(ev) {
-            return out.into();
-        }
         if let Some((_, delta)) = ev.wheel() {
             return self.list.wheel(ev.owner(), delta).into();
+        }
+        if let Some(out) = self.list.on_pointer(ev) {
+            return out.into();
         }
         if ev.is(Phase::Drag) {
             return self.list.drag(ev.id, ev.pos()).into();

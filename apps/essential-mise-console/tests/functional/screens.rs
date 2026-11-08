@@ -166,7 +166,7 @@ fn s1_wheel_reveals_environments_below_the_viewport() {
     )
     .expect("write module catalogue");
     std::fs::write(config.join("miserc.local.toml"), "").expect("empty preselection");
-    let args = vec![
+    let args = [
         "--config-dir".to_string(),
         config.display().to_string(),
         "tui".to_string(),
