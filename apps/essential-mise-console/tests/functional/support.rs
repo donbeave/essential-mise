@@ -260,16 +260,11 @@ impl App {
             .expect("resize PTY");
     }
 
-    pub fn wait_clipboard(&self, needle: &str) -> String {
+    pub fn wait_clipboard(&self, needle: &str) {
         self.log(format!("clipboard contains {needle}"));
-        let result = self
-            .session
+        self.session
             .execute(Operation::wait_clipboard_match(needle, Some(10_000)))
             .expect("wait for application clipboard output");
-        let OperationResult::Clipboard(text) = result else {
-            panic!("missing clipboard result: {result:?}")
-        };
-        text
     }
 
     pub fn expect_cursor_visible(&self) {
