@@ -243,7 +243,8 @@ pub fn run(backend: std::sync::Arc<dyn Backend>, cli: &Cli, out: &mut dyn std::i
 /// Mock backend for screenshots and headless runs (`EMC_MOCK=1`): the T2.2
 /// fixtures plus canned S2 origins for the fixture envs
 /// (`neovim`, `terminal`, `shell`). `EMC_MOCK_FAIL=packages|base` scripts a
-/// phase failure for the failure-modal baseline.
+/// phase failure. `EMC_MOCK_DELAY_MS` keeps the worker active for live-state
+/// and cancellation journeys.
 pub fn mock_backend() -> super::backend::mock::MockBackend {
     use super::backend::ApplyPhase;
     let mut mock = super::backend::mock::MockBackend::new()
@@ -257,6 +258,11 @@ pub fn mock_backend() -> super::backend::mock::MockBackend {
         Ok("base") => mock = mock.with_failure(ApplyPhase::Base),
         _ => {}
     }
+    if let Ok(delay) = std::env::var("EMC_MOCK_DELAY_MS")
+        && let Ok(delay) = delay.parse::<u64>()
+    {
+        mock = mock.with_apply_delay(std::time::Duration::from_millis(delay));
+    }
     mock
 }
 
@@ -268,6 +274,10 @@ pub fn run_tui(
     screen: Option<TuiScreen>,
     _out: &mut dyn std::io::Write,
 ) -> u8 {
+    if let Err(e) = backend.authenticate() {
+        eprintln!("essential-mise-console: cannot start the console: {e}");
+        return EXIT_ERROR;
+    }
     let config_dir = resolve_config_dir(cli.config_dir.as_deref());
     let mut app = match crate::app::App::new(backend, &config_dir) {
         Ok(app) => app,
@@ -398,6 +408,10 @@ fn run_apply(
     let envs = resolve_envs(&cli.env);
     let keep: Vec<String> = packages.to_vec();
     if !dry_run && !cli.yes && !confirm(&envs, &keep) {
+        return EXIT_ERROR;
+    }
+    if !dry_run && let Err(e) = backend.authenticate() {
+        eprintln!("essential-mise-console: apply cannot start: {e}");
         return EXIT_ERROR;
     }
     let req = ApplyRequest {

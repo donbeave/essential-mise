@@ -28,7 +28,8 @@ librarian, CLI designer, TUI designer, TUI engineer) re-verified against live
 **Review round 2026-11-05** (all five roles vs live sources; every finding below
 is integrated into the body): badges must come from `status --json`, not `plan`
 (dotfile/repo/hook drift is invisible to plan); empty keep-list must skip phase 2
-(bare `packages apply` means *all*); S3 needs the `sudo -v` + keepalive pre-flight;
+(bare `packages apply` means *all*); installation needs terminal-owned `sudo -v`
+authentication before the TUI and a noninteractive keepalive during S3;
 `packages --manager` is console-side (no `-m` on `packages status`); partial-apply
 exit is 3, not 2 (2 already means plan would-change); `--only`/`--skip` are
 mutually exclusive; S2 uses `ListBox` multi-select or `OptionList`, never
@@ -168,34 +169,36 @@ only (`--skip packages`)".
 
 S3 Apply — `StepRail` (`src/widgets/steps.rs:74`), `TextViewport`
 (`src/widgets/viewport.rs:429`, `Span` `:27`, `.wrap(true).max_lines(5_000)` per
-cockpit), `ProgressBar` (`src/widgets/progress.rs:586`), Cancel `Button::danger`;
-failure modal `InfoDialog` (`src/widgets/info_dialog.rs:30`, copy key is `y`
-inside the modal) with the exact rerun command verbatim + copy via `Clipboard`.
+cockpit), `ProgressBar` (`src/widgets/progress.rs:586`), and a dynamic action
+button. The screen starts the worker on entry. Active phases show indeterminate
+progress because mise does not report package-level completion. Terminal states
+show their actual completed-phase count. Success stays on S3 until Enter opens
+S4. The failure modal uses `InfoDialog` (`src/widgets/info_dialog.rs:30`) with
+the exact rerun command and `Clipboard` copy support.
 Rerun-command formatting is the shared module (same as S4 drift notes).
-Pre-flight: `sudo -v` + 60s keepalive before phase 1 (mirrors `bootstrap.sh`
-step 6 — privileged casks fail mid-apply without it), killed on done/cancel.
-Worker runs phase 1 then phase 2 (skipped when keep-list is empty),
-streams `WorkerMsg::Line/Done` via `ExternalSender::send` (`:57`); UI drains per
-frame (`runtime.rs:542-545`), queue bound at the sender (byte cap + drop-oldest
-with gap marker — the per-frame drain alone cannot bound a verbose run). Keys: `Esc`/`Ctrl-C` cancel
-(`Dialog::destructive` confirm → `ApplyHandle::cancel()`, `ApplyOutcome::Cancelled`,
-partial-apply warning + rerun affordance), `↑/↓` scroll, `c` copy outside the
-modal, `Enter` on
-done → S4. Hook PENDING routes render `Pending`, exit 0, untouched installs
-(`docs/environments.md:75-105`) — never red.
+`Backend::authenticate` runs `sudo -v` before `junie_tui::runtime::run` takes
+over the terminal. The worker validates with `sudo -n -v` and never prompts
+behind the alternate screen. A 60-second sudo keepalive runs until the worker
+finishes or cancellation completes.
+The worker runs phase 1 then phase 2 (skipped when keep-list is empty) and
+streams `ApplyLine` values through `ExternalSender::send`. The UI drains them
+per frame and bounds the queue at the sender. `Esc` and `Ctrl-C` open the
+destructive cancellation dialog. Confirmation kills the active child and waits
+for worker cleanup before showing `Apply cancelled`. Enter then opens S4.
+`↑` and `↓` scroll the log. `c` appears only when a rerun command exists. Hook
+PENDING routes render `Pending`, preserve exit 0, and leave installs untouched
+(`docs/environments.md:75-105`).
 ```
 ┌─ essential-mise-console ──────────────────── 3/4 Apply ────────────────────┐
-│ StepRail:  ● base ─────── ◐ packages (7/18) ─────── ○ verify               │
-│ pre-flight: sudo -v + keepalive ✓                                          │
-│ ┌─ log ──────────────────────────────────────────────────────────────────┐ │
-│ │ ✓ mise -E neovim,shell bootstrap --skip packages --upgrade --update    │ │
-│ │ ✓ base parts applied (files, repos, dotfiles, shell, tools)            │ │
-│ │ ◐ packages apply: installing brew:ripgrep …                            │ │
-│ │   packages apply: 7 of 18 done                                         │ │
-│ └────────────────────────────────────────────────────────────────────────┘ │
-│ Progress: ████████████░░░░░░░░░░░░  7/18        [Cancel]                   │
-│ Esc/Ctrl-C cancel · ↑/↓ scroll log · c copy · Enter → Result when done     │
-└─ worker thread → ExternalSender → Input::External · sender-side queue cap ─┘
+│ ⠹ 01 base                                                                │
+│   02 packages                                                       queued │
+│ Applying base configuration ━━━░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
+│ checking administrator access                                            │
+│ phase 1: base: mise -E terminal bootstrap --skip packages …              │
+│                                                                          │
+│                                                          [Cancel]        │
+│ Esc cancel · ↑↓ scroll · f follow                                       │
+└─ S3 · Applying base configuration · 12s · latest worker output            ┘
 ```
 
 S4 Result — auto `Backend::status` on entry; per-part table via `DataGrid`

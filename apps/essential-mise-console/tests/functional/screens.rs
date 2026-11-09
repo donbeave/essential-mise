@@ -91,9 +91,8 @@ fn s3_apply_and_s4_result_match_baselines() {
     app.wait_text("terminal");
     app.key("enter");
     app.wait_text("starship");
-    // S3 idle: the worker starts on Enter.
     app.key("enter");
-    app.wait_text("3/4 Apply");
+    app.wait_text("Apply complete");
     app.visual("emc/s3-apply");
     app.key("enter");
     app.wait_text("4/4 Result");
@@ -108,9 +107,6 @@ fn s3_failure_modal_matches_baseline() {
     app.wait_text("terminal");
     app.key("enter");
     app.wait_text("starship");
-    app.key("enter");
-    app.wait_text("3/4 Apply");
-    // Starting fails instantly; the modal carries the rerun command.
     app.key("enter");
     app.wait_text("Apply failed");
     app.visual("emc/s3-failed");
@@ -158,17 +154,39 @@ fn s2_marker_click_toggles_the_clicked_row() {
 
 #[test]
 fn s3_cancel_dialog_dismisses_and_confirms() {
-    let app = app("s3-cancel-dialog", &[]);
+    let app = app("s3-cancel-dialog", &[("EMC_MOCK_DELAY_MS", "5000")]);
     app.wait_text("terminal");
     app.key("enter");
     app.key("enter");
-    app.wait_text("3/4 Apply");
+    app.wait_text("Applying base configuration");
     app.key("escape");
     app.wait_text("Cancel apply?");
     app.key("enter");
     app.wait_absent("Cancel apply?");
     app.key("escape");
     app.key("right");
+    app.key("enter");
+    app.wait_text("Apply cancelled");
+    app.key("enter");
+    app.wait_text("4/4 Result");
+    app.key("enter");
+    app.finish_wait();
+}
+
+#[test]
+fn s3_running_shows_activity_instead_of_empty_zero_percent() {
+    let app = app("s3-running", &[("EMC_MOCK_DELAY_MS", "5000")]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.key("enter");
+    app.wait_text("Applying base configuration");
+    app.wait_text("phase 1: base");
+    app.wait_absent("0%");
+    app.wait_absent("Enter done");
+    app.key("escape");
+    app.key("right");
+    app.key("enter");
+    app.wait_text("Apply cancelled");
     app.key("enter");
     app.wait_text("4/4 Result");
     app.key("enter");
@@ -179,7 +197,6 @@ fn s3_cancel_dialog_dismisses_and_confirms() {
 fn s3_failure_copy_reaches_terminal_clipboard() {
     let app = app("s3-failure-copy", &[("EMC_MOCK_FAIL", "packages")]);
     app.wait_text("terminal");
-    app.key("enter");
     app.key("enter");
     app.key("enter");
     app.wait_text("Apply failed");
@@ -197,6 +214,7 @@ fn s4_copy_reaches_terminal_clipboard() {
     app.wait_text("terminal");
     app.key("enter");
     app.key("enter");
+    app.wait_text("Apply complete");
     app.key("enter");
     app.wait_text("4/4 Result");
     app.key("c");

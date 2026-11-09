@@ -39,6 +39,7 @@ pub struct MockBackend {
     status_snapshot: StatusSnapshot,
     origins: HashMap<ResId, Vec<String>>,
     fail: Option<ApplyPhase>,
+    apply_delay: std::time::Duration,
     calls: Arc<Mutex<Vec<MockCall>>>,
     argv: MiseBackend,
 }
@@ -66,6 +67,7 @@ impl MockBackend {
             status_snapshot,
             origins: HashMap::new(),
             fail: None,
+            apply_delay: std::time::Duration::from_millis(25),
             calls: Arc::new(Mutex::new(Vec::new())),
             argv: MiseBackend::new("/tmp/emc-mock-config"),
         }
@@ -91,6 +93,12 @@ impl MockBackend {
         self
     }
 
+    /// Keep the successful mock worker active long enough to exercise live UI.
+    pub fn with_apply_delay(mut self, delay: std::time::Duration) -> Self {
+        self.apply_delay = delay;
+        self
+    }
+
     /// Add a canned origin entry (screenshot tests populate per screen).
     pub fn with_origin(mut self, kind: &str, name: &str, envs: &[&str]) -> Self {
         self.origins.insert(
@@ -111,6 +119,10 @@ impl Default for MockBackend {
 }
 
 impl Backend for MockBackend {
+    fn authenticate(&self) -> Result<(), BackendError> {
+        Ok(())
+    }
+
     fn plan(&self, _envs: &[String], _jobs: Option<u64>) -> Result<Vec<PlanEntry>, BackendError> {
         self.record(MockCall::Plan);
         Ok(self.plan_entries.clone())
@@ -161,15 +173,27 @@ impl Backend for MockBackend {
         tx.send(ApplyLine {
             seq: 1,
             stream: Stream::System,
-            text: "mock: apply preview (no subprocesses spawned)".to_string(),
+            text: "phase 1: base: mock: apply preview (no subprocesses spawned)".to_string(),
         });
+        let delay = self.apply_delay;
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let worker_flag = Arc::clone(&cancel_flag);
         let worker = std::thread::Builder::new()
             .name("emc-mock-apply".to_string())
-            .spawn(|| ApplyOutcome::Success)
+            .spawn(move || {
+                let started = std::time::Instant::now();
+                while started.elapsed() < delay {
+                    if worker_flag.load(Ordering::Relaxed) {
+                        return ApplyOutcome::Cancelled;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+                ApplyOutcome::Success
+            })
             .map_err(BackendError::Spawn)?;
         Ok(ApplyHandle {
             worker: Some(worker),
-            cancel_flag: Arc::new(AtomicBool::new(false)),
+            cancel_flag,
             current: Arc::new(Mutex::new(None)),
             log_path,
         })

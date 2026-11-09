@@ -32,7 +32,7 @@ use ratatui::layout::{Position, Rect};
 pub(crate) enum Screen {
     Modules(ModulesOwner),
     Packages(PackagesOwner),
-    Apply(ApplyOwner),
+    Apply(Box<ApplyOwner>),
     Result(Box<ResultOwner>),
 }
 
@@ -233,7 +233,7 @@ impl App {
     fn apply_response(&mut self, response: Response<ApplyAction>) -> Outcome {
         let (out, action) = response.into_parts();
         match action {
-            Some(ApplyAction::Cancelled | ApplyAction::Done) => {
+            Some(ApplyAction::Done) => {
                 self.enter_result();
                 Outcome::Changed
             }
@@ -290,10 +290,13 @@ impl App {
                 Screen::Apply(owner) => owner.sync_modal_from_domain(&mut self.shell.focus),
                 _ => Outcome::Ignored,
             },
-            Some(_) => {
-                self.enter_result();
-                Outcome::Changed
-            }
+            Some(_) => match &mut self.screen {
+                Screen::Apply(owner) => {
+                    owner.sync_completion_focus(&mut self.shell.focus);
+                    Outcome::Changed
+                }
+                _ => Outcome::Ignored,
+            },
             None => Outcome::Ignored,
         }
     }
@@ -378,13 +381,12 @@ impl App {
             upgrade: true,
             dry_run: false,
         };
-        self.set_screen(Screen::Apply(ApplyOwner::new(ApplyScreen::new(
-            self.backend.clone(),
-            req,
-        ))));
+        let mut state = ApplyScreen::new(self.backend.clone(), req);
+        state.start();
+        self.set_screen(Screen::Apply(Box::new(ApplyOwner::new(state))));
     }
 
-    /// Jump directly to a screen (`tui [screen]`; S3 opens idle).
+    /// Jump directly to a screen (`tui [screen]`; S3 starts immediately).
     pub fn jump_to(&mut self, screen: crate::cli::TuiScreen) {
         use crate::cli::TuiScreen;
         match screen {
@@ -671,8 +673,16 @@ mod tests {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
         while app.screen_name() == "apply" && std::time::Instant::now() < deadline {
             app.pump();
+            if matches!(&app.screen, Screen::Apply(owner) if owner.state.outcome().is_some()) {
+                break;
+            }
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
+        assert!(
+            matches!(&app.screen, Screen::Apply(owner) if owner.state.outcome().is_some()),
+            "apply must finish before verification"
+        );
+        app.handle_key(&key(KeyCode::Enter));
     }
 
     fn draw(app: &mut App, terminal: &mut ratatui::Terminal<ratatui::backend::TestBackend>) {
@@ -723,14 +733,30 @@ mod tests {
     }
 
     #[test]
-    fn s2_enter_starts_apply_and_pump_reaches_result() {
+    fn s2_enter_starts_apply_and_success_waits_for_results() {
         let mut app = mock_app();
         app.handle_key(&key(KeyCode::Enter));
         assert_eq!(app.screen_name(), "packages");
         app.handle_key(&key(KeyCode::Enter));
         assert_eq!(app.screen_name(), "apply");
+        assert!(
+            matches!(&app.screen, Screen::Apply(owner) if owner.state.started()),
+            "confirming packages must start the worker without a second Enter"
+        );
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while std::time::Instant::now() < deadline {
+            app.pump();
+            if matches!(&app.screen, Screen::Apply(owner) if owner.state.outcome().is_some()) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert_eq!(app.screen_name(), "apply");
+        assert!(
+            matches!(&app.screen, Screen::Apply(owner) if owner.state.outcome() == Some(&crate::backend::ApplyOutcome::Success)),
+            "successful output must remain visible until the user continues"
+        );
         app.handle_key(&key(KeyCode::Enter));
-        settle(&mut app);
         assert_eq!(app.screen_name(), "result");
     }
 
@@ -739,12 +765,10 @@ mod tests {
         let mut app = mock_app();
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
         settle(&mut app);
         assert_eq!(app.screen_name(), "result");
         app.handle_key(&char_key('B'));
         assert_eq!(app.screen_name(), "packages");
-        app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         settle(&mut app);
@@ -793,8 +817,13 @@ mod tests {
     }
 
     #[test]
-    fn interaction_regressions_cancel_dialog_dismisses_without_starting() {
-        let mut app = mock_app();
+    fn interaction_regressions_cancel_dialog_dismisses_without_cancelling() {
+        let mut app = mock_app_with(
+            MockBackend::new()
+                .with_origin("brew", "jq", &["alpha"])
+                .with_origin("brew", "rg", &["beta"])
+                .with_apply_delay(std::time::Duration::from_secs(5)),
+        );
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Esc));
@@ -802,8 +831,9 @@ mod tests {
         let Screen::Apply(owner) = &app.screen else {
             panic!("expected apply")
         };
-        assert!(!owner.state.started());
+        assert!(owner.state.started());
         assert!(!owner.state.cancel_armed());
+        assert!(!owner.state.cancelling());
         assert!(owner.state.outcome().is_none());
     }
 
@@ -816,7 +846,6 @@ mod tests {
     #[test]
     fn interaction_regressions_result_copy_emits_osc52() {
         let mut app = mock_app();
-        app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         settle(&mut app);
@@ -926,13 +955,20 @@ mod tests {
     }
 
     #[test]
-    fn cancel_dialog_confirm_reaches_result_without_starting() {
-        let mut app = mock_app();
+    fn cancel_dialog_confirm_joins_worker_before_results() {
+        let mut app = mock_app_with(
+            MockBackend::new()
+                .with_origin("brew", "jq", &["alpha"])
+                .with_origin("brew", "rg", &["beta"])
+                .with_apply_delay(std::time::Duration::from_secs(5)),
+        );
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Esc));
         app.handle_key(&key(KeyCode::Right));
         app.handle_key(&key(KeyCode::Enter));
+        assert!(matches!(&app.screen, Screen::Apply(owner) if owner.state.cancelling()));
+        settle(&mut app);
         assert_eq!(app.screen_name(), "result");
     }
 
@@ -944,7 +980,6 @@ mod tests {
                 .with_origin("brew", "rg", &["beta"])
                 .with_failure(crate::backend::ApplyPhase::Packages),
         );
-        app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);

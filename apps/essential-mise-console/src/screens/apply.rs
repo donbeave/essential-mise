@@ -1,10 +1,12 @@
 //! S3 Apply: live two-phase apply with progress, cancel, and rerun.
 //!
-//! The domain state machine and worker channel stay unchanged. The screen
-//! owner appends each external line to a retained viewport and routes keys and
-//! pointer input through the viewport, Cancel button, and typed modal stack.
-//! Failure copy uses the shell clipboard (`y` inside, `c` outside); confirmed
-//! cancellation still uses [`ApplyHandle::cancel`](crate::backend::ApplyHandle::cancel).
+//! The app starts the worker on entry. The screen owner appends each external
+//! line to a retained viewport and routes input through the viewport, dynamic
+//! action button, and typed modal stack. Active phases use indeterminate
+//! progress. Success stays visible until the user chooses Result. Failure copy
+//! uses the shell clipboard (`y` inside, `c` outside). Confirmed cancellation
+//! calls [`ApplyHandle::cancel`](crate::backend::ApplyHandle::cancel), waits
+//! for the worker, then leaves the cancelled output available for review.
 //! The queue is sender-side bounded ([`APPLY_LOG_CAP`](crate::screens::apply::APPLY_LOG_CAP)); overflow drops the
 //! oldest lines and records a gap marker for the log pane.
 //! Hook `PENDING` routes to [`ApplyScreen::note_hook_pending`](crate::screens::apply::ApplyScreen::note_hook_pending) and renders
@@ -72,9 +74,7 @@ pub enum ApplyKey {
 pub enum ApplyAction {
     /// State changed; stay on screen.
     None,
-    /// Cancellation confirmed; outcome is [`ApplyOutcome::Cancelled`].
-    Cancelled,
-    /// Finished; continue to S4.
+    /// Continue to S4 after reviewing the outcome.
     Done,
 }
 
@@ -89,9 +89,11 @@ pub struct ApplyScreen {
     current_phase: ApplyPhase,
     phases_done: usize,
     phases_total: usize,
+    started_at: Option<std::time::Instant>,
     outcome: Option<ApplyOutcome>,
     rerun: Option<String>,
     cancel_armed: bool,
+    cancel_requested: bool,
     modal_open: bool,
     pending_hooks: Vec<String>,
 }
@@ -115,9 +117,11 @@ impl ApplyScreen {
             current_phase: ApplyPhase::Base,
             phases_done: 0,
             phases_total,
+            started_at: None,
             outcome: None,
             rerun: None,
             cancel_armed: false,
+            cancel_requested: false,
             modal_open: false,
             pending_hooks: Vec::new(),
         }
@@ -127,9 +131,10 @@ impl ApplyScreen {
     /// drain pump. A spawn failure becomes a `Failed` outcome with the
     /// failure modal open (same path as a phase failure).
     pub fn start(&mut self) {
-        if self.handle.is_some() {
+        if self.started_at.is_some() {
             return;
         }
+        self.started_at = Some(std::time::Instant::now());
         let (tx, rx) = external_channel();
         match self.backend.spawn_apply(&self.req, tx) {
             Ok(handle) => {
@@ -146,9 +151,9 @@ impl ApplyScreen {
         }
     }
 
-    /// Whether the worker was spawned.
+    /// Whether the worker has been started.
     pub fn started(&self) -> bool {
-        self.handle.is_some()
+        self.started_at.is_some()
     }
 
     /// Drain pending lines from the worker channel (no-op before start).
@@ -180,16 +185,13 @@ impl ApplyScreen {
     /// failure modal; scrolling belongs to the retained viewport.
     pub fn map_key(&self, key: &junie_tui::core::event::Key) -> Option<ApplyKey> {
         use ratatui::crossterm::event::KeyCode;
-        if key.is(KeyCode::Esc) {
+        if (key.is(KeyCode::Esc) || key.ctrl_char('c'))
+            && self.outcome.is_none()
+            && !self.cancel_requested
+        {
             return Some(ApplyKey::Cancel);
         }
-        if key.ctrl_char('c') {
-            return Some(ApplyKey::Cancel);
-        }
-        if key.is_char('c') {
-            return Some(ApplyKey::Copy);
-        }
-        if key.is_char('y') && self.modal_open {
+        if (key.is_char('c') && self.rerun.is_some()) || (key.is_char('y') && self.modal_open) {
             return Some(ApplyKey::Copy);
         }
         if key.is(KeyCode::Enter) {
@@ -216,7 +218,7 @@ impl ApplyScreen {
             }
             ApplyKey::ConfirmCancel => {
                 self.confirm_cancel();
-                ApplyAction::Cancelled
+                ApplyAction::None
             }
             ApplyKey::Dismiss => {
                 self.cancel_armed = false;
@@ -237,18 +239,21 @@ impl ApplyScreen {
         }
     }
 
-    /// Non-blocking completion check: joins a finished worker, records the
-    /// outcome, and builds the exact rerun command.
+    /// Non-blocking completion check: joins a finished worker once, records
+    /// the outcome, and builds the exact rerun command.
     pub fn try_join(&mut self) -> Option<ApplyOutcome> {
-        if let Some(outcome) = &self.outcome {
-            return Some(outcome.clone());
+        if self.outcome.is_some() {
+            return None;
         }
         let handle = self.handle.take()?;
         if !handle.is_finished() {
             self.handle = Some(handle);
             return None;
         }
-        let outcome = handle.join();
+        let mut outcome = handle.join();
+        if self.cancel_requested {
+            outcome = ApplyOutcome::Cancelled;
+        }
         let ret = outcome.clone();
         self.on_outcome(outcome);
         Some(ret)
@@ -259,12 +264,17 @@ impl ApplyScreen {
         self.cancel_armed
     }
 
+    /// Whether cancellation is waiting for worker cleanup.
+    pub fn cancelling(&self) -> bool {
+        self.cancel_requested && self.outcome.is_none()
+    }
+
     /// Whether the failure modal is open.
     pub fn modal_open(&self) -> bool {
         self.modal_open
     }
 
-    /// Current outcome, if the worker finished or cancel was confirmed.
+    /// Current outcome, if the worker finished.
     pub fn outcome(&self) -> Option<&ApplyOutcome> {
         self.outcome.as_ref()
     }
@@ -284,27 +294,65 @@ impl ApplyScreen {
         self.dropped
     }
 
-    /// `(done, total)` phases for the progress bar.
+    /// `(done, total)` phases for terminal progress.
     pub fn progress(&self) -> (usize, usize) {
         (self.phases_done, self.phases_total)
+    }
+
+    /// Human-readable current activity for the progress and status bars.
+    pub fn activity(&self) -> String {
+        match self.outcome {
+            Some(ApplyOutcome::Success) => "Apply complete".to_string(),
+            Some(ApplyOutcome::Failed { .. }) => "Apply failed".to_string(),
+            Some(ApplyOutcome::Cancelled) => "Apply cancelled".to_string(),
+            None if self.cancelling() => "Cancelling apply".to_string(),
+            None if !self.started() => "Ready to apply".to_string(),
+            None => match self.current_phase {
+                ApplyPhase::Base => "Applying base configuration".to_string(),
+                ApplyPhase::Packages => "Installing selected packages".to_string(),
+            },
+        }
+    }
+
+    /// Seconds since the worker started.
+    pub fn elapsed_seconds(&self) -> u64 {
+        self.started_at
+            .map(|started| started.elapsed().as_secs())
+            .unwrap_or(0)
+    }
+
+    /// Most recent worker output, including backend narration.
+    pub fn latest_output(&self) -> Option<&str> {
+        self.lines.back().map(|line| line.text.as_str())
     }
 
     /// Step-rail states: base, packages (skipped when single-phase), done.
     pub fn step_states(&self) -> Vec<(&'static str, StepState)> {
         let failed = matches!(self.outcome, Some(ApplyOutcome::Failed { .. }));
-        let base = if failed && self.current_phase == ApplyPhase::Base {
-            StepState::Failed
+        let cancelled = matches!(self.outcome, Some(ApplyOutcome::Cancelled));
+        let base = if (failed || cancelled) && self.current_phase == ApplyPhase::Base {
+            if failed {
+                StepState::Failed
+            } else {
+                StepState::Blocked
+            }
         } else if self.phases_done >= 1 || self.current_phase == ApplyPhase::Packages {
             StepState::Done
-        } else if self.outcome.is_none() {
+        } else if self.outcome.is_none() && self.started() {
             StepState::Running
+        } else if self.outcome.is_none() {
+            StepState::Queued
         } else {
             StepState::Done
         };
         let mut steps = vec![("base", base)];
         if self.phases_total > 1 {
-            let packages = if failed && self.current_phase == ApplyPhase::Packages {
-                StepState::Failed
+            let packages = if (failed || cancelled) && self.current_phase == ApplyPhase::Packages {
+                if failed {
+                    StepState::Failed
+                } else {
+                    StepState::Blocked
+                }
             } else if self.phases_done >= 2 {
                 StepState::Done
             } else if self.current_phase == ApplyPhase::Packages {
@@ -350,18 +398,15 @@ impl ApplyScreen {
 
     fn confirm_cancel(&mut self) {
         self.cancel_armed = false;
-        if self.outcome.is_some() {
+        if self.outcome.is_some() || self.cancel_requested {
             return;
         }
+        self.cancel_requested = true;
         if let Some(handle) = self.handle.as_mut() {
             handle.cancel();
+        } else {
+            self.on_outcome(ApplyOutcome::Cancelled);
         }
-        self.phases_done = match self.current_phase {
-            ApplyPhase::Packages => 1,
-            ApplyPhase::Base => 0,
-        };
-        self.rerun = Some(self.rerun_for(self.current_phase));
-        self.outcome = Some(ApplyOutcome::Cancelled);
     }
 
     fn on_outcome(&mut self, outcome: ApplyOutcome) {
@@ -378,7 +423,13 @@ impl ApplyScreen {
                 self.rerun = Some(self.rerun_for(*phase));
                 self.modal_open = true;
             }
-            ApplyOutcome::Cancelled => {}
+            ApplyOutcome::Cancelled => {
+                self.phases_done = match self.current_phase {
+                    ApplyPhase::Packages => 1,
+                    ApplyPhase::Base => 0,
+                };
+                self.rerun = Some(self.rerun_for(self.current_phase));
+            }
         }
         self.outcome = Some(outcome);
     }
@@ -433,10 +484,13 @@ impl ApplyModal {
     }
 }
 
+const S3_DONE: WidgetId = WidgetId::of("emc.s3.done");
+
 pub(crate) struct ApplyOwner {
     pub(crate) state: ApplyScreen,
     pub(crate) viewport: TextViewport,
     cancel: Button,
+    done: Button,
     modals: ModalStack<ApplyModal>,
 }
 
@@ -448,15 +502,20 @@ impl ApplyOwner {
                 .wrap(true)
                 .max_lines(APPLY_LOG_CAP),
             cancel: Button::danger(S3_CANCEL, "Cancel"),
+            done: Button::primary(S3_DONE, "View results"),
             modals: ModalStack::new(),
         }
     }
 
     pub(crate) fn primary_focus(&self) -> WidgetId {
-        self.modals
-            .top()
-            .map(ApplyModal::initial_focus)
-            .unwrap_or(S3_LOG)
+        if let Some(modal) = self.modals.top() {
+            return modal.initial_focus();
+        }
+        if matches!(self.state.outcome(), Some(ApplyOutcome::Success)) {
+            S3_DONE
+        } else {
+            S3_LOG
+        }
     }
 
     pub(crate) fn layer_open(&self) -> bool {
@@ -497,7 +556,7 @@ impl ApplyOwner {
             prop.copyable = true;
             let dialog = InfoDialog::new(S3_FAILURE, "Apply failed", vec![prop])
                 .intro(vec![(
-                    "Phase failed — copy the rerun command.".to_string(),
+                    "Copy the rerun command and try again.".to_string(),
                     Tone::Error,
                 )])
                 .detail(vec![rerun.to_string()]);
@@ -509,7 +568,16 @@ impl ApplyOwner {
         Outcome::Ignored
     }
 
+    pub(crate) fn sync_completion_focus(&self, focus: &mut Focus) {
+        if matches!(self.state.outcome(), Some(ApplyOutcome::Success)) {
+            focus.focus(S3_DONE);
+        }
+    }
+
     fn arm_cancel(&mut self, focus: &mut Focus, clipboard: &Clipboard) -> Outcome {
+        if self.state.outcome().is_some() || self.state.cancelling() {
+            return Outcome::Consumed;
+        }
         self.state.apply(ApplyKey::Cancel, clipboard);
         self.sync_modal_from_domain(focus).or(Outcome::Changed)
     }
@@ -574,12 +642,21 @@ impl ApplyOwner {
             return (out.or(result_out), action).into();
         }
 
-        if key.is(KeyCode::Esc) || key.ctrl_char('c') {
+        if (key.is(KeyCode::Esc) || key.ctrl_char('c')) && self.state.outcome().is_none() {
             return self.arm_cancel(focus, clipboard).into();
         }
-        if key.is_char('c') {
+        if key.is_char('c') && self.state.rerun().is_some() {
             self.state.apply(ApplyKey::Copy, clipboard);
             return Outcome::Changed.into();
+        }
+        if focus.current() == Some(S3_DONE) {
+            let (out, fired) = self.done.on_key(key);
+            if fired {
+                return Response::emit(ApplyAction::Done);
+            }
+            if out.consumed() {
+                return out.into();
+            }
         }
         if focus.current() == Some(S3_CANCEL) {
             let (out, fired) = self.cancel.on_key(key);
@@ -599,7 +676,7 @@ impl ApplyOwner {
                 return Outcome::Changed.into();
             }
         }
-        if focus.current() == Some(S3_LOG) {
+        if matches!(focus.current(), Some(S3_LOG | S3_DONE)) {
             let (out, action) = self.viewport.on_key(key);
             if let Some(ViewportAction::Copy(text)) = action {
                 clipboard.copy(&text);
@@ -624,7 +701,19 @@ impl ApplyOwner {
             let (result_out, action) = result.into_parts();
             return (response.outcome().or(result_out), action).into();
         }
-        if let Some(response) = self.cancel.route(ev) {
+        if matches!(self.state.outcome(), Some(ApplyOutcome::Success))
+            && let Some(response) = self.done.route(ev)
+        {
+            let (out, fired) = response.into_parts();
+            if fired.is_some() {
+                return Response::emit(ApplyAction::Done);
+            }
+            return out.into();
+        }
+        if self.state.outcome().is_none()
+            && !self.state.cancelling()
+            && let Some(response) = self.cancel.route(ev)
+        {
             let (out, fired) = response.into_parts();
             if fired.is_some() {
                 return self.arm_cancel(focus, clipboard).into();
@@ -673,6 +762,8 @@ impl ApplyOwner {
     }
 
     pub(crate) fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
+        use junie_tui::widgets::progress::ProgressStatus;
+
         let theme: Theme = *ctx.theme;
         let bg: Color = theme.canvas;
         render_header(
@@ -706,8 +797,24 @@ impl ApplyOwner {
             ctx,
             bg,
         );
+        let activity = self.state.activity();
         let (done, total) = self.state.progress();
-        let progress = ProgressBar::new("apply", done as f64 / total.max(1) as f64);
+        let ratio = done as f64 / total.max(1) as f64;
+        let progress = match self.state.outcome() {
+            Some(ApplyOutcome::Success) => {
+                ProgressBar::new(&activity, 1.0).status(ProgressStatus::Done)
+            }
+            Some(ApplyOutcome::Failed { .. }) => {
+                ProgressBar::new(&activity, ratio).status(ProgressStatus::Error)
+            }
+            Some(ApplyOutcome::Cancelled) => {
+                ProgressBar::new(&activity, ratio).status(ProgressStatus::Paused)
+            }
+            None if !self.state.started() => {
+                ProgressBar::new(&activity, 0.0).status(ProgressStatus::Paused)
+            }
+            None => ProgressBar::indeterminate(&activity),
+        };
         progress.render(
             Rect::new(
                 body.x,
@@ -727,36 +834,53 @@ impl ApplyOwner {
             body.height.saturating_sub(log_top - body.y + 1),
         );
         self.viewport.render(log_area, buf, ctx, bg);
-        if self.state.outcome().is_none() {
+        let button_area = |width| {
+            Rect::new(
+                body.x + body.width.saturating_sub(width),
+                log_area.bottom().saturating_sub(1).max(body.y),
+                width,
+                1,
+            )
+        };
+        if matches!(self.state.outcome(), Some(ApplyOutcome::Success)) {
+            let width = self.done.width().min(body.width);
+            self.done.render(button_area(width), buf, ctx, bg);
+        } else if self.state.outcome().is_none() && !self.state.cancelling() {
             let width = self.cancel.width().min(body.width);
-            self.cancel.render(
-                Rect::new(
-                    body.x + body.width.saturating_sub(width),
-                    log_area.bottom().saturating_sub(1).max(body.y),
-                    width,
-                    1,
-                ),
-                buf,
-                ctx,
-                bg,
-            );
+            self.cancel.render(button_area(width), buf, ctx, bg);
         }
         if let Some(modal) = self.modals.top_mut() {
             modal.render(area, buf, ctx);
         }
+        let mut hints = Vec::new();
+        if self.state.outcome().is_none() && !self.state.cancelling() {
+            hints.push(("Esc", "cancel"));
+        }
+        hints.extend([("↑↓", "scroll"), ("f", "follow")]);
+        if self.state.rerun().is_some() {
+            hints.push(("c", "copy rerun"));
+        }
+        if self.state.outcome().is_some() {
+            hints.push(("Enter", "results"));
+        } else if !self.state.started() {
+            hints.push(("Enter", "start"));
+        }
         render_hints(
-            &[
-                ("Esc", "cancel"),
-                ("↑↓", "scroll"),
-                ("c", "copy"),
-                ("Enter", "done"),
-            ],
+            &hints,
             Rect::new(area.x, area.bottom().saturating_sub(2), area.width, 1),
             buf,
             &theme,
         );
+        let mut status = format!("S3 · {activity}");
+        if self.state.started() && self.state.outcome().is_none() {
+            status.push_str(&format!(" · {}s", self.state.elapsed_seconds()));
+        }
+        if let Some(latest) = self.state.latest_output() {
+            status.push_str(" · ");
+            status.push_str(latest);
+        }
         render_status(
-            "S3 · worker streams to External",
+            &status,
             Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),
             buf,
             ctx,
@@ -841,7 +965,7 @@ mod tests {
         );
         assert_eq!(
             screen.apply(ApplyKey::ConfirmCancel, &Clipboard::new()),
-            ApplyAction::Cancelled
+            ApplyAction::None
         );
         assert_eq!(screen.outcome(), Some(&ApplyOutcome::Cancelled));
         let rerun = screen.rerun().expect("cancel builds a rerun");
@@ -923,7 +1047,7 @@ mod tests {
     fn keys_match_section_3() {
         let screen = screen();
         assert_eq!(screen.map_key(&key(KeyCode::Esc)), Some(ApplyKey::Cancel));
-        assert_eq!(screen.map_key(&char_key('c')), Some(ApplyKey::Copy));
+        assert_eq!(screen.map_key(&char_key('c')), None);
         assert_eq!(screen.map_key(&char_key('y')), None);
         assert_eq!(screen.map_key(&key(KeyCode::Up)), None);
         assert_eq!(screen.map_key(&key(KeyCode::Down)), None);
