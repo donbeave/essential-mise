@@ -238,21 +238,30 @@ pub trait Backend: Send + Sync + 'static {
     fn config_dir(&self) -> &Path;
 }
 
+fn default_mise_bin(home: Option<&Path>) -> PathBuf {
+    home.and_then(|home| {
+        let installed = home.join(".local/bin/mise");
+        installed.is_file().then_some(installed)
+    })
+    .unwrap_or_else(|| PathBuf::from("mise"))
+}
+
 /// Live [`Backend`] over stock `mise bootstrap`.
 #[derive(Debug, Clone)]
 pub struct MiseBackend {
     /// Config dir passed as `-C` and `MISE_CEILING_PATHS`.
     config_dir: PathBuf,
-    /// Mise binary; defaults to `mise` on `PATH`.
+    /// Mise binary installed by setup, or `mise` on `PATH` when absent.
     mise_bin: PathBuf,
 }
 
 impl MiseBackend {
-    /// Build a backend for `config_dir`.
+    /// Build a backend for `config_dir`. Use `$HOME/.local/bin/mise` when
+    /// setup installed it there; otherwise resolve `mise` through `PATH`.
     pub fn new(config_dir: impl Into<PathBuf>) -> Self {
         Self {
             config_dir: config_dir.into(),
-            mise_bin: PathBuf::from("mise"),
+            mise_bin: default_mise_bin(std::env::var_os("HOME").as_deref().map(Path::new)),
         }
     }
 
@@ -582,10 +591,10 @@ struct RawStatusPart {
 /// with the raw text preserved.
 ///
 /// Part-state derivation (documented heuristic, pinned by unit tests and the
-/// T2.2 fixtures): `packages`/`tools` are state inventories checked entry
-/// by entry; every other list-shaped part reads as a pending-work list, so
-/// non-empty means drift and empty means clean (fail-closed: a wrong `ok`
-/// would wrongly enable Done). `login_shell: null` is unrecorded, not drift.
+/// T2.2 fixtures): `packages` and `tools` check installed state, `dotfiles`
+/// requires `applied`, and `repos` requires `current`. Other list-shaped parts
+/// read as pending-work lists, so non-empty means drift and empty means clean.
+/// `login_shell: null` is unrecorded, not drift.
 pub(crate) fn snapshot_from_raw(raw: &str) -> StatusSnapshot {
     let value: serde_json::Value = match serde_json::from_str(raw) {
         Ok(v) => v,
@@ -640,8 +649,62 @@ fn part_state(part: &str, value: &serde_json::Value) -> (String, Vec<String>) {
     match part {
         "packages" => packages_state(value),
         "tools" => tools_state(value),
+        "dotfiles" => dotfiles_state(value),
+        "repos" => repos_state(value),
         "login_shell" => ("ok".to_string(), vec!["not recorded".to_string()]),
         _ => pending_list_state(value),
+    }
+}
+
+fn dotfiles_state(value: &serde_json::Value) -> (String, Vec<String>) {
+    let mut drift = Vec::new();
+    for entries in ["files", "edits"] {
+        for entry in value
+            .get(entries)
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            if entry.get("state").and_then(|v| v.as_str()) != Some("applied") {
+                let name = entry
+                    .get("target")
+                    .or_else(|| entry.get("path"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?");
+                let state = entry.get("state").and_then(|v| v.as_str()).unwrap_or("?");
+                drift.push(format!("{name} ({state})"));
+            }
+        }
+    }
+    if drift.is_empty() {
+        ("ok".to_string(), vec!["clean".to_string()])
+    } else {
+        ("drift".to_string(), drift)
+    }
+}
+
+fn repos_state(value: &serde_json::Value) -> (String, Vec<String>) {
+    let Some(entries) = value.as_array() else {
+        return pending_list_state(value);
+    };
+    let drift: Vec<String> = entries
+        .iter()
+        .filter(|entry| entry.get("state").and_then(|v| v.as_str()) != Some("current"))
+        .map(|entry| {
+            let path = entry.get("path").and_then(|v| v.as_str()).unwrap_or("?");
+            let reason = entry
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .filter(|reason| !reason.is_empty())
+                .or_else(|| entry.get("state").and_then(|v| v.as_str()))
+                .unwrap_or("not current");
+            format!("{path} ({reason})")
+        })
+        .collect();
+    if drift.is_empty() {
+        ("ok".to_string(), vec!["clean".to_string()])
+    } else {
+        ("drift".to_string(), drift)
     }
 }
 
@@ -939,6 +1002,7 @@ fn run_phases(
             }
             Ok(None) => {}
             Err(tail) => {
+                send(Stream::Stderr, tail.clone(), log);
                 return ApplyOutcome::Failed {
                     code: None,
                     tail,

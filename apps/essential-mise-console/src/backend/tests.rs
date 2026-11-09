@@ -25,6 +25,51 @@ fn write_env(dir: &Path, env: &str, body: &str) {
 }
 
 #[test]
+fn default_mise_bin_uses_the_setup_install_when_present() {
+    let home = test_dir("mise-home");
+    let local_bin = home.join(".local/bin");
+    std::fs::create_dir_all(&local_bin).expect("create local bin");
+    let installed = local_bin.join("mise");
+    std::fs::write(&installed, "synthetic test binary").expect("write mise fixture");
+    assert_eq!(default_mise_bin(Some(&home)), installed);
+    assert_eq!(default_mise_bin(None), PathBuf::from("mise"));
+    std::fs::remove_dir_all(&home).ok();
+}
+
+#[test]
+fn failed_spawn_is_streamed_to_the_apply_log() {
+    let dir = test_dir("spawn-failure");
+    let log_file = std::fs::File::create(dir.join("apply.log")).expect("create apply log");
+    let mut log = std::io::BufWriter::new(log_file);
+    let current = Arc::new(Mutex::new(None));
+    let lines = std::cell::RefCell::new(Vec::new());
+    let mut seq = 0;
+    let mut emit = |stream, text, _log: &mut std::io::BufWriter<std::fs::File>| {
+        seq += 1;
+        lines.borrow_mut().push(ApplyLine { seq, stream, text });
+    };
+    let outcome = run_phases(
+        Path::new("/nonexistent/emc-mise"),
+        &dir,
+        vec![(ApplyPhase::Base, "phase 1: base", Vec::new())],
+        &mut emit,
+        &mut log,
+        &|| false,
+        &current,
+    );
+    assert!(matches!(outcome, ApplyOutcome::Failed { .. }));
+    assert!(
+        lines
+            .borrow()
+            .iter()
+            .any(|line| line.text.contains("failed to spawn mise")),
+        "spawn error must reach the apply log: {:?}",
+        lines.borrow()
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn origin_map_reads_declaring_module() {
     let dir = test_dir("origin");
     write_env(
@@ -228,6 +273,27 @@ fn mock_loads_plan_fixture() {
         !entries.is_empty(),
         "mock loads at least one plan entry from the fixture"
     );
+}
+
+#[test]
+fn applied_dotfiles_and_current_repos_are_not_pending() {
+    let snapshot = super::snapshot_from_raw(
+        r#"{
+            "dotfiles": {
+                "files": [{"target": "~/.zshrc", "state": "applied"}],
+                "edits": [{"path": "~/.zshrc", "state": "applied"}]
+            },
+            "repos": [{"path": "~/.oh-my-zsh", "state": "current", "reason": ""}]
+        }"#,
+    );
+    for part in ["dotfiles", "repos"] {
+        let status = snapshot
+            .parts
+            .iter()
+            .find(|entry| entry.part == part)
+            .expect("inventory part");
+        assert_eq!(status.state, "ok", "{part} is fully applied: {status:?}");
+    }
 }
 
 #[test]
