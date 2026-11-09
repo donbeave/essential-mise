@@ -554,12 +554,18 @@ impl ApplyOwner {
         {
             let mut prop = Prop::new("rerun", rerun);
             prop.copyable = true;
+            let detail = match self.state.outcome() {
+                Some(ApplyOutcome::Failed { tail, .. }) => {
+                    tail.lines().map(str::to_string).collect()
+                }
+                _ => vec![rerun.to_string()],
+            };
             let dialog = InfoDialog::new(S3_FAILURE, "Apply failed", vec![prop])
                 .intro(vec![(
                     "Copy the rerun command and try again.".to_string(),
                     Tone::Error,
                 )])
-                .detail(vec![rerun.to_string()]);
+                .detail(detail);
             let initial = dialog.initial_focus();
             self.modals
                 .push(ApplyModal::Failure(Box::new(dialog)), focus, Some(initial));

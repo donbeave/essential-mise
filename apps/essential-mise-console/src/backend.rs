@@ -238,21 +238,30 @@ pub trait Backend: Send + Sync + 'static {
     fn config_dir(&self) -> &Path;
 }
 
+fn default_mise_bin(home: Option<&Path>) -> PathBuf {
+    home.and_then(|home| {
+        let installed = home.join(".local/bin/mise");
+        installed.is_file().then_some(installed)
+    })
+    .unwrap_or_else(|| PathBuf::from("mise"))
+}
+
 /// Live [`Backend`] over stock `mise bootstrap`.
 #[derive(Debug, Clone)]
 pub struct MiseBackend {
     /// Config dir passed as `-C` and `MISE_CEILING_PATHS`.
     config_dir: PathBuf,
-    /// Mise binary; defaults to `mise` on `PATH`.
+    /// Mise binary installed by setup, or `mise` on `PATH` when absent.
     mise_bin: PathBuf,
 }
 
 impl MiseBackend {
-    /// Build a backend for `config_dir`.
+    /// Build a backend for `config_dir`. Use `$HOME/.local/bin/mise` when
+    /// setup installed it there; otherwise resolve `mise` through `PATH`.
     pub fn new(config_dir: impl Into<PathBuf>) -> Self {
         Self {
             config_dir: config_dir.into(),
-            mise_bin: PathBuf::from("mise"),
+            mise_bin: default_mise_bin(std::env::var_os("HOME").as_deref().map(Path::new)),
         }
     }
 
@@ -939,6 +948,7 @@ fn run_phases(
             }
             Ok(None) => {}
             Err(tail) => {
+                send(Stream::Stderr, tail.clone(), log);
                 return ApplyOutcome::Failed {
                     code: None,
                     tail,
