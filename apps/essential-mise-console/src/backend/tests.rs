@@ -276,6 +276,27 @@ fn mock_loads_plan_fixture() {
 }
 
 #[test]
+fn applied_dotfiles_and_current_repos_are_not_pending() {
+    let snapshot = super::snapshot_from_raw(
+        r#"{
+            "dotfiles": {
+                "files": [{"target": "~/.zshrc", "state": "applied"}],
+                "edits": [{"path": "~/.zshrc", "state": "applied"}]
+            },
+            "repos": [{"path": "~/.oh-my-zsh", "state": "current", "reason": ""}]
+        }"#,
+    );
+    for part in ["dotfiles", "repos"] {
+        let status = snapshot
+            .parts
+            .iter()
+            .find(|entry| entry.part == part)
+            .expect("inventory part");
+        assert_eq!(status.state, "ok", "{part} is fully applied: {status:?}");
+    }
+}
+
+#[test]
 fn status_parts_derive_ok_and_drift() {
     // Fixture host state is fully clean: every part ok.
     let fixture = super::snapshot_from_raw(&fixture_text("status.json"));
