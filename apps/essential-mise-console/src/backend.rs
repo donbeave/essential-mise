@@ -177,6 +177,8 @@ pub struct ResId {
 pub enum BackendError {
     /// Spawning or waiting on a child failed.
     Spawn(std::io::Error),
+    /// Administrator authentication failed before an apply.
+    Authentication(String),
     /// Output or config did not match the expected schema.
     Parse(String),
     /// A read-only query exceeded its deadline.
@@ -187,6 +189,7 @@ impl std::fmt::Display for BackendError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Spawn(e) => write!(f, "failed to run mise: {e}"),
+            Self::Authentication(e) => write!(f, "administrator authentication failed: {e}"),
             Self::Parse(e) => write!(f, "schema mismatch: {e}"),
             Self::Timeout => write!(f, "mise query timed out"),
         }
@@ -197,7 +200,7 @@ impl std::error::Error for BackendError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Spawn(e) => Some(e),
-            Self::Parse(_) | Self::Timeout => None,
+            Self::Authentication(_) | Self::Parse(_) | Self::Timeout => None,
         }
     }
 }
@@ -210,6 +213,8 @@ impl From<std::io::Error> for BackendError {
 
 /// Stock-`mise bootstrap` backend over a config dir.
 pub trait Backend: Send + Sync + 'static {
+    /// Authenticate with the user's terminal before starting an apply.
+    fn authenticate(&self) -> Result<(), BackendError>;
     /// Run `bootstrap plan --json` for the requested envs.
     fn plan(&self, envs: &[String], jobs: Option<u64>) -> Result<Vec<PlanEntry>, BackendError>;
     /// Run `bootstrap status --json` for the requested envs.
@@ -348,6 +353,21 @@ fn run_with_timeout(
 }
 
 impl Backend for MiseBackend {
+    fn authenticate(&self) -> Result<(), BackendError> {
+        eprintln!("essential-mise-console: checking administrator access for installation");
+        let status = Command::new("/usr/bin/sudo")
+            .arg("-v")
+            .status()
+            .map_err(BackendError::Spawn)?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(BackendError::Authentication(format!(
+                "sudo -v exited {status}; rerun the command and approve the terminal prompt"
+            )))
+        }
+    }
+
     fn plan(&self, envs: &[String], jobs: Option<u64>) -> Result<Vec<PlanEntry>, BackendError> {
         let mut cmd = self.base_command(envs);
         cmd.arg("plan").arg("--json");
@@ -718,11 +738,10 @@ fn tools_state(value: &serde_json::Value) -> (String, Vec<String>) {
 /// Number of log tail lines kept for the failure modal.
 const FAILURE_TAIL_LINES: usize = 20;
 
-/// Worker body: sudo preflight, phase 1, phase 2, streaming + tee.
-///
-/// Mirrors `bootstrap.sh:223-231`: `/usr/bin/sudo -v`, then the
-/// `while /usr/bin/sudo -n -v; do /bin/sleep 60; done` keepalive, killed on
-/// every exit path (done or cancelled).
+/// Worker body: noninteractive sudo validation, phase 1, phase 2, streaming + tee.
+/// Interactive authentication belongs to [`Backend::authenticate`] before the
+/// TUI starts. The `while /usr/bin/sudo -n -v; do /bin/sleep 60; done`
+/// keepalive is killed on every exit path (done or cancelled).
 #[allow(clippy::too_many_arguments)]
 fn run_apply_worker(
     mise_bin: PathBuf,
@@ -775,23 +794,58 @@ fn run_apply_worker(
         return ApplyOutcome::Success;
     }
 
-    if Command::new("/usr/bin/sudo")
-        .arg("-v")
-        .status()
-        .map(|s| !s.success())
-        .unwrap_or(true)
-    {
-        emit(
-            Stream::System,
-            "sudo -v failed: administrator authentication is required".to_string(),
-            &mut log,
-        );
-        return ApplyOutcome::Failed {
-            code: None,
-            tail: "sudo -v failed".to_string(),
-            phase: ApplyPhase::Base,
-        };
+    emit(
+        Stream::System,
+        "checking administrator access".to_string(),
+        &mut log,
+    );
+    let sudo_check = Command::new("/usr/bin/sudo")
+        .args(["-n", "-v"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output();
+    match sudo_check {
+        Ok(output) if output.status.success() => {}
+        Ok(output) => {
+            let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            emit(
+                Stream::System,
+                format!(
+                    "administrator access expired; rerun the console and approve the terminal prompt{}",
+                    if detail.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" ({detail})")
+                    }
+                ),
+                &mut log,
+            );
+            return ApplyOutcome::Failed {
+                code: output.status.code(),
+                tail: "sudo -n -v failed; interactive authentication must happen before the TUI starts"
+                    .to_string(),
+                phase: ApplyPhase::Base,
+            };
+        }
+        Err(e) => {
+            emit(
+                Stream::System,
+                format!("cannot check administrator access: {e}"),
+                &mut log,
+            );
+            return ApplyOutcome::Failed {
+                code: None,
+                tail: format!("failed to run sudo -n -v: {e}"),
+                phase: ApplyPhase::Base,
+            };
+        }
     }
+    emit(
+        Stream::System,
+        "administrator access confirmed".to_string(),
+        &mut log,
+    );
     let mut keepalive = Command::new("/bin/sh")
         .arg("-c")
         .arg("while /usr/bin/sudo -n -v; do /bin/sleep 60; done")

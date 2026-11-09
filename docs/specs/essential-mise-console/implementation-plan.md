@@ -338,7 +338,8 @@ Files: create `apps/essential-mise-console/src/backend.rs` (trait + `MiseBackend
 Command construction per L6. `spawn_apply` runs phase 1 then
 phase 2 (skip phase 2 on empty keep-list), streams `ApplyLine`, tees the FULL
 log to a temp file whose path is returned with the outcome (flow-comparison
-amendment 3). `sudo -v` + keepalive before phase 1; killed on done/cancel.
+amendment 3). `Backend::authenticate` runs `sudo -v` before the TUI starts.
+The worker validates with `sudo -n -v` and stops its keepalive on done/cancel.
 `origin_map` parses `config.<env>.toml` `[bootstrap.packages]` tables of the
 requested envs only. Tolerant serde (`#[serde(default)]`, no `deny_unknown_fields`).
 Verify origin parsing without mise: `src/backend.rs` unit test

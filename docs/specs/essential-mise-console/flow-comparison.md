@@ -25,7 +25,7 @@ sections. Verdicts: **better** / **parity** / **gap** (with phase).
 
 | Today | CLI / TUI | Verdict |
 |---|---|---|
-| `sudo -v` + 60s keepalive, then one `bootstrap --upgrade --update`; any failure kills the whole selection (`:226-231`) | S3 sudo pre-flight + keepalive; two-phase worker; stop with literal failing command; per-part progress | **better** |
+| `sudo -v` + 60s keepalive, then one `bootstrap --upgrade --update`; any failure kills the whole selection (`:226-231`) | Terminal-owned sudo authentication before the TUI; noninteractive validation and keepalive in S3; two-phase worker; literal failing command; honest phase progress | **better** |
 | No progress UI, no log structure | StepRail + live log + progress bar + copyable rerun | **better** |
 | `--upgrade --update` hardcoded on | Defaults on, visible toggles (§2, scenario 6) | **better** |
 

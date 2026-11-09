@@ -52,6 +52,10 @@ Verified post-run over SSH (`admin@192.168.64.4`):
   `timestamp_timeout=30` in the guest; stock `bootstrap.sh` primes via its
   own `sudo -v` on the same tty, the TUI cannot. (2) VNC `type` needs
   `--force-caps` for capitals/underscores.
+- Resolved 2026-11-09: `Backend::authenticate` now primes sudo before the TUI
+  enters the alternate screen. The worker uses `sudo -n -v`, so it cannot
+  display a hidden password prompt. The `!tty_tickets` workaround is no longer
+  part of the product flow.
 
 ## Original operator-run recipe (kept for reference)
 
