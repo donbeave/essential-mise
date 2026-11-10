@@ -7,6 +7,7 @@
 "brew:mimo-code" = "latest"
 "brew:opencode" = "latest"
 "brew-cask:grok-build" = "latest"
+"brew:pi-coding-agent" = "latest"
 
 [bootstrap.hooks.post-packages]
 description = "Real Homebrew: install or upgrade Claude Code, Amp CLI, OMP, and Muse Code"
