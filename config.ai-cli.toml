@@ -7,6 +7,7 @@
 "brew:mimo-code" = "latest"
 "brew:opencode" = "latest"
 "brew-cask:grok-build" = "latest"
+"brew:pi-coding-agent" = "latest"
 
 [bootstrap.hooks.post-packages]
 description = "Real Homebrew: install or upgrade Claude Code, Amp CLI, OMP, and Muse Code"
@@ -121,6 +122,7 @@ alias grok-yolo='grok --yolo'
 alias amp-yolo='amp --dangerously-allow-all'
 alias omp-yolo='omp --approval-mode=yolo'
 alias muse-yolo='muse --yolo'
+alias pi-yolo='pi --approve'
 function claude-anthropic {
   CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos" claude "$@"
 }

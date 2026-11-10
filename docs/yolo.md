@@ -22,6 +22,7 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli dot apply
 | `amp-yolo` | `amp --dangerously-allow-all` | Disables command confirmation prompts |
 | `omp-yolo` | `omp --approval-mode=yolo` | Sets this session's approval mode to `yolo` |
 | `muse-yolo` | `muse --yolo` | Muse Code. Disables approval and sandbox for the workspace run |
+| `pi-yolo` | `pi --approve` | Pi never asks before tool calls. `--approve` trusts project-local `.pi` settings, extensions, skills, MCP servers and `.agents/skills` for this run, even where a saved `/trust` decision says no |
 
 ## Provider matrix (`<agent>-<provider>[-<account>]`)
 
@@ -50,6 +51,8 @@ covered only through the `claude-*`, `codex-*`, and `omp-*` provider aliases.
 Each Codex account command creates its account directory on first use if it
 does not exist. New directories start empty; configure or sign in to each
 account separately. Existing directory contents are preserved.
+
+Plain `pi` keeps Pi's default project trust (`ask`), so it prompts before loading a folder's project-local resources. Only `pi-yolo` skips that prompt.
 
 `codex --yolo` is the wide mode: it removes the sandbox as well as the prompts. `--not-so-yolo` is a different flag (`--approve-for-me`) and is not what `codex-yolo` runs.
 
