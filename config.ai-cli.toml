@@ -121,6 +121,7 @@ alias grok-yolo='grok --yolo'
 alias amp-yolo='amp --dangerously-allow-all'
 alias omp-yolo='omp --approval-mode=yolo'
 alias muse-yolo='muse --yolo'
+alias pi-yolo='pi --approve'
 function claude-anthropic {
   CLAUDE_CONFIG_DIR="$HOME/.claude-chainargos" claude "$@"
 }

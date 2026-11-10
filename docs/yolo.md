@@ -22,6 +22,7 @@ MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-cli dot apply
 | `amp-yolo` | `amp --dangerously-allow-all` | Disables command confirmation prompts |
 | `omp-yolo` | `omp --approval-mode=yolo` | Sets this session's approval mode to `yolo` |
 | `muse-yolo` | `muse --yolo` | Muse Code. Disables approval and sandbox for the workspace run |
+| `pi-yolo` | `pi --approve` | Pi never prompts before tool calls. `--approve` also trusts project-local `.pi` settings, extensions, skills, MCP servers and `.agents/skills` for the run, so the project-trust prompt is skipped |
 
 ## Provider matrix (`<agent>-<provider>[-<account>]`)
 
