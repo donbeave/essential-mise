@@ -125,7 +125,7 @@ run_and_record newer-mise-preserved 0 /bin/bash -c '[[ "$(/usr/bin/shasum -a 256
 run_and_record remove-newer-mise-wrapper 0 /bin/rm "$first_home/.local/bin/mise"
 run_and_record restore-mise-binary 0 /bin/mv "$first_home/.local/bin/mise-real" "$first_home/.local/bin/mise"
 run_and_record optional-selection-rerun 0 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script" bootstrap --config "$source_repo"
-run_and_record set-wrong-origin 0 git -C "$first_config" remote set-url origin https://example.invalid/essential-mise-config.git
+run_and_record set-wrong-origin 0 git -C "$first_config" remote set-url origin https://example.invalid/wrong-origin.git
 run_and_record wrong-origin 1 env HOME="$first_home" PATH="$first_path" /bin/bash "$source_script" bootstrap --config "$source_repo"
 /usr/bin/python3 - "$evidence_dir/wrong-origin.log" <<'PY'
 import pathlib

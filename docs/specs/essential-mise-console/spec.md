@@ -46,7 +46,7 @@ result — without reimplementing any install logic.
 ## 4. Architecture
 
 In-repo crate at `apps/essential-mise-console/`, one binary crate plus a small library
-for the screen state, following the `apps/jackin` (`jackin-console`)
+for the screen state, following the framework's recommended app/library
 split:
 
 ```
@@ -60,7 +60,7 @@ apps/essential-mise-console/
 ```
 
 `junie-tui` is a dependency by exact git rev (pinned merged commit, never a branch; `default-features = false`
-plus needed features, mirroring `jackin-console`). Library code in our
+plus needed features, following the framework's recommended setup). Library code in our
 crate never reimplements interaction; behavior shared twice moves to a
 shared module, never duplicated per screen (the Termrock rule).
 
@@ -78,8 +78,8 @@ trait Backend {
 
 Long-running applies execute on worker threads and report through
 `junie_tui::runtime::external_channel()` as `Input::External`
-(progress lines, completion, errors) — the same pattern as jackin's
-cockpit build log. The apply screen renders the live stream in the
+(progress lines, completion, errors) — the same pattern as the framework's
+cockpit build log example. The apply screen renders the live stream in the
 library terminal pane; cancellation forwards to the child process.
 
 ## 5. Screens (P1 scope)

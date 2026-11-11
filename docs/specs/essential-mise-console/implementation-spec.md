@@ -112,9 +112,9 @@ Global chrome: `PageHeader` (`src/widgets/page_header.rs:9`), `StatusBar`
 `TerminalSession::enter/leave` + free `runtime::run` (`src/runtime.rs:208,249,363`)
 and `external_channel()` (`:84`)
 for worker-thread events as `Input::External` (`src/core/event.rs:31,41`;
-wiring precedent `apps/jackin/src/app.rs:226,235-244,394` + test pump
-`apps/jackin/tests/external.rs:27-40`; `cockpit.rs` is cited only for the
-viewport cap below — it holds no external-channel code). Behavior shared twice
+the framework's existing external-event wiring pattern plus its test pump;
+the cockpit example is relevant only for the viewport cap below — it holds
+no external-channel code). Behavior shared twice
 goes in a shared module, never per screen (Termrock rule, AGENTS.md).
 
 S1 Modules — `ListDetail` (`src/widgets/list_detail.rs:158`, `ListRow:48`,
@@ -250,10 +250,9 @@ arrives as `StatusSnapshot`). World: `entries: Vec<Row>`
 (selection/filter), `ApplyState::{Idle,Running{lines,handle},Done{…}}` (no
 `child_pid` — cancel goes through `ApplyHandle::cancel()`, never pid-kill).
 `Parse` errors show `schema mismatch…` and keep stale entries — never panic.
-Mock backend returns fixture JSON for screenshot/unit tests. jackin wiring to
-mirror: `with_external` (`apps/jackin/src/app.rs:226`), `Input::External →
-on_external → downcast_ref` (`:394,235-244`); test pump
-`apps/jackin/tests/external.rs:27-40`.
+Mock backend returns fixture JSON for screenshot/unit tests. Wiring to
+mirror: the framework's `with_external` builder hook and the
+`Input::External → on_external → downcast_ref` dispatch, plus its test pump.
 
 ## 5. Scenario matrix
 

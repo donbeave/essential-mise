@@ -145,7 +145,7 @@ if [[ "$scenario" == stage0 ]]; then
   run_logged first-run-stage "/usr/bin/grep -E 'stage 6/6' '$evidence_dir/cold-first-run.log'"
   run_logged rerun "$stage0_command"
   original_origin="$(vm_ssh "git -C '$config_dir' remote get-url origin")"
-  vm_ssh "git -C '$config_dir' remote set-url origin 'https://example.invalid/essential-mise-config.git'"
+  vm_ssh "git -C '$config_dir' remote set-url origin 'https://example.invalid/wrong-origin.git'"
   if run_logged wrong-origin "$stage0_command"; then
     outcome=unexpected-success
   else
