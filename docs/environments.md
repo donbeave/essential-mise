@@ -33,6 +33,7 @@ env = ["foundation", "terminal", "github", "security"]
 | `development-apple` | Xcode through MAS | Full Xcode onboarding and licenses are manual |
 | `kubernetes` | kubectl, kubectx, Helm | Cluster credentials and setup are manual |
 | `infrastructure` | OpenTofu, Ansible, linode-cli, gomplate | CLI only; no provisioning projects or state |
+| `scentbird` | Generic `scentbird-*` Claude Code subagents, `CLAUDE.md`, and a one-key `settings.json` merge (`env.CLAUDE_CODE_SUBAGENT_MODEL`) for the `~/.claude-scentbird` and `~/.claude-scentbird-ai` profiles; Scentbird-specific context cloned from the private `donbeave/essential-mise-scentbird` | Needs GitHub access to the private repository (`gh auth setup-git`). Kept apart from the `tailrocks-*` agents in `~/.claude`. See `dotfiles/ai-cli/claude-scentbird/README.md` |
 
 ## Optional application groups
 

@@ -1,0 +1,17 @@
+# Scentbird Claude Code profiles (~/.claude-scentbird, ~/.claude-scentbird-ai; wrappers in config.ai-cli.toml).
+# Public, generic scentbird-* subagents come from dotfiles/ai-cli/claude-scentbird. They are kept apart from the
+# tailrocks-* set that config.ai-cli.toml deploys to ~/.claude. Scentbird-specific context comes from a private
+# repository and is never stored here.
+
+[bootstrap.repos]
+"~/.local/share/essential-mise-scentbird" = { url = "https://github.com/donbeave/essential-mise-scentbird.git", ref = "main", depth = 1 }
+
+[dotfiles]
+"~/.claude-scentbird/CLAUDE.md" = { source = "dotfiles/ai-cli/claude-scentbird/CLAUDE.md", mode = "copy" }
+"~/.claude-scentbird/agents" = { source = "dotfiles/ai-cli/claude-scentbird/agents", mode = "copy" }
+"~/.claude-scentbird/scentbird-context.md" = { source = "~/.local/share/essential-mise-scentbird/scentbird-context.md", mode = "copy" }
+"~/.claude-scentbird/settings.json/scentbird" = { source = "dotfiles/ai-cli/claude-scentbird/settings.json", merge = true }
+"~/.claude-scentbird-ai/CLAUDE.md" = { source = "dotfiles/ai-cli/claude-scentbird/CLAUDE.md", mode = "copy" }
+"~/.claude-scentbird-ai/agents" = { source = "dotfiles/ai-cli/claude-scentbird/agents", mode = "copy" }
+"~/.claude-scentbird-ai/scentbird-context.md" = { source = "~/.local/share/essential-mise-scentbird/scentbird-context.md", mode = "copy" }
+"~/.claude-scentbird-ai/settings.json/scentbird" = { source = "dotfiles/ai-cli/claude-scentbird/settings.json", merge = true }
