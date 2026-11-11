@@ -1,95 +1,46 @@
 # essential-mise
 
-A modular [mise bootstrap](https://mise.jdx.dev/bootstrap.html) configuration for an Apple Silicon Mac. It uses native mise resources wherever they work, with six narrowly documented real-Homebrew compatibility exceptions.
+An engine that sets up and maintains an Apple Silicon Mac from a **config repository that you own**. The engine is a small bash launcher plus a Rust console (CLI and TUI) over [mise bootstrap](https://mise.jdx.dev/bootstrap.html). It contains no machine configuration: your packages, dotfiles, and module list live in your own repository, described by an `essential-mise.toml` manifest.
 
-**Status: PRE-RELEASE.** The complete standard workstation has not passed its end-to-end release gate. Review the current `main` branch before setup; it changes over time.
+**Status: PRE-RELEASE.** Review `bootstrap.sh` and the console release it pins before running them.
 
 ## Requirements
 
-- Apple Silicon running macOS **27.2 or newer**, in a native Terminal rather than Rosetta.
+- Apple Silicon running macOS **27.2 or newer**, in a native Terminal.
 - Internet access and an administrator account for Command Line Tools and Homebrew prompts.
-- App Store sign-in for Mac App Store applications. Accounts, licenses, privacy consent, and application onboarding remain manual.
+- A config repository (see below). Accounts, licenses, and App Store sign-in stay manual.
 
-The configuration requires **mise 2026.10.23 or newer**. The launcher updates mise to the latest stable release and never downgrades it. `config.toml` also enables automatic mise self-updates; no optional environment is selected by default.
+## Quick start
 
-## Set up a new Mac
-
-Review the current `bootstrap.sh`, then run:
-
-```bash
-/bin/bash -c "$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)"
-```
-
-This always downloads the latest launcher from `main`, and adoption uses the repository's default `main` branch. The launcher verifies and starts the pinned console release. The console prepares Command Line Tools, Homebrew, a compatible mise, the adopted checkout, and the `foundation` environment, then opens the module-selection TUI. Select environments with Space, press Enter to review their packages, and confirm the apply. Selections are installed once and are not permanently selected. See [First Mac setup](docs/first-mac.md) for prompts, recovery, and the App Store flow.
-
-Set the configuration path in each new shell, then preview and apply the standard workstation:
+1. Create your config repository from the starter: see [Create your config](docs/create-your-config.md).
+2. On the Mac, run:
 
 ```bash
-config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
-MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,development,security bootstrap --dry-run
-MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E foundation,terminal,development,security bootstrap
+/bin/bash -c "$(/usr/bin/curl -fsSL https://raw.githubusercontent.com/donbeave/essential-mise/main/bootstrap.sh)" bootstrap --config OWNER/REPO
 ```
 
-Every machine-setup example uses `mise -C` with `MISE_CEILING_PATHS`, preventing trusted projects in the caller's directory or above the adopted checkout from contributing resources. To persist this selection for future shells, create `miserc.local.toml` in the adopted checkout:
+Replace `OWNER/REPO` with your repository. The launcher verifies a pinned console release, then the console installs Command Line Tools, Homebrew, and mise, adopts your repository as `~/.config/mise`, applies its base modules, and opens the module-selection TUI. Details and recovery: [First Mac setup](docs/first-mac.md).
 
-```toml
-env = ["foundation", "terminal", "github", "security"]
-```
+## How it fits together
 
-When adding modules later, edit that list without discarding existing entries. `-E` replaces the persistent selection for one invocation; it does not uninstall anything.
+| Piece | Where |
+| --- | --- |
+| Engine: launcher, console, VM test harness, docs | this repository |
+| Your machine configuration | your config repository |
+| Working example config | [`templates/config-starter`](templates/config-starter) |
 
-## Install one block
-
-The [environment guide](docs/environments.md) lists every module, its purpose, prerequisites, and manual steps. For example:
+## Check a config repository
 
 ```bash
-config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
-MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap --dry-run
-MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap
-MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E ai-tools,ai-cli bootstrap status --missing
+essential-mise-console lint --config-dir /path/to/your-config
 ```
 
-`ai-tools` contains shared search and development utilities, `ai-cli` contains terminal coding agents, and `ai-desktop` contains desktop applications. They are independent selections.
+## Docs
 
-## Install or activate a runtime
-
-These are separate operations:
-
-```bash
-config_dir="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
-MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E js bootstrap
-MISE_CEILING_PATHS="$config_dir" mise -C "$config_dir" -E js exec -- node --version
-```
-
-The first installs the declared Node/Bun stack; the second uses it for one command. Neither permanently selects `js`. Add `js` to the existing `env` list in `miserc.local.toml` for future shells and unrelated directories. The same rule applies to `development-rust` and `development-java`.
-
-## Maintain or remove
-
-- [Update the adopted checkout, upgrade packages, and troubleshoot](docs/first-mac.md#4-update-and-upgrade)
-- [Manage the six Homebrew exceptions](docs/homebrew-exceptions.md)
-- [Remove modules and their owner-specific configuration](docs/first-mac.md#5-remove-a-module)
-
-Deselecting a module does not uninstall it. Native unapply, Fish-block removal, application-owned settings, package removal, and macOS preference reversal are distinct operations. Do not run a broad native formula prune while hook-owned Amp CLI, FFF, or OMP must remain installed.
-
-## Current boundaries
-
-- Signed-in installation, purchases/claims, and reruns for the 21 Mac App Store declarations remain manual and unverified.
-- Amp Desktop is provisioned for inventory completeness, but its known macOS 27.2 GUI startup failure means a working application is not claimed.
-- Authenticated OMP routing/instruction loading and interactive Claude status-line rendering require manual verification.
-- The earlier pstack installation (`bin/pstack-plugins.sh`) and the Muse Code hook were verified on the primary Mac on 2026-11-03; the current plugin-only installation has not yet been verified on a fresh VM.
-- The RTK agent integration (`bin/rtk-agents.sh`) was applied on the primary Mac (2026-11-03): `rtk init --show` reports Claude Code, Codex, and OpenCode configured, the Claude Code, Codex, Antigravity, Grok, and Muse hooks rewrite a scripted `git status`, and a second run changes no file. Live agent sessions (including Grok Build, Muse Code, OMP, OpenCode, and Kimi Code) and a fresh VM are not verified.
-- Account, license, privacy, privileged-extension, and application-specific setup are not automated.
-- Preference stored values can be checked, but every UI effect and delayed selective reversal requires manual verification.
-
-Independent clean installation of every module, an applied native package/cask upgrade, Homebrew-owned cask behavior during actual upgrade/prune, a real new-Terminal UI session, and the complete standard-workstation gate remain open release checks.
-
-## Guides
-
-- [First Mac setup, maintenance, removal, and troubleshooting](docs/first-mac.md)
-- [Environments and package groups](docs/environments.md)
-- [Real Homebrew compatibility exceptions](docs/homebrew-exceptions.md)
-- [Manual actions and preference reversal](docs/manual-actions.md)
-- [Claude Code status line](docs/claude-statusline.md)
-- [Yolo aliases](docs/yolo.md)
-- [Draft pull requests by default](docs/gh-draft.md)
-- [Disposable Tart/Cua verification](scripts/vm/README.md)
+- [Architecture](docs/architecture.md): engine versus config, data flow, trust model
+- [Config repository contract](docs/config-repo.md): layout and the `essential-mise.toml` manifest
+- [Create your config](docs/create-your-config.md)
+- [First Mac setup](docs/first-mac.md)
+- [Writing modules](docs/writing-modules.md)
+- [VM testing](docs/vm-testing.md)
+- [Console specs](docs/specs/essential-mise-console/README.md)

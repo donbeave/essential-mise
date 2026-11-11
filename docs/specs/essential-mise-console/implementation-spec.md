@@ -7,12 +7,11 @@ librarian, CLI designer, TUI designer, TUI engineer) re-verified against live
 
 ## 0. Corrections to prior spec (`spec.md`)
 
-- "30 environments" is wrong: `bootstrap.sh:159-164` declares **29**. Module
-  names + descriptions live in `environment_names` / `environment_descriptions`
-  arrays (`bootstrap.sh:159+`); the console parses them, never hardcodes.
-- No `first-mac.sh` exists. Flow is `bootstrap.sh` + `docs/first-mac.md`.
-- No `verify-current-inventory.py` host gate exists. P0 exit gate is `tests/test_plugin_lifecycle.py`.
-  (`scripts/vm/verify-current-inventory.py` exists but is guest-side VM tooling.)
+- The module count is not fixed. Module names and descriptions come from the
+  `[[modules]]` tables of the config repository's `essential-mise.toml`
+  manifest; the console parses them and never hardcodes them.
+- No `first-mac.sh` exists. The flow is `bootstrap.sh` plus `docs/first-mac.md`.
+- Guest-side verification tooling lives in `testing/vm/`; there is no host gate.
 - `plan --json` carries no origin field (keys exactly `{action,current,desired,id}`),
   confirmed twice. Origin is derived from TOML parsing — required, not optional.
 - `plan` covers only accounts/packages/files/services/firewall/compose — **not**
@@ -56,7 +55,7 @@ observed in `mise help`.
 
 ```
 emc [--mise PATH] [--config-dir DIR] [-E/--env …] [-y/--yes] [-v…|-q] <CMD>
-  modules [--json] [QUERY]                 # list 29 envs + descriptions
+  modules [--json] [QUERY]                 # list modules + descriptions
   packages [-E …] [--manager M] [--json]# checklist data; origin parsed from
                                            # config.<name>.toml, console adds
                                            # `declared_by: [<envs>]`; --manager
@@ -77,7 +76,7 @@ emc [--mise PATH] [--config-dir DIR] [-E/--env …] [-y/--yes] [-v…|-q] <CMD>
 ```
 
 - No-args: TUI modules screen when tty; explicit subcommand required when piped
-  (fail-closed — deliberate new behavior, not a mirror: `bootstrap.sh:197-205`
+  (fail-closed — deliberate new behavior, not a mirror: the original bash prompt
   silently proceeds with nothing selected on non-tty).
 - `apply` = phase 1 `bootstrap --skip packages [parts]` then phase 2
   `packages apply [PKG…]` (`manager:package` form, e.g. `brew:jq`; omitted names
@@ -203,7 +202,7 @@ PENDING routes render `Pending`, preserve exit 0, and leave installs untouched
 
 S4 Result — auto `Backend::status` on entry; per-part table via `DataGrid`
 (`grid.rs:382`) or `PropsList`; summary `StatusBar`; follow-ups `Notice` +
-read-only `TextViewport` (login sessions, `docs/manual-actions.md` items —
+read-only `TextViewport` (login sessions, manual-action items from the config repo —
 surfaced, never auto-executed). Keys: `R` re-run `status --json`, `c` copy
 summary (outside modals; `y` inside `InfoDialog`), `Enter/D` done, `B` back to S2. Drift → per-part note + suggested
 `mise bootstrap …` command; `DiffView` (`src/widgets/diff.rs:204`) optional.
@@ -215,7 +214,7 @@ summary (outside modals; `y` inside `InfoDialog`), `Enter/D` done, `B` back to S
 │ │ packages      │ drift   │ 2 packages pending (see rerun below)         │ │
 │ │ tools         │ ok      │ rust 1.99.1, node pinned                     │ │
 │ └───────────────┴─────────┴──────────────────────────────────────────────┘ │
-│ follow-ups:  ① open a fresh login shell   ② gh auth login (manual-actions) │
+│ follow-ups:  ① open a fresh login shell   ② gh auth login (manual action) │
 │ rerun: mise -E neovim,shell bootstrap packages apply brew:foo              │
 │ [Re-check]  [Copy summary]  [Done]   R re-check · c copy · B back to S2    │
 └─ auto-ran `status --json` on entry · Done exits 0 only when all ok ────────┘
@@ -274,7 +273,7 @@ on_external → downcast_ref` (`:394,235-244`); test pump
 | 12 | MAS signed-out / claim-required / second-apply | P1 | S3 failure copy names the state, rerun cmd |
 | 13 | Manual-action follow-ups | P1 | S4 read-only surface |
 | 14 | system-preferences gated review | P2 | — |
-| 15 | Dirty/wrong-origin/non-worktree/symlink config | P1 | Fail-closed `Notice` + exit 1 (mirror `bootstrap.sh:125-151`) |
+| 15 | Dirty/wrong-origin/non-worktree/symlink config | P1 | Fail-closed `Notice` + exit 1 (mirror the original bash launcher checks) |
 | 16 | Non-tty | P1 | No TUI; explicit subcommand required; fail closed |
 | 17 | Hook PENDING routes | P1 | `Pending` marks, exit 0 |
 | 18 | Noop re-run (nothing to do) | P1 | S1 all-installed badges; `plan --detailed-exitcode` → 0; S4 all-ok, Done exits 0 |
@@ -328,6 +327,6 @@ driven to merge — no orphans.
   logic still stays stock (Apple/Homebrew/mise official installers).
   The fetcher itself narrates: staged `==>` output (platform → download →
   handoff), curl progress, checksum verdict, cached-binary reuse — exact
-  contract in the plan (T1.4). No silent minutes before the Rust UI appears.
+  contract in the spec. No silent minutes before the Rust UI appears.
 - P0 bash deselect — SUPERSEDED 2026-11-05 (no bash selection investment; step-6
   numbers stay until the first release; effort moves to the binary + release pipeline).

@@ -2,7 +2,7 @@
 
 ## 1. Goal
 
-Replace the poor-terminal interaction of `bootstrap.sh` steps 6/7 (numbered
+Replace the poor-terminal interaction of the original bash flow (numbered
 category list, free-text input, no per-app choice, no progress UI, no
 re-check) with a rich Ratatui TUI that lets the operator pick environment
 modules, pick packages inside them, watch the apply run, and verify the
@@ -12,9 +12,10 @@ result — without reimplementing any install logic.
 
 - No reimplementation of `mise bootstrap` (packages, dotfiles, repos,
   hooks, tools, unapply, plan/status). The engine stays stock mise.
-- No new config format. `config.<name>.toml` modules remain the only
-  source of truth; the TUI never writes package declarations (one-shot
-  installs stay unrecorded, matching today's `bootstrap.sh` semantics).
+- No new package format. `config.<name>.toml` modules remain the only
+  source of truth for packages; the TUI never writes package declarations
+  (one-shot installs stay unrecorded). The module catalogue comes from the
+  config repository's `essential-mise.toml` manifest (see `docs/config-repo.md`).
 - No replacement of VM verification scripts or docs. Stage 0–5 *orchestration*
   lives in `emc setup` (calling official installers); install logic itself is
   never reimplemented. The TUI covers the setup + selection + apply + verify
@@ -24,9 +25,9 @@ result — without reimplementing any install logic.
 
 ## 3. Background and constraints
 
-- Depends on `tailrocks/terminal-components-baseline` main tip `2e9e60f` (PR #1
-  merged 2026-11-05). The crate pins that rev, never the branch. Upstream gaps go
-  back as PRs with full review rounds (plan T6.1).
+- Depends on the Termrock component library (`junie-tui`) at a pinned git
+  revision, never a branch. Upstream gaps go
+  back as PRs with full review rounds.
 - Upstream mise capabilities used (all verified against mise 2026.10.x):
   `bootstrap plan --json` → per-resource `{id, current, desired,
   action}`; `bootstrap status --json` → per-part state;
@@ -83,8 +84,8 @@ library terminal pane; cancellation forwards to the child process.
 
 ## 5. Screens (P1 scope)
 
-1. **Modules** — multi-select list of the 30 environments with the
-   `bootstrap.sh` descriptions; search filter; shows already-installed
+1. **Modules** — multi-select list of the modules declared in the manifest, with their
+   descriptions; search filter; shows already-installed
    state where `plan --json` reports `noop`.
 2. **Packages** — checklist of every package in the selected modules,
    grouped by declaring module, pre-ticked; untick to deselect.
@@ -94,8 +95,8 @@ library terminal pane; cancellation forwards to the child process.
    per part; on failure, stops with the error and the exact rerun
    command.
 4. **Result** — re-runs `status --json`, shows per-part ok/drfit,
-   prints follow-ups (login sessions, manual actions from
-   `docs/manual-actions.md`).
+   prints follow-ups (login sessions, manual actions listed by
+   the config repository).
 
 Out of P1 (P2 candidates): `unapply` screen, remote-host inventory,
 `packages use` (record-to-config) flow, first-run adoption wizard.
@@ -146,5 +147,5 @@ unmerged PRs left behind.
 3. Visual identity: run a D-style baseline review before P1 ships, or
    ship functional-first and style in P2? — RECOMMENDED functional-first P1.
 4. Should the TUI also replace the `miserc.local.toml` persistent-env
-   editing, or stay one-shot like `bootstrap.sh` today? — RECOMMENDED read-only
-   hint P1, editor P2 (T3.3 may promote `--save-env`).
+   editing, or stay one-shot like the original bash flow? — RECOMMENDED read-only
+   hint P1, editor P2.
