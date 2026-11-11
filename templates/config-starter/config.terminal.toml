@@ -1,0 +1,9 @@
+[bootstrap.packages]
+"brew:starship" = "latest"
+"brew:bat" = "latest"
+
+[dotfiles]
+"~/.config/starship.toml" = { source = "dotfiles/terminal/starship.toml", mode = "copy" }
+"~/.zshrc/terminal" = { block = '''
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+''' }

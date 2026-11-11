@@ -1,8 +1,0 @@
-[tools]
-java = "oracle-graalvm"
-
-[bootstrap.packages]
-"brew:gradle" = "latest"
-"brew:maven" = "latest"
-"brew-cask:visualvm" = "latest"
-"brew-cask:jetbrains-toolbox" = "latest"

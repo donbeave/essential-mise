@@ -1,4 +1,0 @@
-[bootstrap.packages]
-"brew:kubernetes-cli" = "latest"
-"brew:kubectx" = "latest"
-"brew:helm" = "latest"

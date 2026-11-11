@@ -15,3 +15,6 @@ miserc.local.toml
 *.tfvars.json
 linode.env.op
 inventory.ini
+
+__pycache__/
+*.pyc

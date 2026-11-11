@@ -173,17 +173,22 @@ fn live_backend_dry_run_spawns_nothing() {
 #[test]
 fn setup_dry_run_prints_staged_plan_with_zero_subprocesses() {
     let backend = std::sync::Arc::new(MockBackend::new());
-    let (code, out) = run_with(backend.clone(), &["emc", "setup", "--dry-run"]);
+    let (code, out) = run_with(
+        backend.clone(),
+        &["emc", "setup", "--dry-run", "--config", "OWNER/REPO"],
+    );
     assert_eq!(code, EXIT_OK, "setup --dry-run exits 0, got:\n{out}");
-    for stage in 1..=5u8 {
+    for stage in 1..=6u8 {
         assert!(
-            out.contains(&format!("stage {stage}/5")),
-            "staged plan lists stage {stage}/5, got:\n{out}"
+            out.contains(&format!("stage {stage}/6")),
+            "staged plan lists stage {stage}/6, got:\n{out}"
         );
     }
     for url in [
         "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh",
         "https://mise.run",
+        "GIT_TERMINAL_PROMPT=0 /usr/bin/git ls-remote https://github.com/OWNER/REPO.git",
+        "bootstrap --adopt https://github.com/OWNER/REPO.git",
     ] {
         assert!(out.contains(url), "staged plan shows {url}, got:\n{out}");
     }
@@ -249,4 +254,25 @@ fn tier2_help_matches_mise_flags() {
         !status.contains("--manager"),
         "packages status keeps having no --manager (console filters)"
     );
+}
+
+#[test]
+fn lint_passes_on_the_starter_and_fails_on_an_empty_dir() {
+    let starter = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../templates/config-starter"
+    );
+    let backend = std::sync::Arc::new(MockBackend::new());
+    let (code, out) = run_with(backend.clone(), &["emc", "lint", "--config-dir", starter]);
+    assert_eq!(code, EXIT_OK, "starter passes lint, got:\n{out}");
+
+    let empty = std::env::temp_dir().join(format!("emc-test-lint-empty-{}", std::process::id()));
+    std::fs::create_dir_all(&empty).expect("create temp dir");
+    let (code, out) = run_with(
+        backend,
+        &["emc", "lint", "--config-dir", &empty.display().to_string()],
+    );
+    assert_eq!(code, EXIT_ERROR, "empty dir fails lint, got:\n{out}");
+    assert!(out.contains("essential-mise.toml not found"), "got:\n{out}");
+    std::fs::remove_dir_all(&empty).ok();
 }

@@ -242,12 +242,12 @@ fn static_screen_resize_redraws_and_preserves_filtering() {
 #[test]
 fn canned_mock_origins_cover_fixture_envs() {
     use essential_mise_console::cli::mock_backend;
-    use essential_mise_console::screens::modules::parse_environments;
-    let text = std::fs::read_to_string(fixture_config().join("bootstrap.sh"))
-        .expect("fixture bootstrap.sh");
-    let envs: Vec<String> = parse_environments(&text)
+    use essential_mise_console::manifest::Manifest;
+    let envs: Vec<String> = Manifest::load(&fixture_config())
+        .expect("fixture manifest")
+        .modules
         .into_iter()
-        .map(|e| e.name)
+        .map(|m| m.name)
         .collect();
     assert!(!envs.is_empty(), "fixture declares envs");
     let origins = mock_backend()

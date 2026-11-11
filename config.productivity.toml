@@ -1,8 +1,0 @@
-[bootstrap.packages]
-"brew-cask:notion" = "latest"
-"brew-cask:grammarly-desktop" = "latest"
-"brew-cask:speechify-voice-ai" = "latest"
-"brew-cask:superwhisper" = "latest"
-"brew:mas" = "latest"
-"mas:1462114288" = "latest"
-"mas:6475002485" = "latest"

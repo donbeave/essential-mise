@@ -1,0 +1,9 @@
+schema = 1
+name = "my-workstation"
+
+[setup]
+base_modules = ["foundation"]
+
+[[modules]]
+name = "terminal"
+description = "Shell prompt and terminal utilities"
