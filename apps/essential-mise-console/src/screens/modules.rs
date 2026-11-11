@@ -4,10 +4,9 @@
 //! selection stays keyed by stable environment names; row and badge widgets
 //! use inventoried components only via the shared filter and chrome helpers.
 //!
-//! Environment names/descriptions are parsed from `bootstrap.sh`
-//! `environment_names`/`environment_descriptions` (space-split words and
-//! single-quoted lines; no `regex` dependency, plain line scan). Pre-ticks
-//! come from the `env` key of `miserc.local.toml` (read-only).
+//! Environment names/descriptions come from the config repository's
+//! `essential-mise.toml` manifest (`crate::manifest`). Pre-ticks come from
+//! the `env` key of `miserc.local.toml` (read-only).
 //! Badges: status drift anywhere conservative-marks drift; otherwise an
 //! env with no packages is pending and all-`noop` packages is installed
 //! (packages-only, since plan is blind to repos/dotfiles/shell).
@@ -46,64 +45,6 @@ pub struct ModuleInfo {
     pub name: String,
     /// One-line description.
     pub description: String,
-}
-
-/// Parse `environment_names` (space-split) and `environment_descriptions`
-/// (single-quoted lines) from `bootstrap.sh` text, zipped pairwise.
-pub fn parse_environments(text: &str) -> Vec<ModuleInfo> {
-    let names = bash_words(text, "environment_names");
-    let descriptions = bash_quoted_lines(text, "environment_descriptions");
-    names
-        .into_iter()
-        .zip(descriptions)
-        .map(|(name, description)| ModuleInfo { name, description })
-        .collect()
-}
-
-/// Space-separated bare words between `name=(` and `)`.
-fn bash_words(text: &str, name: &str) -> Vec<String> {
-    let open = format!("{name}=(");
-    let mut words = Vec::new();
-    let mut inside = false;
-    for line in text.lines() {
-        let t = line.trim();
-        if !inside {
-            if t == open {
-                inside = true;
-            }
-            continue;
-        }
-        if t == ")" {
-            break;
-        }
-        words.extend(t.split_whitespace().map(|w| w.to_string()));
-    }
-    words
-}
-
-/// Single-quoted one-per-line strings between `name=(` and `)`.
-fn bash_quoted_lines(text: &str, name: &str) -> Vec<String> {
-    let open = format!("{name}=(");
-    let mut items = Vec::new();
-    let mut inside = false;
-    for line in text.lines() {
-        let t = line.trim();
-        if !inside {
-            if t == open {
-                inside = true;
-            }
-            continue;
-        }
-        if t == ")" {
-            break;
-        }
-        if let Some(rest) = t.strip_prefix('\'')
-            && let Some(end) = rest.find('\'')
-        {
-            items.push(rest[..end].to_string());
-        }
-    }
-    items
 }
 
 /// Read pre-ticked envs from the `env` key of `miserc.local.toml`
@@ -725,8 +666,6 @@ mod tests {
     use super::*;
     use ratatui::crossterm::event::KeyModifiers;
 
-    const TWO_ENVS: &str = "environment_names=(\n  alpha beta\n)\nenvironment_descriptions=(\n  'First env'\n  'Second env'\n)\n";
-
     fn key(code: KeyCode) -> Key {
         Key {
             code,
@@ -742,29 +681,13 @@ mod tests {
     }
 
     fn two_envs() -> Vec<ModuleInfo> {
-        parse_environments(TWO_ENVS)
-    }
-
-    #[test]
-    fn parse_pairs_names_with_descriptions() {
-        let envs = two_envs();
-        assert_eq!(envs.len(), 2);
-        assert_eq!(envs[0].name, "alpha");
-        assert_eq!(envs[0].description, "First env");
-        assert_eq!(envs[1].name, "beta");
-    }
-
-    #[test]
-    fn parse_real_bootstrap_arrays() {
-        let text =
-            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../bootstrap.sh"))
-                .expect("bootstrap.sh readable");
-        let envs = parse_environments(&text);
-        // Spec §0: 29 environments; grep bootstrap.sh:159-195 to re-verify.
-        assert_eq!(envs.len(), 29);
-        assert_eq!(envs[0].name, "terminal");
-        assert!(envs[0].description.contains("Ghostty"));
-        assert!(envs.iter().all(|e| !e.description.is_empty()));
+        [("alpha", "First env"), ("beta", "Second env")]
+            .into_iter()
+            .map(|(name, description)| ModuleInfo {
+                name: name.to_string(),
+                description: description.to_string(),
+            })
+            .collect()
     }
 
     #[test]

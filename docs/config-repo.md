@@ -54,7 +54,7 @@ description = "Shell, prompt, fonts, and terminal utilities"
 | --- | --- | --- | --- |
 | `schema` | integer | yes | Manifest version. Must be `1`. |
 | `name` | string | yes | Display name for the TUI header. |
-| `min_console` | semver string | no | Oldest console version allowed to use this repository. |
+| `min_console` | `MAJOR.MINOR.PATCH` string | no | Oldest console version allowed to use this repository. |
 | `setup.base_modules` | list of strings | yes | Modules applied at the end of `setup`, without being offered in the TUI. May be empty. |
 | `modules[].name` | string | yes | Module name; unique across the manifest. |
 | `modules[].description` | string | yes | One-line text shown beside the module in the TUI. |

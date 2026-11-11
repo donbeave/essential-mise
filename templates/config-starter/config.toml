@@ -1,0 +1,4 @@
+min_version = "2026.10.23"
+
+[settings]
+self_update.auto = true

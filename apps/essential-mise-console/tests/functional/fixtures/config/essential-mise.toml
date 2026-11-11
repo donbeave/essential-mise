@@ -1,0 +1,17 @@
+schema = 1
+name = "fixture"
+
+[setup]
+base_modules = []
+
+[[modules]]
+name = "neovim"
+description = "Neovim and terminal tools"
+
+[[modules]]
+name = "terminal"
+description = "Ghostty, shells, prompt, and fonts"
+
+[[modules]]
+name = "shell"
+description = "Shell utilities and prompt"

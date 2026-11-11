@@ -73,12 +73,19 @@ pub struct App {
 }
 
 impl App {
-    /// Build from a backend and config dir. Reads `bootstrap.sh` envs and
-    /// `miserc.local.toml` pre-ticks (both read-only).
+    /// Build from a backend and config dir. Reads the `essential-mise.toml`
+    /// module catalogue and `miserc.local.toml` pre-ticks (both read-only).
     pub fn new(backend: Arc<dyn Backend>, config_dir: &Path) -> Result<Self, BackendError> {
-        let text = std::fs::read_to_string(config_dir.join("bootstrap.sh"))
-            .map_err(BackendError::Spawn)?;
-        let envs = crate::screens::modules::parse_environments(&text);
+        let manifest = crate::manifest::Manifest::load(config_dir)
+            .map_err(|e| BackendError::Parse(e.to_string()))?;
+        let envs: Vec<ModuleInfo> = manifest
+            .modules
+            .into_iter()
+            .map(|m| ModuleInfo {
+                name: m.name,
+                description: m.description,
+            })
+            .collect();
         let preticks =
             crate::screens::modules::read_preticks(&config_dir.join("miserc.local.toml"));
         let shell = Shell::new();
@@ -640,14 +647,20 @@ mod tests {
         )
     }
 
+    fn write_manifest(dir: &Path, modules: &[(&str, &str)]) {
+        let mut text = String::from("schema = 1\nname = \"test\"\n\n[setup]\nbase_modules = []\n");
+        for (name, description) in modules {
+            text.push_str(&format!(
+                "\n[[modules]]\nname = \"{name}\"\ndescription = \"{description}\"\n"
+            ));
+        }
+        std::fs::write(dir.join("essential-mise.toml"), text).expect("write manifest");
+    }
+
     fn mock_app_with(backend: MockBackend) -> App {
         let dir = std::env::temp_dir().join(format!("emc-test-app-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("temp dir");
-        std::fs::write(
-            dir.join("bootstrap.sh"),
-            "environment_names=(\n  alpha beta\n)\nenvironment_descriptions=(\n  'First env'\n  'Second env'\n)\n",
-        )
-        .expect("write bootstrap.sh");
+        write_manifest(&dir, &[("alpha", "First env"), ("beta", "Second env")]);
         std::fs::write(dir.join("miserc.local.toml"), "env = [\"alpha\"]\n").expect("write local");
         let backend: Arc<dyn Backend> = Arc::new(backend);
         App::new(backend, &dir).expect("app builds")
@@ -656,11 +669,17 @@ mod tests {
     fn mock_app_many_groups() -> App {
         let dir = std::env::temp_dir().join(format!("emc-test-groups-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("temp dir");
-        std::fs::write(
-            dir.join("bootstrap.sh"),
-            "environment_names=(\n  e0 e1 e2 e3 e4 e5\n)\nenvironment_descriptions=(\n  'Zero'\n  'One'\n  'Two'\n  'Three'\n  'Four'\n  'Five'\n)\n",
-        )
-        .expect("write bootstrap.sh");
+        write_manifest(
+            &dir,
+            &[
+                ("e0", "Zero"),
+                ("e1", "One"),
+                ("e2", "Two"),
+                ("e3", "Three"),
+                ("e4", "Four"),
+                ("e5", "Five"),
+            ],
+        );
         std::fs::write(dir.join("miserc.local.toml"), "").expect("write local");
         let mut backend = MockBackend::new();
         for i in 0..6 {

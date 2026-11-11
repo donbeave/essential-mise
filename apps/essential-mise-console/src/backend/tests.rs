@@ -337,18 +337,16 @@ fn status_parts_derive_ok_and_drift() {
     assert_eq!(legacy.parts.len(), 1);
 }
 
-/// Host config dir for tier-2 live tests: `$EMC_TEST_CONFIG_DIR`, else the
-/// repo root.
+/// Config dir for tier-2 live tests: `$EMC_TEST_CONFIG_DIR`, else the public
+/// starter template (exercised with `-E terminal`).
 fn host_config_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("EMC_TEST_CONFIG_DIR") {
         return PathBuf::from(dir);
     }
-    let out = std::process::Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .expect("git rev-parse for host config dir");
-    assert!(out.status.success(), "git rev-parse must succeed");
-    PathBuf::from(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../templates/config-starter")
+        .canonicalize()
+        .expect("templates/config-starter exists")
 }
 
 #[test]
