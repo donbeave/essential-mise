@@ -28,8 +28,8 @@ vm_scan_host_key
 "$script_dir/ensure-guest-access.sh"
 vm_ssh 'set -e
 printf "Guest macOS: %s (%s)\n" "$(sw_vers -productVersion)" "$(sw_vers -buildVersion)"
-test "$(sw_vers -productVersion)" = "27.2"
-test "$(sw_vers -buildVersion)" = "26B123"
+test "$(sw_vers -productVersion)" = "27.2.1"
+test "$(sw_vers -buildVersion)" = "26B131"
 test "$(uname -m)" = "arm64"
 csrutil status
 spctl --status'

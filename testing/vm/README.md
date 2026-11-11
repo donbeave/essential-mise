@@ -33,7 +33,7 @@ VM_OWNER_PASSWORD_FILE=/tmp/essential-mise-vm-owner-password \
   testing/vm/create-fresh-baseline.sh
 ```
 
-This downloads Apple's latest IPSW, requires the installed guest to report exactly macOS 27.2 (26B123), verifies arm64, SIP and Gatekeeper, then stops `essential-mise-fresh-baseline`. No personal Apple Account or credentials are used. Tart's first-boot provisioning option receives the password without printing it; inspect the Tart process security implications before use. The script refuses to overwrite an existing baseline.
+This downloads Apple's latest IPSW, requires the installed guest to report exactly macOS 27.2.1 (26B131), verifies arm64, SIP and Gatekeeper, then stops `essential-mise-fresh-baseline`. No personal Apple Account or credentials are used. Tart's first-boot provisioning option receives the password without printing it; inspect the Tart process security implications before use. The script refuses to overwrite an existing baseline.
 
 ## Automation baseline
 
