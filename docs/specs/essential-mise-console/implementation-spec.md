@@ -286,8 +286,7 @@ mirror: the framework's `with_external` builder hook and the
 - **P0 — bash deselect (hours, unblocked).** Second-level prompt in `bootstrap.sh`
   step 6: list selected envs' packages (from `[bootstrap.packages]` tables),
   untick, then `--skip packages` + `apply <kept>`; `sudo -v` + keepalive
-  preserved. Exit: identical behavior when nothing deselected;
-  `tests/test_plugin_lifecycle.py` passes.
+  preserved. Exit: identical behavior when nothing deselected.
 - **P1 — console (days, unblocked 2026-11-05).** In-repo crate
   (subdirectory TBD); `junie-tui` by git rev pinned at `2e9e60f` (merged main tip,
   re-verify at use); CLI §2 + screens §3 against
