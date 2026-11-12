@@ -1,15 +1,15 @@
-//! S1 Modules: environment multi-select with search and badges.
+//! Step 1: module multi-select with search.
 //!
 //! The screen owner retains the filter and list/detail widgets. Domain
-//! selection stays keyed by stable environment names; row and badge widgets
+//! selection stays keyed by stable environment names; row widgets
 //! use inventoried components only via the shared filter and chrome helpers.
 //!
 //! Environment names/descriptions come from the config repository's
 //! `#:` headers of the config files (`crate::metadata`). Pre-ticks come from
 //! the `env` key of `miserc.local.toml` (read-only).
-//! Badges: status drift anywhere conservative-marks drift; otherwise an
-//! env with no packages is pending and all-`noop` packages is installed
-//! (packages-only, since plan is blind to repos/dotfiles/shell).
+//! There is deliberately no per-module status marker: `mise bootstrap status`
+//! is not per module, so any marker would be a guess. The detail pane shows
+//! only facts read from the config files.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -21,7 +21,7 @@ use junie_tui::core::id::WidgetId;
 use junie_tui::core::intent::Phase;
 use junie_tui::core::pointer::{MouseTarget, PointerEvent};
 use junie_tui::core::response::Response;
-use junie_tui::theme::{ButtonKind, StatusKind, Theme, Tone};
+use junie_tui::theme::{ButtonKind, Theme, Tone};
 use junie_tui::ui::ctx::RenderCtx;
 use junie_tui::ui::layout::Split;
 use junie_tui::widgets::input::{InputAction, TextInput};
@@ -36,7 +36,7 @@ use ratatui::style::Color;
 
 use super::chrome::{render_header, render_hints, render_status};
 use super::filter::FilterState;
-use crate::backend::{Action, PlanEntry, ResId};
+use crate::backend::ResId;
 
 /// One selectable environment.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,44 +62,6 @@ pub fn read_preticks(path: &Path) -> Vec<String> {
     toml::from_str::<Local>(&text)
         .map(|l| l.env)
         .unwrap_or_default()
-}
-
-/// Per-environment badge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EnvBadge {
-    /// All known state clean (packages-only when plan-derived).
-    Installed,
-    /// Status drift, or a non-`noop` plan action.
-    Drift,
-    /// The env declares no packages (e.g. `js`, `system-preferences`).
-    Pending,
-}
-
-impl EnvBadge {
-    /// Short label for headers and detail panes.
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Installed => "installed",
-            Self::Drift => "drift",
-            Self::Pending => "pending",
-        }
-    }
-}
-
-/// Aggregate an env badge: status drift wins, then empty means pending,
-/// all-`noop` means installed, anything else is drift.
-pub fn badge_for_env(actions: &[Action], parts_ok: bool) -> EnvBadge {
-    if !parts_ok {
-        return EnvBadge::Drift;
-    }
-    if actions.is_empty() {
-        return EnvBadge::Pending;
-    }
-    if actions.iter().all(|a| *a == Action::Noop) {
-        EnvBadge::Installed
-    } else {
-        EnvBadge::Drift
-    }
 }
 
 /// Key intent on the modules screen (§3 keys).
@@ -146,7 +108,7 @@ pub struct ModulesState {
     filter: FilterState,
     cursor: usize,
     filtering: bool,
-    badges: HashMap<String, EnvBadge>,
+    package_counts: HashMap<String, usize>,
 }
 
 impl ModulesState {
@@ -164,7 +126,7 @@ impl ModulesState {
             filter: FilterState::new(),
             cursor: 0,
             filtering: false,
-            badges: HashMap::new(),
+            package_counts: HashMap::new(),
         }
     }
 
@@ -309,49 +271,29 @@ impl ModulesState {
         )
     }
 
-    /// Recompute badges from plan entries joined with declaring modules.
-    /// `parts_ok` is false when `status --json` reports any drift.
-    pub fn refresh_badges(
-        &mut self,
-        plan: &[PlanEntry],
-        origins: &HashMap<ResId, Vec<String>>,
-        parts_ok: bool,
-    ) {
-        for env in &self.envs {
-            let actions: Vec<Action> = plan
-                .iter()
-                .filter(|e| {
-                    origins
-                        .get(&ResId {
-                            kind: e.kind.clone(),
-                            name: e.name.clone(),
-                        })
-                        .is_some_and(|decl| decl.contains(&env.name))
-                })
-                .map(|e| e.action)
-                .collect();
-            self.badges
-                .insert(env.name.clone(), badge_for_env(&actions, parts_ok));
+    /// Record how many packages each module declares (from the config files;
+    /// no `mise` call).
+    pub fn set_package_counts(&mut self, origins: &HashMap<ResId, Vec<String>>) {
+        self.package_counts.clear();
+        for declaring in origins.values() {
+            for module in declaring {
+                *self.package_counts.entry(module.clone()).or_insert(0) += 1;
+            }
         }
     }
 
-    /// Badge for an env (defaults to pending before the first refresh).
-    pub fn badge(&self, name: &str) -> EnvBadge {
-        self.badges.get(name).copied().unwrap_or(EnvBadge::Pending)
+    /// Packages a module declares.
+    pub fn package_count(&self, name: &str) -> usize {
+        self.package_counts.get(name).copied().unwrap_or(0)
     }
 
     /// Master-pane rows as inventoried [`ListRow`]s: name label,
-    /// description detail, `[x]`/`[ ]` meta, badge mark.
+    /// description detail, `[x]`/`[ ]` meta.
     pub fn master_rows(&self) -> Vec<ListRow> {
         self.visible_indices()
             .into_iter()
             .map(|i| {
                 let env = &self.envs[i];
-                let mark = match self.badge(&env.name) {
-                    EnvBadge::Installed => StatusKind::Ok,
-                    EnvBadge::Drift => StatusKind::Warn,
-                    EnvBadge::Pending => StatusKind::Pending,
-                };
                 let (meta, tone) = if self.selected.contains(&env.name) {
                     ("[x]", Tone::Normal)
                 } else {
@@ -360,38 +302,45 @@ impl ModulesState {
                 ListRow::new(&env.name)
                     .detail(&env.description)
                     .meta(meta, tone)
-                    .mark(mark)
             })
             .collect()
     }
 
-    /// Detail-pane props for the cursor env.
+    /// Detail-pane props for the cursor module: what it is and what it
+    /// brings. Only facts read from the config files.
     pub fn detail_props(&self) -> Vec<Prop> {
         let Some(i) = self.visible_indices().get(self.cursor).copied() else {
             return Vec::new();
         };
         let env = &self.envs[i];
-        let (status, tone) = match self.badge(&env.name) {
-            EnvBadge::Installed => ("installed (packages)", Tone::Normal),
-            EnvBadge::Drift => ("drift — re-check in S4", Tone::Warning),
-            EnvBadge::Pending => ("pending — no packages declared", Tone::Muted),
-        };
-        let mut kept = Prop::new(
-            "selection",
-            if self.selected.contains(&env.name) {
-                "kept"
-            } else {
-                "omitted"
+        let count = self.package_count(&env.name);
+        let mut props = vec![Prop::new("about", &env.description)];
+        let mut packages = Prop::new(
+            "packages",
+            match count {
+                0 => "none".to_string(),
+                1 => "1 package".to_string(),
+                n => format!("{n} packages"),
             },
         );
-        kept.tone = Tone::Secondary;
-        let mut status_prop = Prop::new("status", status);
-        status_prop.tone = tone;
-        vec![
-            Prop::new("description", &env.description),
-            status_prop,
-            kept,
-        ]
+        packages.tone = Tone::Secondary;
+        props.push(packages);
+        if count > 0 {
+            let mut admin = Prop::new("access", "asks for your administrator password");
+            admin.tone = Tone::Warning;
+            props.push(admin);
+        }
+        let mut chosen = Prop::new(
+            "chosen",
+            if self.selected.contains(&env.name) {
+                "yes"
+            } else {
+                "no"
+            },
+        );
+        chosen.tone = Tone::Secondary;
+        props.push(chosen);
+        props
     }
 
     fn move_cursor(&mut self, delta: isize) {
@@ -624,11 +573,7 @@ impl ModulesOwner {
             rows: &rows,
             under: None,
             detail_title: cursor_name,
-            detail_meta: self
-                .state
-                .cursor_env()
-                .map(|e| self.state.badge(&e.name).label().to_string())
-                .unwrap_or_default(),
+            detail_meta: String::new(),
             lines,
             actions: vec![
                 DetailAction::new("continue", "Continue →", ButtonKind::Primary)
@@ -707,21 +652,6 @@ mod tests {
     }
 
     #[test]
-    fn badges_cover_installed_drift_pending() {
-        assert_eq!(
-            badge_for_env(&[Action::Noop, Action::Noop], true),
-            EnvBadge::Installed
-        );
-        assert_eq!(
-            badge_for_env(&[Action::Noop, Action::Create], true),
-            EnvBadge::Drift
-        );
-        assert_eq!(badge_for_env(&[Action::Noop], false), EnvBadge::Drift);
-        assert_eq!(badge_for_env(&[], true), EnvBadge::Pending);
-        assert_eq!(badge_for_env(&[Action::Unknown], true), EnvBadge::Drift);
-    }
-
-    #[test]
     fn keys_match_section_3() {
         let state = ModulesState::new(two_envs(), &[]);
         assert_eq!(state.map_key(&key(KeyCode::Up)), Some(ModuleKey::Up));
@@ -787,32 +717,42 @@ mod tests {
     }
 
     #[test]
-    fn rows_carry_badge_marks() {
-        let mut state = ModulesState::new(two_envs(), &["alpha".to_string()]);
-        let mut origins = HashMap::new();
-        origins.insert(
-            ResId {
-                kind: "brew".to_string(),
-                name: "jq".to_string(),
-            },
-            vec!["alpha".to_string()],
-        );
-        let plan = vec![PlanEntry {
-            kind: "brew".to_string(),
-            name: "jq".to_string(),
-            current: "present".to_string(),
-            desired: "present".to_string(),
-            action: Action::Noop,
-        }];
-        state.refresh_badges(&plan, &origins, true);
-        assert_eq!(state.badge("alpha"), EnvBadge::Installed);
-        assert_eq!(state.badge("beta"), EnvBadge::Pending);
+    fn rows_carry_no_global_status_marker() {
+        let state = ModulesState::new(two_envs(), &["alpha".to_string()]);
         let rows = state.master_rows();
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].mark, Some(StatusKind::Ok));
-        assert_eq!(rows[1].mark, Some(StatusKind::Pending));
+        assert!(rows.iter().all(|r| r.mark.is_none()), "no per-row marker");
         assert_eq!(rows[0].meta, "[x]");
         assert_eq!(rows[1].meta, "[ ]");
-        assert!(!state.detail_props().is_empty());
+    }
+
+    #[test]
+    fn detail_pane_has_description_package_count_and_admin_note() {
+        let mut state = ModulesState::new(two_envs(), &[]);
+        let mut origins = HashMap::new();
+        for name in ["jq", "rg"] {
+            origins.insert(
+                ResId {
+                    kind: "brew".to_string(),
+                    name: name.to_string(),
+                },
+                vec!["alpha".to_string()],
+            );
+        }
+        state.set_package_counts(&origins);
+        let text = |props: Vec<Prop>| {
+            props
+                .iter()
+                .map(|p| format!("{} {}", p.label, p.value))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        let alpha = text(state.detail_props());
+        assert!(alpha.contains("2 packages"), "{alpha}");
+        assert!(alpha.contains("administrator password"), "{alpha}");
+        state.apply(ModuleKey::Down);
+        let beta = text(state.detail_props());
+        assert!(beta.contains("none"), "{beta}");
+        assert!(!beta.contains("administrator"), "{beta}");
     }
 }

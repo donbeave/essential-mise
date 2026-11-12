@@ -109,7 +109,7 @@ impl App {
             last_error: None,
             theme: theme_for_env(),
         };
-        app.refresh_badges();
+        app.refresh_module_facts();
         let focus = app.screen.primary_focus();
         app.shell.focus.set(focus);
         Ok(app)
@@ -303,23 +303,15 @@ impl App {
         }
     }
 
-    /// Refresh S1 badges from live plan/status (all known envs).
-    /// Backend failures keep the pending defaults; never panics.
-    pub fn refresh_badges(&mut self) {
-        let all: Vec<String> = match &self.screen {
-            Screen::Modules(owner) => owner.state.envs.iter().map(|e| e.name.clone()).collect(),
-            _ => return,
-        };
-        let empty = HashMap::new();
-        let origins = self.backend.origin_map(&self.config_dir).unwrap_or(empty);
-        let plan = self.backend.plan(&all, None).unwrap_or_default();
-        let parts_ok = self
+    /// Read how many packages each module declares into the S1 detail pane.
+    /// Reads config files only; never calls `mise`.
+    fn refresh_module_facts(&mut self) {
+        let origins = self
             .backend
-            .status(&all)
-            .map(|report| report.is_clean())
-            .unwrap_or(true);
+            .origin_map(&self.config_dir)
+            .unwrap_or_default();
         if let Screen::Modules(owner) = &mut self.screen {
-            owner.state.refresh_badges(&plan, &origins, parts_ok);
+            owner.state.set_package_counts(&origins);
         }
     }
 
@@ -410,7 +402,7 @@ impl App {
             self.envs.clone(),
             &self.selected,
         ))));
-        self.refresh_badges();
+        self.refresh_module_facts();
     }
 
     fn enter_result(&mut self) {
