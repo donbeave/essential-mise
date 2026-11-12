@@ -2,8 +2,8 @@
 #: order = 10
 
 [bootstrap.packages]
-"brew:starship" = "latest"
-"brew:bat" = "latest"
+"brew:starship" = "latest"   # pin-exception: Homebrew formulae have no version pins
+"brew:bat" = "latest"   # pin-exception: Homebrew formulae have no version pins
 
 [dotfiles]
 "~/.config/starship.toml" = { source = "dotfiles/terminal/starship.toml", mode = "copy" }

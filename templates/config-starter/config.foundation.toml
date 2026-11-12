@@ -2,7 +2,7 @@
 #: base = true
 
 [bootstrap.packages]
-"brew:mas" = "latest"
+"brew:mas" = "latest"   # pin-exception: Homebrew formulae have no version pins
 
 [bootstrap.mise_shell_activate]
 zsh = true
