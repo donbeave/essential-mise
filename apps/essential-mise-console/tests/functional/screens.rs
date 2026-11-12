@@ -95,7 +95,7 @@ fn s3_apply_and_s4_result_match_baselines() {
     app.wait_text("Apply complete");
     app.visual("emc/s3-apply");
     app.key("enter");
-    app.wait_text("Step 4 of 4");
+    app.wait_text("Step 4 of 4 · Done");
     app.visual("emc/s4-result");
     app.key("enter");
     app.finish_wait();
@@ -111,7 +111,7 @@ fn s3_failure_modal_matches_baseline() {
     app.wait_text("Apply failed");
     app.visual("emc/s3-failed");
     app.key("enter");
-    app.wait_text("Step 4 of 4");
+    app.wait_text("Step 4 of 4 · Done");
     app.key("enter");
     app.finish_wait();
 }
@@ -168,7 +168,7 @@ fn s3_cancel_dialog_dismisses_and_confirms() {
     app.key("enter");
     app.wait_text("Apply cancelled");
     app.key("enter");
-    app.wait_text("Step 4 of 4");
+    app.wait_text("Step 4 of 4 · Done");
     app.key("enter");
     app.finish_wait();
 }
@@ -188,7 +188,7 @@ fn s3_running_shows_activity_instead_of_empty_zero_percent() {
     app.key("enter");
     app.wait_text("Apply cancelled");
     app.key("enter");
-    app.wait_text("Step 4 of 4");
+    app.wait_text("Step 4 of 4 · Done");
     app.key("enter");
     app.finish_wait();
 }
@@ -203,7 +203,7 @@ fn s3_failure_copy_reaches_terminal_clipboard() {
     app.key("y");
     app.wait_clipboard("mise");
     app.key("enter");
-    app.wait_text("Step 4 of 4");
+    app.wait_text("Step 4 of 4 · Done");
     app.key("enter");
     app.finish_wait();
 }
@@ -216,7 +216,7 @@ fn s4_follow_up_command_reaches_terminal_clipboard() {
     app.key("enter");
     app.wait_text("Apply complete");
     app.key("enter");
-    app.wait_text("Step 4 of 4");
+    app.wait_text("Step 4 of 4 · Done");
     app.wait_text("Plugin hook skipped");
     app.key("c");
     app.wait_clipboard("killall Dock Finder SystemUIServer");

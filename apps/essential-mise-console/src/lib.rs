@@ -5,6 +5,8 @@
 pub mod app;
 /// Stock-`mise bootstrap` backend: read-only queries plus two-phase apply.
 pub mod backend;
+/// Status checks off the UI thread.
+pub mod check;
 /// Clap command tree (spec §2 verbatim) plus exit-code contract.
 pub mod cli;
 /// Typed follow-ups after an apply: relaunch hints, skipped hooks, new shell.

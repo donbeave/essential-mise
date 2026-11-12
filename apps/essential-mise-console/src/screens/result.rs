@@ -21,7 +21,6 @@ use ratatui::layout::Rect;
 
 use super::chrome::render_step_header;
 use super::paint::{self, Marks, Row, bold, footer, primary_line, put, seg};
-use crate::backend::Backend;
 use crate::followup::{self, FollowUp};
 use crate::status::{AreaKey, AreaStatus, StatusReport};
 
@@ -64,6 +63,7 @@ pub struct ResultScreen {
     cursor: usize,
     confirm_quit: bool,
     toast: Option<String>,
+    checking: bool,
     log_follow_ups: Vec<FollowUp>,
 }
 
@@ -79,6 +79,7 @@ impl ResultScreen {
             cursor: 0,
             confirm_quit: false,
             toast: None,
+            checking: true,
             log_follow_ups: Vec::new(),
         }
     }
@@ -113,8 +114,21 @@ impl ResultScreen {
         self.toast = Some(text.into());
     }
 
+    /// A check has started (the screen shows a spinner until it finishes).
+    pub fn begin_check(&mut self) {
+        self.checking = true;
+        self.confirm_quit = false;
+        self.view = View::Summary;
+    }
+
+    /// Whether a check is running.
+    pub fn is_checking(&self) -> bool {
+        self.checking
+    }
+
     /// Record a finished check.
     pub fn finish_check(&mut self, result: Result<StatusReport, String>) {
+        self.checking = false;
         self.checks += 1;
         match result {
             Ok(report) => {
@@ -128,16 +142,6 @@ impl ResultScreen {
         if self.pending_areas().is_empty() {
             self.view = View::Summary;
         }
-    }
-
-    /// Run the check now, on this thread (tests and tools; the app runs it on
-    /// a worker).
-    pub fn refresh(&mut self, backend: &dyn Backend, envs: &[String], keep: &[String]) {
-        let result = backend
-            .status(envs)
-            .map(|report| report.scoped(keep))
-            .map_err(|e| e.to_string());
-        self.finish_check(result);
     }
 
     /// How many checks have finished.
@@ -186,6 +190,9 @@ impl ResultScreen {
 
     /// The primary action as `(key, label)`; `None` while nothing can be done.
     pub fn primary(&self) -> Option<(&'static str, String)> {
+        if self.checking {
+            return None;
+        }
         if self.error.is_some() {
             return Some(("Enter", "Check again".to_string()));
         }
@@ -218,7 +225,7 @@ impl ResultScreen {
             hints.push(("?", "help".into()));
             return hints;
         }
-        if self.report.is_none() && self.error.is_none() {
+        if self.checking || (self.report.is_none() && self.error.is_none()) {
             return vec![("?", "help".into()), ("q", "quit".into())];
         }
         if self.can_move() {
@@ -280,6 +287,12 @@ impl ResultScreen {
     /// Handle a key.
     pub fn on_key(&mut self, key: &Key) -> ResultAction {
         self.toast = None;
+        if self.checking {
+            if key.is_char('q') || key.is(KeyCode::Esc) {
+                return ResultAction::Quit(self.exit_code());
+            }
+            return ResultAction::None;
+        }
         if self.confirm_quit {
             if key.is_char('y') || key.is_char('Y') {
                 return ResultAction::Quit(self.exit_code());
@@ -362,7 +375,7 @@ impl ResultScreen {
             ];
         }
         let Some(report) = &self.report else {
-            return vec![seg("Checking your Mac...", Tone::Muted)];
+            return vec![seg("Checking your Mac", Tone::Muted)];
         };
         let pending = report.needs_changes().len();
         let good = report.up_to_date().len();
@@ -404,6 +417,9 @@ impl ResultScreen {
 
     /// The title shown in the header: Done, Needs attention, or Checking.
     pub fn step_name(&self) -> &'static str {
+        if self.checking {
+            return "Checking";
+        }
         match (&self.error, &self.report) {
             (Some(_), _) => "Needs attention",
             (None, None) => "Checking",
@@ -726,7 +742,18 @@ impl ResultOwner {
         let body_h = area.height.saturating_sub(3) as usize;
         let width = area.width.saturating_sub(2);
         let mut lines = vec![self.state.verdict_row(&marks)];
-        if let Some(report) = self.state.report() {
+        if self.state.is_checking() {
+            lines = vec![vec![
+                seg(
+                    format!("{} ", marks.frame(ctx.interaction.tick)),
+                    Tone::Active,
+                ),
+                bold(
+                    "Checking your Mac".to_string() + marks.ellipsis,
+                    Tone::Normal,
+                ),
+            ]];
+        } else if let Some(report) = self.state.report() {
             let stamp = if self.state.checks() > 1 {
                 format!(
                     "Checked {} (check #{})",
@@ -747,6 +774,7 @@ impl ResultOwner {
         }
         lines.push(Vec::new());
         match self.state.view() {
+            _ if self.state.is_checking() => {}
             View::Summary => lines.extend(self.state.summary_lines(&marks, width as usize)),
             View::Details => lines.extend(self.state.details_lines(&marks, width as usize)),
         }
@@ -790,19 +818,6 @@ impl ResultOwner {
                 bg,
                 key,
                 &label,
-            );
-        } else {
-            put(
-                buf,
-                area.x + 1,
-                primary_y,
-                width,
-                &[seg(
-                    format!("{} Checking your Mac...", marks.frame(0)),
-                    Tone::Muted,
-                )],
-                &theme,
-                bg,
             );
         }
         if let Some(toast) = self.state.toast() {

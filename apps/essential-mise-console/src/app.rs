@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::backend::{ApplyRequest, Backend, BackendError, ResId};
+use crate::check::{self, CheckHandle};
 use crate::screens::apply::{ApplyAction, ApplyOwner, ApplyScreen};
 use crate::screens::modules::{ModuleAction, ModuleInfo, ModulesOwner, ModulesState};
 use crate::screens::packages::{PackageAction, PackagesOwner, PackagesState, package_rows};
@@ -64,6 +65,7 @@ pub struct App {
     envs: Vec<ModuleInfo>,
     selected: Vec<String>,
     keep: Vec<String>,
+    check: Option<CheckHandle>,
     packages_snapshot: Option<PackagesOwner>,
     shell: Shell<()>,
     clock: WallClock,
@@ -101,6 +103,7 @@ impl App {
             envs,
             selected: preticks,
             keep: Vec::new(),
+            check: None,
             packages_snapshot: None,
             shell,
             clock: WallClock::new(),
@@ -269,6 +272,7 @@ impl App {
             self.feed_external(event);
         }
         let _ = self.poll_apply();
+        let _ = self.poll_check();
     }
 
     fn feed_external(&mut self, external: &External) -> bool {
@@ -412,15 +416,37 @@ impl App {
                 owner.state.lines().map(|line| line.text.as_str()),
             ));
         }
-        screen.refresh(&*self.backend, &self.selected, &self.keep);
         self.set_screen(Screen::Result(Box::new(ResultOwner::new(screen))));
+        self.start_check();
     }
 
     fn recheck(&mut self) {
         if let Screen::Result(owner) = &mut self.screen {
-            owner
-                .state
-                .refresh(&*self.backend, &self.selected, &self.keep);
+            owner.state.begin_check();
+        }
+        self.start_check();
+    }
+
+    fn start_check(&mut self) {
+        self.check = Some(check::spawn(
+            self.backend.clone(),
+            self.selected.clone(),
+            self.keep.clone(),
+        ));
+    }
+
+    /// Deliver a finished check to the Result screen.
+    fn poll_check(&mut self) -> Outcome {
+        let Some(result) = self.check.as_ref().and_then(CheckHandle::poll) else {
+            return Outcome::Ignored;
+        };
+        self.check = None;
+        match &mut self.screen {
+            Screen::Result(owner) => {
+                owner.state.finish_check(result);
+                Outcome::Changed
+            }
+            _ => Outcome::Ignored,
         }
     }
 
@@ -441,7 +467,9 @@ impl App {
     }
 
     fn on_tick(&mut self) -> Outcome {
-        let mut out = PointerRouter::tick(self).or(self.poll_apply());
+        let mut out = PointerRouter::tick(self)
+            .or(self.poll_apply())
+            .or(self.poll_check());
         let now = self.clock.now_ms();
         if self.shell.pointer.expire_flash(now) {
             out = Outcome::Changed;
@@ -450,7 +478,8 @@ impl App {
             out = Outcome::Changed;
         }
         let animating = self.shell.pointer.has_flash()
-            || matches!(&self.screen, Screen::Apply(owner) if owner.state.started() && owner.state.outcome().is_none());
+            || matches!(&self.screen, Screen::Apply(owner) if owner.state.started() && owner.state.outcome().is_none())
+            || matches!(&self.screen, Screen::Result(owner) if owner.state.is_checking());
         if animating {
             self.tick = self.tick.wrapping_add(1);
             out = Outcome::Changed;
@@ -769,10 +798,7 @@ mod tests {
     #[test]
     fn result_enter_finishes_a_clean_mac_with_exit_zero() {
         let mut app = mock_app();
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        settle(&mut app);
-        assert_eq!(app.screen_name(), "result");
+        to_result(&mut app);
         app.handle_key(&char_key('B'));
         assert_eq!(app.screen_name(), "result", "B is no longer a key");
         app.handle_key(&key(KeyCode::Enter));
@@ -806,11 +832,55 @@ mod tests {
         buffer_text(&terminal)
     }
 
+    /// Pump until the Result screen has finished its check.
+    fn wait_check(app: &mut App) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while matches!(&app.screen, Screen::Result(owner) if owner.state.is_checking()) {
+            app.pump();
+            assert!(std::time::Instant::now() < deadline, "check never finished");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
     fn to_result(app: &mut App) {
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         settle(app);
         assert_eq!(app.screen_name(), "result");
+        wait_check(app);
+    }
+
+    #[test]
+    fn result_shows_checking_at_once_then_the_checked_time() {
+        let mut app = mock_app_with(
+            MockBackend::new()
+                .with_origin("brew", "jq", &["alpha"])
+                .with_status_delay(std::time::Duration::from_millis(300)),
+        );
+        app.handle_key(&key(KeyCode::Enter));
+        app.handle_key(&key(KeyCode::Enter));
+        settle(&mut app);
+        let started = std::time::Instant::now();
+        let screen = render(&mut app, 100, 30);
+        assert!(started.elapsed() < std::time::Duration::from_millis(100));
+        assert!(screen.contains("Step 4 of 4 · Checking"), "{screen}");
+        assert!(screen.contains("Checking your Mac"), "{screen}");
+        assert!(!screen.contains("Checked "), "{screen}");
+        wait_check(&mut app);
+        let done = render(&mut app, 100, 30);
+        assert!(done.contains("Checked 12:04:31"), "{done}");
+        assert!(!done.contains("Checking your Mac"), "{done}");
+    }
+
+    #[test]
+    fn recheck_shows_checking_again_and_never_blocks_quit() {
+        let mut app = app_with_status("status-one-differs.json");
+        to_result(&mut app);
+        app.handle_key(&char_key('R'));
+        assert!(render(&mut app, 100, 30).contains("Checking your Mac"));
+        wait_check(&mut app);
+        let screen = render(&mut app, 100, 30);
+        assert!(screen.contains("(check #2)"), "{screen}");
     }
 
     #[test]
