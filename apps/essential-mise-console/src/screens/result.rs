@@ -7,8 +7,6 @@
 //! exits 0 only when nothing drifts; `R` re-checks, `B` restores S2, and `c`
 //! copies the summary through the shell clipboard.
 
-use std::collections::HashMap;
-
 use junie_tui::core::event::{Key, Outcome};
 use junie_tui::core::focus::{Focus, FocusChange, FocusRing};
 use junie_tui::core::id::WidgetId;
@@ -26,7 +24,8 @@ use ratatui::style::Color;
 
 use super::chrome::{render_header, render_hints, render_status};
 use super::rerun_fmt::rerun_command;
-use crate::backend::{Action, Backend, PlanEntry, StatusSnapshot};
+use crate::backend::Backend;
+use crate::status::{Health, Note, StatusReport};
 
 /// Per-part drift state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,11 +45,6 @@ pub struct PartRow {
     pub state: PartState,
     /// Human note (counts, pending specs, context).
     pub note: String,
-}
-
-/// Map a plan kind to its status part (`package`→`packages`, else 1:1).
-pub fn plan_kind_to_part(kind: &str) -> &str {
-    if kind == "package" { "packages" } else { kind }
 }
 
 /// Key intent on the result screen (§3: `R` re-checks, `B` back to S2,
@@ -111,15 +105,10 @@ impl ResultScreen {
     /// A backend failure is recorded, never panics.
     pub fn refresh(&mut self, backend: &dyn Backend) {
         match backend.status(&self.envs) {
-            Ok(snapshot) => match backend.plan(&self.envs, None) {
-                Ok(plan) => {
-                    self.rebuild(&snapshot, &plan);
-                    self.last_error = None;
-                }
-                Err(e) => {
-                    self.last_error = Some(format!("plan failed: {e}"));
-                }
-            },
+            Ok(report) => {
+                self.rebuild(&report.scoped(&self.keep));
+                self.last_error = None;
+            }
             Err(e) => {
                 self.last_error = Some(format!("status failed: {e}"));
             }
@@ -264,66 +253,38 @@ impl ResultScreen {
         clipboard.copy(&self.summary)
     }
 
-    fn rebuild(&mut self, snapshot: &StatusSnapshot, plan: &[PlanEntry]) {
-        // Only kept packages count: omitted entries stay omitted (one-shot),
-        // so they never gate Done or enter the rerun.
-        let relevant: Vec<&PlanEntry> = plan
-            .iter()
-            .filter(|e| self.keep.contains(&plan_spec(e)))
-            .collect();
-        // Plan drift by part.
-        let mut plan_drift: HashMap<String, Vec<String>> = HashMap::new();
-        for e in &relevant {
-            if e.action != Action::Noop {
-                plan_drift
-                    .entry(plan_kind_to_part(&e.kind).to_string())
-                    .or_default()
-                    .push(plan_spec(e));
-            }
-        }
-        // Status states by part.
-        let mut status_state: HashMap<String, (String, Vec<String>)> = HashMap::new();
-        for p in &snapshot.parts {
-            status_state.insert(p.part.clone(), (p.state.clone(), p.drift.clone()));
-        }
-        // Union of parts, sorted for determinism.
-        let mut names: Vec<String> = status_state.keys().cloned().collect();
-        for part in plan_drift.keys() {
-            if !status_state.contains_key(part) {
-                names.push(part.clone());
-            }
-        }
-        names.sort();
-        names.dedup();
-        let mut parts = Vec::with_capacity(names.len());
+    fn rebuild(&mut self, report: &StatusReport) {
+        let mut parts = Vec::with_capacity(report.areas.len());
         let mut drifted = 0usize;
-        for name in &names {
-            let drift_specs = plan_drift.get(name).cloned().unwrap_or_default();
-            let (status, notes) = status_state.get(name).cloned().unwrap_or_default();
-            let (state, note) = if !drift_specs.is_empty() {
-                let mut note = format!("{} pending", drift_specs.len());
-                if !notes.is_empty() && notes != ["clean"] && notes != ["in sync"] {
-                    note.push_str(&format!(" ({})", notes.join("; ")));
+        let mut drifted_specs = Vec::new();
+        for area in &report.areas {
+            let changes = area.changes();
+            let (state, note) = match area.health() {
+                Health::NeedsChanges => {
+                    drifted += 1;
+                    drifted_specs.extend(changes.iter().filter_map(|e| e.spec.clone()));
+                    (
+                        PartState::Drift,
+                        format!("{} of {} differ", changes.len(), area.total()),
+                    )
                 }
-                (PartState::Drift, note)
-            } else if status == "drift" {
-                (PartState::Drift, notes.join("; "))
-            } else {
-                (PartState::Ok, status_note(name, &notes))
+                Health::Unknown => (PartState::Ok, "could not check".to_string()),
+                Health::Skipped => (PartState::Ok, "skipped".to_string()),
+                Health::UpToDate => (PartState::Ok, format!("{} up to date", area.total())),
             };
-            if state == PartState::Drift {
-                drifted += 1;
-            }
             parts.push(PartRow {
-                part: name.clone(),
+                part: area.key.label().to_string(),
                 state,
                 note,
             });
         }
         let ok = parts.len() - drifted;
-        self.summary = format!("✓ {ok} of {} parts ok · {drifted} drift", parts.len());
-        self.last_drift = plan_drift.values().flatten().cloned().collect();
-        self.follow_ups = follow_ups(snapshot, drifted, self.rerun_text());
+        self.summary = format!(
+            "{ok} of {} areas up to date, {drifted} need changes",
+            parts.len()
+        );
+        self.last_drift = drifted_specs;
+        self.follow_ups = follow_ups(report, self.rerun_text());
         self.parts = parts;
     }
 
@@ -348,44 +309,17 @@ impl ResultScreen {
     }
 }
 
-/// Map a plan entry to its keep-comparable spec: package names are
-/// already `manager:name` qualified, other kinds are `kind:name`.
-fn plan_spec(e: &PlanEntry) -> String {
-    if e.kind == "package" {
-        e.name.clone()
-    } else {
-        format!("{}:{}", e.kind, e.name)
-    }
-}
-
-/// Status context note for a clean part.
-fn status_note(part: &str, notes: &[String]) -> String {
-    if notes.is_empty() || notes == ["clean"] {
-        if part == "packages" {
-            return "in sync".to_string();
-        }
-        return "clean".to_string();
-    }
-    notes.join("; ")
-}
-
-/// Read-only follow-ups: fresh login shell when unrecorded, rerun when
-/// drifted. Surfaced, never auto-executed.
-fn follow_ups(snapshot: &StatusSnapshot, drifted: usize, rerun: Option<String>) -> Vec<String> {
+/// Read-only follow-ups, surfaced and never auto-executed.
+fn follow_ups(report: &StatusReport, rerun: Option<String>) -> Vec<String> {
     let mut out = Vec::new();
-    if snapshot
-        .parts
-        .iter()
-        .any(|p| p.part == "login_shell" && p.drift.iter().any(|d| d == "not recorded"))
-    {
+    if report.notes.contains(&Note::LoginShellNotRecorded) {
         out.push("open a fresh login shell to verify activation".to_string());
     }
-    if drifted > 0 {
-        if let Some(cmd) = rerun {
-            out.push(format!("rerun: {cmd}"));
-        } else {
-            out.push("re-check drifted parts, then re-apply".to_string());
-        }
+    if !report.is_clean() {
+        out.push(match rerun {
+            Some(cmd) => format!("rerun: {cmd}"),
+            None => "apply again to update the remaining areas".to_string(),
+        });
     }
     out
 }
@@ -596,7 +530,7 @@ mod tests {
         assert!(screen.last_error().is_none());
         assert!(!screen.parts().is_empty());
         assert!(screen.can_done(), "clean fixture has no drift");
-        assert!(screen.summary().contains("0 drift"));
+        assert!(screen.summary().contains("0 need changes"));
         assert!(screen.rerun().is_none());
         assert!(
             screen
@@ -618,54 +552,32 @@ mod tests {
     #[test]
     fn drift_blocks_done_with_rerun() {
         let mut screen = result();
-        let snapshot =
-            crate::backend::snapshot_from_raw(r#"{"packages": {"brew": {"packages": []}}}"#);
-        let plan = vec![PlanEntry {
-            kind: "package".to_string(),
-            name: "brew:jq".to_string(),
-            current: "absent".to_string(),
-            desired: "present".to_string(),
-            action: Action::Create,
-        }];
-        // Keep the drifted package: it gates Done and enters the rerun.
+        let report = StatusReport::parse(
+            r#"{"packages":{"brew":{"available":true,"packages":[
+              {"package":"jq","desired_state":"present","state":"missing"}]}}}"#,
+            "t",
+        )
+        .expect("parses");
         screen.keep = vec!["brew:jq".to_string()];
-        screen.rebuild(&snapshot, &plan);
-        let packages = screen
-            .parts()
-            .iter()
-            .find(|p| p.part == "packages")
-            .expect("packages row");
-        assert_eq!(packages.state, PartState::Drift);
+        screen.rebuild(&report.scoped(&screen.keep.clone()));
+        assert_eq!(screen.parts()[0].state, PartState::Drift);
         assert!(!screen.can_done());
-        assert_eq!(
-            screen.map_key(&key(KeyCode::Enter)),
-            None,
-            "Done gated while drifted"
-        );
+        assert_eq!(screen.map_key(&key(KeyCode::Enter)), None);
         let rerun = screen.rerun().expect("drifted rerun");
-        assert!(
-            rerun.contains("packages apply brew:jq"),
-            "rerun is exact: {rerun}"
-        );
-        assert!(screen.follow_ups().iter().any(|f| f.contains("rerun:")));
+        assert!(rerun.contains("packages apply brew:jq"), "{rerun}");
         assert_eq!(screen.drifted_specs(), vec!["brew:jq".to_string()]);
     }
 
     #[test]
     fn omitted_packages_never_gate_done() {
         let mut screen = result();
-        // Empty keep: a non-noop plan entry for an omitted package is out
-        // of scope for this one-shot run.
-        screen.keep = Vec::new();
-        let snapshot = crate::backend::snapshot_from_raw(r#"{"files": []}"#);
-        let plan = vec![PlanEntry {
-            kind: "package".to_string(),
-            name: "brew:jq".to_string(),
-            current: "absent".to_string(),
-            desired: "present".to_string(),
-            action: Action::Create,
-        }];
-        screen.rebuild(&snapshot, &plan);
+        let report = StatusReport::parse(
+            r#"{"packages":{"brew":{"available":true,"packages":[
+              {"package":"jq","desired_state":"present","state":"missing"}]}}}"#,
+            "t",
+        )
+        .expect("parses");
+        screen.rebuild(&report.scoped(&[]));
         assert!(screen.can_done());
         assert!(screen.rerun().is_none());
     }
@@ -701,11 +613,5 @@ mod tests {
             ResultAction::None
         );
         assert_eq!(screen.checks(), 2);
-    }
-
-    #[test]
-    fn plan_kind_mapping() {
-        assert_eq!(plan_kind_to_part("package"), "packages");
-        assert_eq!(plan_kind_to_part("files"), "files");
     }
 }

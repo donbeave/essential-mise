@@ -218,7 +218,7 @@ fn s4_copy_reaches_terminal_clipboard() {
     app.key("enter");
     app.wait_text("4/4 Result");
     app.key("c");
-    app.wait_clipboard("parts ok");
+    app.wait_clipboard("areas up to date");
     app.key("enter");
     app.finish_wait();
 }

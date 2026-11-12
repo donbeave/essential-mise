@@ -17,3 +17,5 @@ pub mod screens;
 pub mod setup;
 /// Config repository source (`setup --config`): normalization and matching.
 pub mod source;
+/// Typed `mise bootstrap status --json`: areas, entries, verdicts.
+pub mod status;

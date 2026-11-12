@@ -321,7 +321,7 @@ impl App {
         let parts_ok = self
             .backend
             .status(&all)
-            .map(|s| s.parts.iter().all(|p| p.state == "ok"))
+            .map(|report| report.is_clean())
             .unwrap_or(true);
         if let Screen::Modules(owner) = &mut self.screen {
             owner.state.refresh_badges(&plan, &origins, parts_ok);
