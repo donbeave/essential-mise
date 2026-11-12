@@ -9,8 +9,8 @@
 //! for the worker, then leaves the cancelled output available for review.
 //! The queue is sender-side bounded ([`APPLY_LOG_CAP`](crate::screens::apply::APPLY_LOG_CAP)); overflow drops the
 //! oldest lines and records a gap marker for the log pane.
-//! Hook `PENDING` routes to [`ApplyScreen::note_hook_pending`](crate::screens::apply::ApplyScreen::note_hook_pending) and renders
-//! `Pending` without touching the outcome (exit 0 preserved).
+//! Hook `PENDING` log lines never change the outcome; the Result screen reads
+//! them from the log as typed follow-ups ([`crate::followup`]).
 
 use std::collections::VecDeque;
 
@@ -95,7 +95,6 @@ pub struct ApplyScreen {
     cancel_armed: bool,
     cancel_requested: bool,
     modal_open: bool,
-    pending_hooks: Vec<String>,
 }
 
 impl ApplyScreen {
@@ -123,7 +122,6 @@ impl ApplyScreen {
             cancel_armed: false,
             cancel_requested: false,
             modal_open: false,
-            pending_hooks: Vec::new(),
         }
     }
 
@@ -363,16 +361,6 @@ impl ApplyScreen {
             steps.push(("packages", packages));
         }
         steps
-    }
-
-    /// Route a hook `PENDING` report: renders `Pending`, never fails.
-    pub fn note_hook_pending(&mut self, hook: impl Into<String>) {
-        self.pending_hooks.push(hook.into());
-    }
-
-    /// Pending hooks (exit 0 preserved; installs untouched).
-    pub fn pending_hooks(&self) -> &[String] {
-        &self.pending_hooks
     }
 
     /// Copy the rerun command through the shell clipboard (OSC52).
@@ -1037,16 +1025,6 @@ mod tests {
             Some(ApplyKey::Copy),
             "failure opens the modal, enabling y-to-copy"
         );
-    }
-
-    #[test]
-    fn hook_pending_preserves_exit_zero_shape() {
-        let mut screen = screen();
-        screen.note_hook_pending("post-packages hook: login shell");
-        assert_eq!(screen.pending_hooks().len(), 1);
-        screen.on_outcome(ApplyOutcome::Success);
-        assert_eq!(screen.outcome(), Some(&ApplyOutcome::Success));
-        assert_eq!(screen.progress(), (2, 2));
     }
 
     #[test]

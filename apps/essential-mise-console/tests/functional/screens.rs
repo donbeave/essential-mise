@@ -209,6 +209,22 @@ fn s3_failure_copy_reaches_terminal_clipboard() {
 }
 
 #[test]
+fn s4_follow_up_command_reaches_terminal_clipboard() {
+    let app = app("s4-copy", &[("EMC_MOCK_FOLLOW_UPS", "1")]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.key("enter");
+    app.wait_text("Apply complete");
+    app.key("enter");
+    app.wait_text("Step 4 of 4");
+    app.wait_text("Plugin hook skipped");
+    app.key("c");
+    app.wait_clipboard("killall Dock Finder SystemUIServer");
+    app.key("enter");
+    app.finish_wait();
+}
+
+#[test]
 fn static_screen_resize_redraws_and_preserves_filtering() {
     let app = app("s1-resize", &[]);
     app.wait_text("terminal");

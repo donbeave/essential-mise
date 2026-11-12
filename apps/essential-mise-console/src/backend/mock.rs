@@ -43,6 +43,7 @@ pub struct MockBackend {
     plan_entries: Vec<PlanEntry>,
     status_reports: Arc<Mutex<std::collections::VecDeque<StatusReport>>>,
     status_delay: std::time::Duration,
+    log_lines: Vec<String>,
     origins: HashMap<ResId, Vec<String>>,
     fail: Option<ApplyPhase>,
     apply_delay: std::time::Duration,
@@ -76,6 +77,7 @@ impl MockBackend {
             plan_entries,
             status_reports: Arc::new(Mutex::new(std::collections::VecDeque::from([clean]))),
             status_delay: std::time::Duration::ZERO,
+            log_lines: Vec::new(),
             origins: HashMap::new(),
             fail: None,
             apply_delay: std::time::Duration::from_millis(25),
@@ -123,6 +125,21 @@ impl MockBackend {
     pub fn with_status_delay(mut self, delay: std::time::Duration) -> Self {
         self.status_delay = delay;
         self
+    }
+
+    /// Emit these log lines from a successful apply, after the phase header.
+    pub fn with_log_lines(mut self, lines: &[&str]) -> Self {
+        self.log_lines = lines.iter().map(|l| (*l).to_string()).collect();
+        self
+    }
+
+    /// The log lines a real apply prints when it changed macOS settings and
+    /// a plugin hook declined to overwrite an install.
+    pub fn with_follow_up_log(self) -> Self {
+        self.with_log_lines(&[
+            "bootstrap: follow-up - relaunch apps that read changed macOS defaults (killall Dock / Finder / SystemUIServer)",
+            "PENDING example-plugin/Tool: concurrent native configuration writes can lose changes; existing installations were not changed",
+        ])
     }
 
     /// Add a canned origin entry (screenshot tests populate per screen).
@@ -210,6 +227,13 @@ impl Backend for MockBackend {
             stream: Stream::System,
             text: "phase 1: base: mock: apply preview (no subprocesses spawned)".to_string(),
         });
+        for (offset, text) in self.log_lines.iter().enumerate() {
+            tx.send(ApplyLine {
+                seq: 2 + offset as u64,
+                stream: Stream::Stdout,
+                text: text.clone(),
+            });
+        }
         let delay = self.apply_delay;
         let cancel_flag = Arc::new(AtomicBool::new(false));
         let worker_flag = Arc::clone(&cancel_flag);

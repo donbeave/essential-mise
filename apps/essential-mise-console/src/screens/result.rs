@@ -22,7 +22,8 @@ use ratatui::layout::Rect;
 use super::chrome::render_step_header;
 use super::paint::{self, Marks, Row, bold, footer, primary_line, put, seg};
 use crate::backend::Backend;
-use crate::status::{AreaKey, AreaStatus, Note, StatusReport};
+use crate::followup::{self, FollowUp};
+use crate::status::{AreaKey, AreaStatus, StatusReport};
 
 /// Exit code: nothing differs.
 pub const EXIT_CLEAN: u8 = 0;
@@ -32,7 +33,7 @@ pub const EXIT_PENDING: u8 = 3;
 pub const EXIT_FAILED: u8 = 1;
 
 /// What the app should do after a key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResultAction {
     /// Stay on the screen.
     None,
@@ -40,6 +41,8 @@ pub enum ResultAction {
     Quit(u8),
     /// Check this Mac again.
     Recheck,
+    /// Copy this text to the clipboard.
+    Copy(String),
 }
 
 /// Which view is showing.
@@ -61,6 +64,7 @@ pub struct ResultScreen {
     cursor: usize,
     confirm_quit: bool,
     toast: Option<String>,
+    log_follow_ups: Vec<FollowUp>,
 }
 
 impl ResultScreen {
@@ -75,7 +79,38 @@ impl ResultScreen {
             cursor: 0,
             confirm_quit: false,
             toast: None,
+            log_follow_ups: Vec::new(),
         }
+    }
+
+    /// Record follow-ups found in the apply log.
+    pub fn set_log_follow_ups(&mut self, items: Vec<FollowUp>) {
+        self.log_follow_ups = items;
+    }
+
+    /// Every follow-up: from the report, then from the apply log.
+    pub fn follow_ups(&self) -> Vec<FollowUp> {
+        let mut all = self
+            .report
+            .as_ref()
+            .map(followup::from_report)
+            .unwrap_or_default();
+        for item in &self.log_follow_ups {
+            if !all.contains(item) {
+                all.push(item.clone());
+            }
+        }
+        all
+    }
+
+    /// The toast to show after a copy.
+    pub fn toast(&self) -> Option<&str> {
+        self.toast.as_deref()
+    }
+
+    /// Show a short confirmation until the next key.
+    pub fn set_toast(&mut self, text: impl Into<String>) {
+        self.toast = Some(text.into());
     }
 
     /// Record a finished check.
@@ -195,6 +230,9 @@ impl ResultScreen {
         if self.can_expand() {
             hints.push(("e", "expand".into()));
         }
+        if self.copy_text().is_some() {
+            hints.push(("c", "copy command".into()));
+        }
         hints.push(("R", "check again".into()));
         hints.push(("?", "help".into()));
         hints.push(("q", "quit".into()));
@@ -212,8 +250,31 @@ impl ResultScreen {
             && self.error.is_none()
     }
 
+    fn commandable(&self) -> Vec<FollowUp> {
+        self.follow_ups()
+            .into_iter()
+            .filter(|f| f.command().is_some())
+            .collect()
+    }
+
     fn selectable_rows(&self) -> usize {
-        self.pending_areas().len()
+        self.pending_areas().len() + self.commandable().len()
+    }
+
+    /// The command `c` copies: the focused row's command, else the first
+    /// command on the screen.
+    pub fn copy_text(&self) -> Option<String> {
+        if self.error.is_some() {
+            return None;
+        }
+        let areas = self.pending_areas().len();
+        let items = self.commandable();
+        if self.cursor >= areas
+            && let Some(item) = items.get(self.cursor - areas)
+        {
+            return item.command();
+        }
+        items.first().and_then(FollowUp::command)
     }
 
     /// Handle a key.
@@ -237,6 +298,11 @@ impl ResultScreen {
         }
         if key.is_char('R') || key.is_char('r') {
             return ResultAction::Recheck;
+        }
+        if key.is_char('c')
+            && let Some(text) = self.copy_text()
+        {
+            return ResultAction::Copy(text);
         }
         if key.is_char('e') && self.can_expand() {
             self.expanded = !self.expanded;
@@ -356,22 +422,44 @@ impl ResultScreen {
             .collect()
     }
 
-    fn optional_rows(&self, marks: &Marks) -> Vec<Row> {
+    fn optional_rows(&self, marks: &Marks, width: usize) -> Vec<Row> {
         let mut rows = Vec::new();
-        let Some(report) = &self.report else {
-            return rows;
-        };
-        if report.notes.contains(&Note::LoginShellNotRecorded) {
-            rows.push(bullet(
-                marks,
-                "Open a new terminal window to start using your shell",
-            ));
+        let areas = self.pending_areas().len();
+        let focusable = self.selectable_rows() > 1;
+        let mut command_index = 0;
+        for item in self.follow_ups() {
+            let command = item.command();
+            let focused = focusable
+                && command.is_some()
+                && self.cursor == areas + command_index
+                && self.cursor >= areas;
+            if command.is_some() {
+                command_index += 1;
+            }
+            let row = vec![
+                seg(
+                    format!(" {} ", if focused { marks.focus } else { " " }),
+                    Tone::Active,
+                ),
+                seg(format!("{} ", marks.bullet), Tone::Muted),
+                seg(item.text(), Tone::Normal),
+            ];
+            rows.push(row);
+            if let Some(command) = command {
+                let room = width.saturating_sub(10).max(10);
+                for (i, part) in paint::wrap(&command, room).into_iter().enumerate() {
+                    let lead = if i == 0 { "$ " } else { "  " };
+                    rows.push(vec![seg(format!("       {lead}{part}"), Tone::Secondary)]);
+                }
+            }
         }
-        for area in report.unknown() {
-            rows.push(bullet(
-                marks,
-                &format!("Could not check {} automatically", area.key.label()),
-            ));
+        if let Some(report) = &self.report {
+            for area in report.unknown() {
+                rows.push(bullet(
+                    marks,
+                    &format!("Could not check {} automatically", area.key.label()),
+                ));
+            }
         }
         rows
     }
@@ -388,7 +476,7 @@ impl ResultScreen {
             lines.extend(attention);
             lines.push(Vec::new());
         }
-        let optional = self.optional_rows(marks);
+        let optional = self.optional_rows(marks, width);
         if !optional.is_empty() {
             lines.push(heading(&format!(
                 "Optional, for your information ({})",
@@ -604,11 +692,18 @@ impl ResultOwner {
         S4_PAGE
     }
 
-    pub(crate) fn key(&mut self, key: &Key, _clipboard: &Clipboard) -> Response<ResultAction> {
+    pub(crate) fn key(&mut self, key: &Key, clipboard: &Clipboard) -> Response<ResultAction> {
         let before = self.state.summary_snapshot();
-        let action = self.state.on_key(key);
+        let mut action = self.state.on_key(key);
+        if let ResultAction::Copy(text) = &action {
+            clipboard.copy(text);
+            self.state.set_toast("Copied to the clipboard");
+            action = ResultAction::None;
+        }
         match action {
-            ResultAction::None if before == self.state.summary_snapshot() => {
+            ResultAction::None
+                if before == self.state.summary_snapshot() && self.state.toast().is_none() =>
+            {
                 Response::from(Outcome::Ignored)
             }
             ResultAction::None => Response::changed(),
@@ -709,6 +804,20 @@ impl ResultOwner {
                 &theme,
                 bg,
             );
+        }
+        if let Some(toast) = self.state.toast() {
+            let len = toast.chars().count() as u16;
+            if len + 2 < area.width {
+                put(
+                    buf,
+                    area.right() - len - 1,
+                    primary_y,
+                    len,
+                    &[bold(toast.to_string(), Tone::Success)],
+                    &theme,
+                    bg,
+                );
+            }
         }
         footer(
             Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),

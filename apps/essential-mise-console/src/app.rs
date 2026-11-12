@@ -255,7 +255,7 @@ impl App {
                 self.recheck();
                 Outcome::Changed
             }
-            Some(ResultAction::None) | None => out,
+            Some(ResultAction::Copy(_) | ResultAction::None) | None => out,
         }
     }
 
@@ -407,6 +407,11 @@ impl App {
 
     fn enter_result(&mut self) {
         let mut screen = ResultScreen::new();
+        if let Screen::Apply(owner) = &self.screen {
+            screen.set_log_follow_ups(crate::followup::from_log(
+                owner.state.lines().map(|line| line.text.as_str()),
+            ));
+        }
         screen.refresh(&*self.backend, &self.selected, &self.keep);
         self.set_screen(Screen::Result(Box::new(ResultOwner::new(screen))));
     }
@@ -847,6 +852,62 @@ mod tests {
         app.handle_key(&key(KeyCode::Enter));
         assert!(app.quit());
         assert_eq!(app.exit_code(), Some(3));
+    }
+
+    fn base64(bytes: &[u8]) -> String {
+        const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::new();
+        for chunk in bytes.chunks(3) {
+            let n = chunk
+                .iter()
+                .enumerate()
+                .fold(0u32, |n, (i, b)| n | u32::from(*b) << (16 - 8 * i));
+            for i in 0..4 {
+                if i <= chunk.len() {
+                    out.push(T[(n >> (18 - 6 * i) & 63) as usize] as char);
+                } else {
+                    out.push('=');
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn follow_ups_from_the_apply_log_are_typed_and_copyable() {
+        let mut app = mock_app_with(
+            MockBackend::new()
+                .with_origin("brew", "jq", &["alpha"])
+                .with_follow_up_log(),
+        );
+        to_result(&mut app);
+        let screen = render(&mut app, 100, 30);
+        assert!(
+            screen.contains("Optional, for your information"),
+            "{screen}"
+        );
+        assert!(
+            screen.contains("Restart Dock, Finder and SystemUIServer to show new settings"),
+            "{screen}"
+        );
+        assert!(
+            screen.contains("$ killall Dock Finder SystemUIServer"),
+            "{screen}"
+        );
+        assert!(
+            screen.contains("Plugin hook skipped: example-plugin/Tool"),
+            "{screen}"
+        );
+        assert!(screen.contains("c copy command"), "{screen}");
+        let _ = app.take_output();
+        app.handle_key(&char_key('c'));
+        let output = app.take_output().concat();
+        let payload = base64(b"killall Dock Finder SystemUIServer");
+        assert!(
+            output.contains(&format!("\x1b]52;c;{payload}")),
+            "copy must reach the terminal as OSC 52: {output:?}"
+        );
+        assert!(render(&mut app, 100, 30).contains("Copied to the clipboard"));
     }
 
     #[test]
