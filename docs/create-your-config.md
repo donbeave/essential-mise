@@ -25,7 +25,7 @@ Lint needs the console binary. Either use a binary the launcher already cached, 
 emc="$(ls "${XDG_CACHE_HOME:-$HOME/.cache}"/essential-mise/essential-mise-console-v* | grep -v '\.tar\.gz$' | tail -n 1)"
 
 # Or download and verify it (Apple silicon):
-gh release download v0.2.0 --repo donbeave/essential-mise \
+gh release download v0.3.0 --repo donbeave/essential-mise \
   --pattern 'essential-mise-console-aarch64-apple-darwin.tar.gz' --dir /tmp/emc
 gh attestation verify /tmp/emc/essential-mise-console-aarch64-apple-darwin.tar.gz --repo donbeave/essential-mise
 tar -xzf /tmp/emc/essential-mise-console-aarch64-apple-darwin.tar.gz -C /tmp/emc
