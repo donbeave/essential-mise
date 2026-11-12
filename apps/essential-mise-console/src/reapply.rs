@@ -1,13 +1,13 @@
 //! Applying again, but only what still differs.
 //!
-//! The plan is built from a [`StatusReport`]: pending packages go to
+//! The plan is built from a [`StatusReport`](crate::status::StatusReport): pending packages go to
 //! `bootstrap packages apply <specs>`, other pending areas go to
 //! `bootstrap --only <names>` through the explicit status-key to `--only`
-//! table in [`AreaKey`]. An area that has no `--only` name makes the base
+//! table in [`AreaKey`](crate::status::AreaKey). An area that has no `--only` name makes the base
 //! phase run in full (`--skip packages`) instead of guessing a name.
 //!
 //! The command the person sees and copies is formatted from the same argv the
-//! backend executes ([`Backend::phase1_argv`] / [`Backend::phase2_argv`]), so
+//! backend executes ([`Backend::phase1_argv`](crate::backend::Backend::phase1_argv) / [`Backend::phase2_argv`](crate::backend::Backend::phase2_argv)), so
 //! the two cannot drift apart.
 
 use crate::backend::{ApplyRequest, Backend};

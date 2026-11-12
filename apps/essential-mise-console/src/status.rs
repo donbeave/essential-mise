@@ -5,10 +5,10 @@
 //! module reduces each area to per-entry verdicts, so "up to date" means
 //! every entry reports a satisfied state and "needs changes" means at least
 //! one entry really differs. A shape or state string that is not recognised
-//! is [`Verdict::Unrecognized`] (shown as "could not check"), never a
+//! is [`Verdict::Unrecognized`](crate::status::Verdict::Unrecognized) (shown as "could not check"), never a
 //! difference.
 //!
-//! [`AreaKey`] is also the single table that maps a status key to its
+//! [`AreaKey`](crate::status::AreaKey) is also the single table that maps a status key to its
 //! user-facing label and to the `--only` name of `mise bootstrap`.
 
 use serde_json::Value;

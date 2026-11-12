@@ -1,10 +1,10 @@
 //! Step 4: Done / Needs attention.
 //!
-//! The screen reads one typed [`StatusReport`]. It leads with a verdict and
+//! The screen reads one typed [`StatusReport`](crate::status::StatusReport). It leads with a verdict and
 //! ONE primary action, then groups what matters: "Needs your attention"
 //! first, "Optional, for your information" next, and "All good" collapsed.
-//! The state lives in [`ResultScreen`] (pure, testable); [`ResultOwner`] only
-//! paints it and turns keys into [`ResultAction`]s that the app executes.
+//! The state lives in [`ResultScreen`](crate::screens::result::ResultScreen) (pure, testable); `ResultOwner` only
+//! paints it and turns keys into [`ResultAction`](crate::screens::result::ResultAction)s that the app executes.
 //!
 //! Exit semantics: 0 when nothing differs, 3 when changes are pending, 1 when
 //! the check itself failed.
