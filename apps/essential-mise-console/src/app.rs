@@ -73,10 +73,10 @@ pub struct App {
 }
 
 impl App {
-    /// Build from a backend and config dir. Reads the `essential-mise.toml`
-    /// module catalogue and `miserc.local.toml` pre-ticks (both read-only).
+    /// Build from a backend and config dir. Reads the module catalogue (`#:` headers
+    /// of the config files) and `miserc.local.toml` pre-ticks (both read-only).
     pub fn new(backend: Arc<dyn Backend>, config_dir: &Path) -> Result<Self, BackendError> {
-        let manifest = crate::manifest::Manifest::load(config_dir)
+        let manifest = crate::metadata::Manifest::load(config_dir)
             .map_err(|e| BackendError::Parse(e.to_string()))?;
         let envs: Vec<ModuleInfo> = manifest
             .modules
@@ -648,13 +648,18 @@ mod tests {
     }
 
     fn write_manifest(dir: &Path, modules: &[(&str, &str)]) {
-        let mut text = String::from("schema = 1\nname = \"test\"\n\n[setup]\nbase_modules = []\n");
-        for (name, description) in modules {
-            text.push_str(&format!(
-                "\n[[modules]]\nname = \"{name}\"\ndescription = \"{description}\"\n"
-            ));
+        std::fs::write(
+            dir.join("config.toml"),
+            "#: schema = 1\n#: name = \"test\"\n",
+        )
+        .expect("write config.toml");
+        for (index, (name, description)) in modules.iter().enumerate() {
+            let text = format!(
+                "#: description = \"{description}\"\n#: order = {}\n",
+                index + 1
+            );
+            std::fs::write(dir.join(format!("config.{name}.toml")), text).expect("write module");
         }
-        std::fs::write(dir.join("essential-mise.toml"), text).expect("write manifest");
     }
 
     fn mock_app_with(backend: MockBackend) -> App {

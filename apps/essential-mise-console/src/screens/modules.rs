@@ -5,7 +5,7 @@
 //! use inventoried components only via the shared filter and chrome helpers.
 //!
 //! Environment names/descriptions come from the config repository's
-//! `essential-mise.toml` manifest (`crate::manifest`). Pre-ticks come from
+//! `#:` headers of the config files (`crate::metadata`). Pre-ticks come from
 //! the `env` key of `miserc.local.toml` (read-only).
 //! Badges: status drift anywhere conservative-marks drift; otherwise an
 //! env with no packages is pending and all-`noop` packages is installed

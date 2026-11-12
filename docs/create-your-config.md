@@ -10,11 +10,11 @@ cd ~/my-config
 git init -b main
 ```
 
-The starter contains a manifest, shared settings, a `foundation` base module, and an example `terminal` module with one dotfile. See [the contract](config-repo.md) for every field.
+The starter contains a `config.toml` with a repository header, shared settings, a `foundation` base module, and an example `terminal` module with one dotfile. See [the contract](config-repo.md) for every field.
 
-## 2. Edit the manifest
+## 2. Edit the headers
 
-In `essential-mise.toml`, set `name`, keep `foundation` in `base_modules`, and add one `[[modules]]` entry for each `config.<name>.toml` you create. Write modules as described in [Writing modules](writing-modules.md).
+In `config.toml`, set `name` in the `#:` header. Keep `#: base = true` in `config.foundation.toml`. Start each `config.<name>.toml` you create with a `#: description = "..."` line (and `#: order = <number>` to place it in the list). Write modules as described in [Writing modules](writing-modules.md).
 
 ## 3. Lint
 

@@ -8,8 +8,8 @@ librarian, CLI designer, TUI designer, TUI engineer) re-verified against live
 ## 0. Corrections to prior spec (`spec.md`)
 
 - The module count is not fixed. Module names and descriptions come from the
-  `[[modules]]` tables of the config repository's `essential-mise.toml`
-  manifest; the console parses them and never hardcodes them.
+  `#:` header comments of the config repository's `config.<name>.toml`
+  files; the console parses them and never hardcodes them.
 - No `first-mac.sh` exists. The flow is `bootstrap.sh` plus `docs/first-mac.md`.
 - Guest-side verification tooling lives in `testing/vm/`; there is no host gate.
 - `plan --json` carries no origin field (keys exactly `{action,current,desired,id}`),

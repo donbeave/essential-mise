@@ -139,7 +139,7 @@ pub enum Commands {
         #[arg(long, value_name = "SOURCE")]
         config: Option<String>,
     },
-    /// Check a config repository against the `essential-mise.toml` contract.
+    /// Check a config repository against the `#:` header contract.
     Lint,
     /// Open the interactive console at an optional screen.
     Tui {

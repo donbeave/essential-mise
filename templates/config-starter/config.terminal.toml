@@ -1,3 +1,6 @@
+#: description = "Shell prompt and terminal utilities"
+#: order = 10
+
 [bootstrap.packages]
 "brew:starship" = "latest"
 "brew:bat" = "latest"
