@@ -14,7 +14,9 @@ use crate::backend::{ApplyRequest, Backend, BackendError, ResId};
 use crate::check::{self, CheckHandle};
 use crate::screens::apply::{ApplyAction, ApplyOwner, ApplyScreen};
 use crate::screens::modules::{ModuleAction, ModuleInfo, ModulesOwner, ModulesState};
-use crate::screens::packages::{PackageAction, PackagesOwner, PackagesState, package_rows};
+use crate::screens::packages::{
+    DEFAULT_ARM_DELAY, PackageAction, PackagesOwner, PackagesState, package_rows,
+};
 use crate::screens::result::{ResultAction, ResultOwner, ResultScreen};
 use junie_tui::clock::{Moment, WallClock};
 use junie_tui::core::event::{External, Input, Key, Outcome};
@@ -24,20 +26,35 @@ use junie_tui::core::pointer::{PointerEvent, PointerHost, PointerParts, PointerR
 use junie_tui::core::response::Response;
 use junie_tui::runtime::ExternalReceiver;
 use junie_tui::shell::{App as ShellApp, PageKey, Shell};
-use junie_tui::theme::{ColorLevel, Theme};
+use junie_tui::theme::{Charset, ColorLevel, Theme};
 use junie_tui::ui::ctx::RenderCtx;
 use junie_tui::widgets::too_small::TooSmall;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Position, Rect};
 
 pub(crate) enum Screen {
-    Modules(ModulesOwner),
+    Modules(Box<ModulesOwner>),
     Packages(PackagesOwner),
     Apply(Box<ApplyOwner>),
     Result(Box<ResultOwner>),
 }
 
 impl Screen {
+    /// Whether a text box has the keyboard.
+    fn typing(&self) -> bool {
+        matches!(self, Self::Modules(owner) if owner.typing())
+    }
+
+    /// The keys that work on this screen right now, for the help overlay.
+    fn help_keys(&self) -> Vec<(&'static str, String)> {
+        match self {
+            Self::Modules(owner) => owner.hints(),
+            Self::Packages(owner) => owner.hints(),
+            Self::Apply(owner) => owner.hints(),
+            Self::Result(owner) => owner.state.hints(),
+        }
+    }
+
     fn primary_focus(&self) -> Option<WidgetId> {
         match self {
             Self::Modules(owner) => Some(owner.primary_focus()),
@@ -64,10 +81,11 @@ pub struct App {
     screen: Screen,
     envs: Vec<ModuleInfo>,
     selected: Vec<String>,
-    keep: Vec<String>,
+    skipped: Vec<String>,
     check: Option<CheckHandle>,
     reapplying: bool,
-    packages_snapshot: Option<PackagesOwner>,
+    help_open: bool,
+    arm_delay: Duration,
     shell: Shell<()>,
     clock: WallClock,
     tick: u64,
@@ -97,16 +115,20 @@ impl App {
         let mut app = Self {
             backend,
             config_dir: config_dir.to_path_buf(),
-            screen: Screen::Modules(ModulesOwner::new(ModulesState::new(
+            screen: Screen::Modules(Box::new(ModulesOwner::new(ModulesState::new(
                 envs.clone(),
                 &preticks,
-            ))),
+            )))),
             envs,
             selected: preticks,
-            keep: Vec::new(),
+            skipped: Vec::new(),
             check: None,
             reapplying: false,
-            packages_snapshot: None,
+            help_open: false,
+            arm_delay: std::env::var("EMC_REVIEW_ARM_MS")
+                .ok()
+                .and_then(|ms| ms.parse().ok())
+                .map_or(DEFAULT_ARM_DELAY, Duration::from_millis),
             shell,
             clock: WallClock::new(),
             tick: 0,
@@ -159,6 +181,20 @@ impl App {
             }
             return Outcome::Consumed;
         }
+        if self.help_open {
+            if key.is(ratatui::crossterm::event::KeyCode::Esc)
+                || key.is(ratatui::crossterm::event::KeyCode::Enter)
+                || key.is_char('?')
+                || key.is_char('q')
+            {
+                self.help_open = false;
+            }
+            return Outcome::Changed;
+        }
+        if key.is_char('?') && !self.screen.typing() && !ShellApp::layer_open(self) {
+            self.help_open = true;
+            return Outcome::Changed;
+        }
         let clipboard = self.shell.clipboard.clone();
         let out = match &mut self.screen {
             Screen::Modules(owner) => {
@@ -166,7 +202,7 @@ impl App {
                 self.modules_response(response)
             }
             Screen::Packages(owner) => {
-                let response = owner.key(key, &mut self.shell.focus, &self.shell.ring);
+                let response = owner.key(key);
                 self.packages_response(response)
             }
             Screen::Apply(owner) => {
@@ -201,7 +237,7 @@ impl App {
         }
         match &mut self.screen {
             Screen::Modules(owner) => owner.paste(text, &self.shell.focus),
-            Screen::Packages(owner) => owner.paste(text, &self.shell.focus),
+            Screen::Packages(_) => Outcome::Ignored,
             Screen::Apply(owner) => owner.paste(text),
             Screen::Result(_) => Outcome::Ignored,
         }
@@ -215,6 +251,8 @@ impl App {
                 Outcome::Changed
             }
             Some(ModuleAction::Quit) => {
+                // Nothing has run yet: leaving here is not a failure.
+                self.exit_code = Some(0);
                 self.shell.quit = true;
                 Outcome::Changed
             }
@@ -233,6 +271,12 @@ impl App {
                 self.back_to_modules();
                 Outcome::Changed
             }
+            Some(PackageAction::Quit) => {
+                // Nothing has run yet: leaving here is not a failure.
+                self.exit_code = Some(0);
+                self.shell.quit = true;
+                Outcome::Changed
+            }
             Some(PackageAction::None) | None => out,
         }
     }
@@ -240,8 +284,13 @@ impl App {
     fn apply_response(&mut self, response: Response<ApplyAction>) -> Outcome {
         let (out, action) = response.into_parts();
         match action {
-            Some(ApplyAction::Done) => {
-                self.enter_result();
+            Some(ApplyAction::Retry) => {
+                self.retry_apply();
+                Outcome::Changed
+            }
+            Some(ApplyAction::Quit) => {
+                self.exit_code = Some(1);
+                self.shell.quit = true;
                 Outcome::Changed
             }
             Some(ApplyAction::None) | None => out,
@@ -292,25 +341,32 @@ impl App {
         consumed
     }
 
+    /// Success moves on to the Result screen by itself; a failure or a stop
+    /// stays on the Applying screen with its banner.
     fn poll_apply(&mut self) -> Outcome {
         let outcome = match &mut self.screen {
             Screen::Apply(owner) => owner.state.try_join(),
             _ => None,
         };
         match outcome {
-            Some(crate::backend::ApplyOutcome::Failed { .. }) => match &mut self.screen {
-                Screen::Apply(owner) => owner.sync_modal_from_domain(&mut self.shell.focus),
-                _ => Outcome::Ignored,
-            },
-            Some(_) => match &mut self.screen {
-                Screen::Apply(owner) => {
-                    owner.sync_completion_focus(&mut self.shell.focus);
-                    Outcome::Changed
-                }
-                _ => Outcome::Ignored,
-            },
+            Some(crate::backend::ApplyOutcome::Success) => {
+                self.enter_result();
+                Outcome::Changed
+            }
+            Some(_) => Outcome::Changed,
             None => Outcome::Ignored,
         }
+    }
+
+    /// Run the same request again (Try again after a failure or a stop).
+    fn retry_apply(&mut self) {
+        let Screen::Apply(owner) = &self.screen else {
+            return;
+        };
+        let request = owner.state.request().clone();
+        let mut state = ApplyScreen::new(self.backend.clone(), request);
+        state.start();
+        self.set_screen(Screen::Apply(Box::new(ApplyOwner::new(state))));
     }
 
     /// Read how many packages each module declares into the S1 detail pane.
@@ -334,9 +390,9 @@ impl App {
         match self.backend.origin_map(&self.config_dir) {
             Ok(origins) => {
                 let rows = package_rows(&selected, &Self::filter_origins(&origins, &selected));
-                self.set_screen(Screen::Packages(PackagesOwner::new(PackagesState::new(
-                    rows,
-                ))));
+                let state = PackagesState::new(rows, selected.len()).with_arm_delay(self.arm_delay);
+                self.set_screen(Screen::Packages(PackagesOwner::new(state)));
+                self.start_check(Vec::new());
             }
             Err(e) => {
                 self.last_error = Some(format!("origin_map failed: {e}"));
@@ -367,17 +423,14 @@ impl App {
     }
 
     fn enter_apply(&mut self) {
-        let (keep, envs) = match &self.screen {
-            Screen::Packages(owner) => (owner.state.kept_specs(), self.selected.clone()),
+        let (keep, skipped) = match &self.screen {
+            Screen::Packages(owner) => (owner.state.install_specs(), owner.state.skipped_specs()),
             _ => return,
         };
-        self.packages_snapshot = match &self.screen {
-            Screen::Packages(owner) => Some(owner.clone()),
-            _ => None,
-        };
-        self.keep = keep.clone();
+        self.skipped = skipped;
+        self.check = None;
         let req = ApplyRequest {
-            envs,
+            envs: self.selected.clone(),
             keep,
             manager: None,
             skip_parts: Vec::new(),
@@ -409,9 +462,9 @@ impl App {
     }
 
     fn back_to_modules(&mut self) {
-        self.set_screen(Screen::Modules(ModulesOwner::new(ModulesState::new(
-            self.envs.clone(),
-            &self.selected,
+        self.check = None;
+        self.set_screen(Screen::Modules(Box::new(ModulesOwner::new(
+            ModulesState::new(self.envs.clone(), &self.selected),
         ))));
         self.refresh_module_facts();
     }
@@ -427,7 +480,7 @@ impl App {
             ));
         }
         self.set_screen(Screen::Result(Box::new(ResultOwner::new(screen))));
-        self.start_check();
+        self.start_check(self.skipped.clone());
     }
 
     /// Apply again for exactly the areas that differ. The request is built
@@ -454,14 +507,14 @@ impl App {
         if let Screen::Result(owner) = &mut self.screen {
             owner.state.begin_check();
         }
-        self.start_check();
+        self.start_check(self.skipped.clone());
     }
 
-    fn start_check(&mut self) {
+    fn start_check(&mut self, skipped: Vec<String>) {
         self.check = Some(check::spawn(
             self.backend.clone(),
             self.selected.clone(),
-            self.keep.clone(),
+            skipped,
         ));
     }
 
@@ -481,6 +534,10 @@ impl App {
             Screen::Result(owner) => {
                 owner.state.finish_check(result);
                 owner.state.set_reapply_commands(commands);
+                Outcome::Changed
+            }
+            Screen::Packages(owner) => {
+                owner.state.apply_check(result);
                 Outcome::Changed
             }
             _ => Outcome::Ignored,
@@ -516,7 +573,8 @@ impl App {
         }
         let animating = self.shell.pointer.has_flash()
             || matches!(&self.screen, Screen::Apply(owner) if owner.state.started() && owner.state.outcome().is_none())
-            || matches!(&self.screen, Screen::Result(owner) if owner.state.is_checking());
+            || matches!(&self.screen, Screen::Result(owner) if owner.state.is_checking())
+            || matches!(&self.screen, Screen::Packages(owner) if owner.state.is_checking());
         if animating {
             self.tick = self.tick.wrapping_add(1);
             out = Outcome::Changed;
@@ -525,12 +583,24 @@ impl App {
     }
 }
 
+/// Theme from the environment: `NO_COLOR` and `TERM=dumb` select the mono
+/// level, and `TERM=dumb` (or `JUNIE_TUI_GLYPHS=ascii`) the ASCII glyph set,
+/// so every state is still told apart by glyph and word.
 fn theme_for_env() -> Theme {
-    if std::env::var("COLORTERM").as_deref() == Ok("truecolor") {
-        Theme::for_level(ColorLevel::TrueColor)
+    theme_from(|key| std::env::var(key).ok())
+}
+
+pub(crate) fn theme_from(get: impl Fn(&str) -> Option<String>) -> Theme {
+    let set = |key: &str| get(key).is_some_and(|v| !v.is_empty());
+    let dumb = get("TERM").is_some_and(|t| t == "dumb");
+    let level = if set("NO_COLOR") || dumb {
+        ColorLevel::Mono
+    } else if matches!(get("COLORTERM").as_deref(), Some("truecolor" | "24bit")) {
+        ColorLevel::TrueColor
     } else {
-        Theme::for_level(ColorLevel::Ansi256)
-    }
+        ColorLevel::Ansi256
+    };
+    Charset::from_env(&get, cfg!(windows)).apply(Theme::for_level(level))
 }
 
 impl ShellApp for App {
@@ -571,6 +641,10 @@ impl ShellApp for App {
             Screen::Apply(owner) => owner.draw(area, buf, ctx),
             Screen::Result(owner) => owner.draw(area, buf, ctx),
         }
+        if self.help_open {
+            let theme = *ctx.theme;
+            crate::screens::help::render(area, buf, &theme, theme.canvas, &self.screen.help_keys());
+        }
     }
 
     fn on_input(&mut self, input: Input) -> Outcome {
@@ -588,7 +662,7 @@ impl ShellApp for App {
     fn on_blur(&mut self, change: FocusChange) -> Outcome {
         match &mut self.screen {
             Screen::Modules(owner) => owner.blur(change),
-            Screen::Packages(owner) => owner.blur(change),
+            Screen::Packages(_) => Outcome::Ignored,
             Screen::Apply(_) => Outcome::Ignored,
             Screen::Result(_) => Outcome::Ignored,
         }
@@ -638,10 +712,7 @@ impl PointerHost for App {
                 let response = owner.pointer(ev, &mut self.shell.focus);
                 self.modules_response(response).into()
             }
-            Screen::Packages(owner) => {
-                let response = owner.pointer(ev, &mut self.shell.focus);
-                self.packages_response(response).into()
-            }
+            Screen::Packages(_) => Response::ignored(),
             Screen::Apply(owner) => {
                 let response = owner.pointer(ev, &mut self.shell.focus, &clipboard);
                 self.apply_response(response).into()
@@ -666,661 +737,4 @@ impl PointerHost for App {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::backend::mock::MockBackend;
-    use junie_tui::core::event::Key;
-    use junie_tui::runtime::Application;
-    use ratatui::crossterm::event::{KeyCode, KeyModifiers};
-
-    fn key(code: KeyCode) -> Key {
-        Key {
-            code,
-            mods: KeyModifiers::empty(),
-        }
-    }
-
-    fn char_key(c: char) -> Key {
-        Key {
-            code: KeyCode::Char(c),
-            mods: KeyModifiers::empty(),
-        }
-    }
-
-    fn mock_app() -> App {
-        mock_app_with(
-            MockBackend::new()
-                .with_origin("brew", "jq", &["alpha"])
-                .with_origin("brew", "rg", &["beta"]),
-        )
-    }
-
-    fn write_manifest(dir: &Path, modules: &[(&str, &str)]) {
-        std::fs::write(
-            dir.join("config.toml"),
-            "#: schema = 1\n#: name = \"test\"\n",
-        )
-        .expect("write config.toml");
-        for (index, (name, description)) in modules.iter().enumerate() {
-            let text = format!(
-                "#: description = \"{description}\"\n#: order = {}\n",
-                index + 1
-            );
-            std::fs::write(dir.join(format!("config.{name}.toml")), text).expect("write module");
-        }
-    }
-
-    fn mock_app_with(backend: MockBackend) -> App {
-        let dir = std::env::temp_dir().join(format!("emc-test-app-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("temp dir");
-        write_manifest(&dir, &[("alpha", "First env"), ("beta", "Second env")]);
-        std::fs::write(dir.join("miserc.local.toml"), "env = [\"alpha\"]\n").expect("write local");
-        let backend: Arc<dyn Backend> = Arc::new(backend);
-        App::new(backend, &dir).expect("app builds")
-    }
-
-    fn mock_app_many_groups() -> App {
-        let dir = std::env::temp_dir().join(format!("emc-test-groups-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("temp dir");
-        write_manifest(
-            &dir,
-            &[
-                ("e0", "Zero"),
-                ("e1", "One"),
-                ("e2", "Two"),
-                ("e3", "Three"),
-                ("e4", "Four"),
-                ("e5", "Five"),
-            ],
-        );
-        std::fs::write(dir.join("miserc.local.toml"), "").expect("write local");
-        let mut backend = MockBackend::new();
-        for i in 0..6 {
-            backend = backend.with_origin("brew", &format!("pkg{i}"), &[&format!("e{i}")]);
-        }
-        App::new(Arc::new(backend), &dir).expect("app builds")
-    }
-
-    fn settle(app: &mut App) {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-        while app.screen_name() == "apply" && std::time::Instant::now() < deadline {
-            app.pump();
-            if matches!(&app.screen, Screen::Apply(owner) if owner.state.outcome().is_some()) {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        assert!(
-            matches!(&app.screen, Screen::Apply(owner) if owner.state.outcome().is_some()),
-            "apply must finish before verification"
-        );
-        app.handle_key(&key(KeyCode::Enter));
-    }
-
-    fn draw(app: &mut App, terminal: &mut ratatui::Terminal<ratatui::backend::TestBackend>) {
-        terminal.draw(|frame| app.render(frame)).expect("draw app");
-    }
-
-    fn buffer_text(terminal: &ratatui::Terminal<ratatui::backend::TestBackend>) -> String {
-        let buffer = terminal.backend().buffer();
-        (0..buffer.area.height)
-            .map(|y| {
-                (0..buffer.area.width)
-                    .map(|x| buffer[(x, y)].symbol())
-                    .collect::<String>()
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    fn click_id(app: &mut App, id: WidgetId) {
-        let area = app
-            .shell
-            .hits
-            .regions()
-            .iter()
-            .find(|region| region.id == id)
-            .map(|region| region.area)
-            .unwrap_or_else(|| panic!("missing hit region for {id:?}"));
-        let pos = ratatui::layout::Position::new(area.x + area.width / 2, area.y + area.height / 2);
-        app.handle(Input::Mouse(junie_tui::core::event::Mouse::new(
-            junie_tui::core::event::MouseKind::Down,
-            pos,
-        )));
-        app.handle(Input::Mouse(junie_tui::core::event::Mouse::new(
-            junie_tui::core::event::MouseKind::Up,
-            pos,
-        )));
-    }
-
-    #[test]
-    fn s1_enter_moves_to_s2_with_pretrained_selection() {
-        let mut app = mock_app();
-        assert_eq!(app.screen_name(), "modules");
-        app.handle_key(&char_key(' '));
-        app.handle_key(&key(KeyCode::Down));
-        app.handle_key(&char_key(' '));
-        app.handle_key(&key(KeyCode::Enter));
-        assert_eq!(app.screen_name(), "packages");
-    }
-
-    #[test]
-    fn s2_enter_starts_apply_and_success_waits_for_results() {
-        let mut app = mock_app();
-        app.handle_key(&key(KeyCode::Enter));
-        assert_eq!(app.screen_name(), "packages");
-        app.handle_key(&key(KeyCode::Enter));
-        assert_eq!(app.screen_name(), "apply");
-        assert!(
-            matches!(&app.screen, Screen::Apply(owner) if owner.state.started()),
-            "confirming packages must start the worker without a second Enter"
-        );
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-        while std::time::Instant::now() < deadline {
-            app.pump();
-            if matches!(&app.screen, Screen::Apply(owner) if owner.state.outcome().is_some()) {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        assert_eq!(app.screen_name(), "apply");
-        assert!(
-            matches!(&app.screen, Screen::Apply(owner) if owner.state.outcome() == Some(&crate::backend::ApplyOutcome::Success)),
-            "successful output must remain visible until the user continues"
-        );
-        app.handle_key(&key(KeyCode::Enter));
-        assert_eq!(app.screen_name(), "result");
-    }
-
-    #[test]
-    fn result_enter_finishes_a_clean_mac_with_exit_zero() {
-        let mut app = mock_app();
-        to_result(&mut app);
-        app.handle_key(&char_key('B'));
-        assert_eq!(app.screen_name(), "result", "B is no longer a key");
-        app.handle_key(&key(KeyCode::Enter));
-        assert!(app.quit());
-        assert_eq!(app.exit_code(), Some(0));
-    }
-
-    fn fixture_report(name: &str) -> crate::status::StatusReport {
-        let text = std::fs::read_to_string(
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("tests/fixtures")
-                .join(name),
-        )
-        .expect("fixture readable");
-        crate::status::StatusReport::parse(&text, crate::backend::mock::MOCK_CHECKED_AT)
-            .expect("fixture parses")
-    }
-
-    fn app_with_status(name: &str) -> App {
-        mock_app_with(
-            MockBackend::new()
-                .with_origin("brew", "jq", &["alpha"])
-                .with_status_sequence(vec![fixture_report(name)]),
-        )
-    }
-
-    fn render(app: &mut App, w: u16, h: u16) -> String {
-        let mut terminal =
-            ratatui::Terminal::new(ratatui::backend::TestBackend::new(w, h)).expect("terminal");
-        draw(app, &mut terminal);
-        buffer_text(&terminal)
-    }
-
-    /// Pump until the Result screen has finished its check.
-    fn wait_check(app: &mut App) {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while matches!(&app.screen, Screen::Result(owner) if owner.state.is_checking()) {
-            app.pump();
-            assert!(std::time::Instant::now() < deadline, "check never finished");
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-    }
-
-    fn to_result(app: &mut App) {
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        settle(app);
-        assert_eq!(app.screen_name(), "result");
-        wait_check(app);
-    }
-
-    #[test]
-    fn result_shows_checking_at_once_then_the_checked_time() {
-        let mut app = mock_app_with(
-            MockBackend::new()
-                .with_origin("brew", "jq", &["alpha"])
-                .with_status_delay(std::time::Duration::from_millis(300)),
-        );
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        settle(&mut app);
-        let started = std::time::Instant::now();
-        let screen = render(&mut app, 100, 30);
-        assert!(started.elapsed() < std::time::Duration::from_millis(100));
-        assert!(screen.contains("Step 4 of 4 · Checking"), "{screen}");
-        assert!(screen.contains("Checking your Mac"), "{screen}");
-        assert!(!screen.contains("Checked "), "{screen}");
-        wait_check(&mut app);
-        let done = render(&mut app, 100, 30);
-        assert!(done.contains("Checked 12:04:31"), "{done}");
-        assert!(!done.contains("Checking your Mac"), "{done}");
-    }
-
-    #[test]
-    fn recheck_shows_checking_again_and_never_blocks_quit() {
-        let mut app = app_with_status("status-one-differs.json");
-        to_result(&mut app);
-        app.handle_key(&char_key('R'));
-        assert!(render(&mut app, 100, 30).contains("Checking your Mac"));
-        wait_check(&mut app);
-        let screen = render(&mut app, 100, 30);
-        assert!(screen.contains("(check #2)"), "{screen}");
-    }
-
-    #[test]
-    fn result_shows_up_to_date_for_sixty_six_already_set_defaults() {
-        let mut app = app_with_status("status-applied.json");
-        to_result(&mut app);
-        let screen = render(&mut app, 100, 30);
-        assert!(screen.contains("Step 4 of 4 · Done"), "{screen}");
-        assert!(screen.contains("Your Mac is set up"), "{screen}");
-        assert!(screen.contains("Enter  Finish and exit"), "{screen}");
-        assert!(!screen.contains("Needs your attention"), "{screen}");
-        assert!(!screen.contains("pending"), "{screen}");
-    }
-
-    #[test]
-    fn result_names_the_single_differing_value_and_quit_exits_three() {
-        let mut app = app_with_status("status-one-differs.json");
-        to_result(&mut app);
-        let screen = render(&mut app, 100, 30);
-        assert!(screen.contains("Step 4 of 4 · Needs attention"), "{screen}");
-        assert!(screen.contains("1 of 67 values differs"), "{screen}");
-        assert!(screen.contains("com.apple.dock tilesize"), "{screen}");
-        assert!(screen.contains("(now 48, wanted 36)"), "{screen}");
-        app.handle_key(&char_key('q'));
-        assert!(!app.quit(), "q asks first while changes are pending");
-        assert!(render(&mut app, 100, 30).contains("Quit with 1 area"));
-        app.handle_key(&char_key('y'));
-        assert!(app.quit());
-        assert_eq!(app.exit_code(), Some(3));
-    }
-
-    fn app_with_sequence(first: &[&str]) -> (App, MockBackend) {
-        let mock = MockBackend::new()
-            .with_origin("brew", "jq", &["alpha"])
-            .with_status_sequence(first.iter().map(|n| fixture_report(n)).collect());
-        let probe = mock.clone();
-        (mock_app_with(mock), probe)
-    }
-
-    #[test]
-    fn enter_on_pending_applies_again_for_exactly_those_areas_then_checks() {
-        let (mut app, probe) =
-            app_with_sequence(&["status-one-differs.json", "status-applied.json"]);
-        to_result(&mut app);
-        let screen = render(&mut app, 100, 30);
-        assert!(
-            screen.contains("Enter  Apply the 1 pending area again"),
-            "{screen}"
-        );
-        app.handle_key(&key(KeyCode::Enter));
-        assert_eq!(app.screen_name(), "apply", "Enter starts the re-apply");
-        let requests = probe.requests();
-        assert_eq!(requests.len(), 2, "first apply, then the re-apply");
-        let again = &requests[1];
-        assert_eq!(again.only_parts, vec!["macos-defaults"]);
-        assert!(again.keep.is_empty() && again.run_base && !again.update && !again.upgrade);
-        settle(&mut app);
-        wait_check(&mut app);
-        let done = render(&mut app, 100, 30);
-        assert!(done.contains("Step 4 of 4 · Done"), "{done}");
-        assert!(!done.contains("Still different"), "{done}");
-    }
-
-    #[test]
-    fn details_view_shows_the_exact_command_and_enter_runs_it() {
-        let (mut app, probe) =
-            app_with_sequence(&["status-one-differs.json", "status-applied.json"]);
-        to_result(&mut app);
-        app.handle_key(&char_key('d'));
-        let screen = render(&mut app, 100, 30);
-        assert!(screen.contains("com.apple.dock tilesize"), "{screen}");
-        assert!(screen.contains("setting"), "{screen}");
-        assert!(
-            screen.contains("bootstrap --only macos-defaults"),
-            "the command Enter runs is shown: {screen}"
-        );
-        app.handle_key(&char_key('c'));
-        let copied = app.take_output().concat();
-        let shown = crate::reapply::commands(
-            &*app.backend,
-            &crate::reapply::plan(&fixture_report("status-one-differs.json"), &app.selected)
-                .expect("pending")
-                .request,
-        );
-        assert!(
-            copied.contains(&base64(shown[0].as_bytes())),
-            "the copied command is the shown command: {copied:?}"
-        );
-        app.handle_key(&key(KeyCode::Enter));
-        assert_eq!(app.screen_name(), "apply");
-        assert_eq!(probe.requests()[1].only_parts, vec!["macos-defaults"]);
-    }
-
-    #[test]
-    fn still_different_after_applying_stops_the_loop() {
-        let (mut app, probe) =
-            app_with_sequence(&["status-one-differs.json", "status-one-differs.json"]);
-        to_result(&mut app);
-        app.handle_key(&key(KeyCode::Enter));
-        settle(&mut app);
-        wait_check(&mut app);
-        let screen = render(&mut app, 100, 30);
-        assert!(
-            screen.contains("Still different after applying"),
-            "{screen}"
-        );
-        assert!(screen.contains("com.apple.dock tilesize"), "{screen}");
-        assert!(screen.contains("Enter  Finish anyway"), "{screen}");
-        assert!(!screen.contains("Apply the"), "no second loop: {screen}");
-        app.handle_key(&key(KeyCode::Enter));
-        assert!(app.quit());
-        assert_eq!(app.exit_code(), Some(3));
-        assert_eq!(probe.requests().len(), 2, "no third apply");
-    }
-
-    #[test]
-    fn esc_never_traps_on_a_pending_result() {
-        let mut app = app_with_status("status-one-differs.json");
-        to_result(&mut app);
-        app.handle_key(&key(KeyCode::Esc));
-        app.handle_key(&key(KeyCode::Esc));
-        assert!(!app.quit(), "Esc dismisses the question");
-        app.handle_key(&char_key('q'));
-        app.handle_key(&char_key('y'));
-        assert!(app.quit());
-        assert_eq!(app.exit_code(), Some(3));
-    }
-
-    fn base64(bytes: &[u8]) -> String {
-        const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let mut out = String::new();
-        for chunk in bytes.chunks(3) {
-            let n = chunk
-                .iter()
-                .enumerate()
-                .fold(0u32, |n, (i, b)| n | u32::from(*b) << (16 - 8 * i));
-            for i in 0..4 {
-                if i <= chunk.len() {
-                    out.push(T[(n >> (18 - 6 * i) & 63) as usize] as char);
-                } else {
-                    out.push('=');
-                }
-            }
-        }
-        out
-    }
-
-    #[test]
-    fn follow_ups_from_the_apply_log_are_typed_and_copyable() {
-        let mut app = mock_app_with(
-            MockBackend::new()
-                .with_origin("brew", "jq", &["alpha"])
-                .with_follow_up_log(),
-        );
-        to_result(&mut app);
-        let screen = render(&mut app, 100, 30);
-        assert!(
-            screen.contains("Optional, for your information"),
-            "{screen}"
-        );
-        assert!(
-            screen.contains("Restart Dock, Finder and SystemUIServer to show new settings"),
-            "{screen}"
-        );
-        assert!(
-            screen.contains("$ killall Dock Finder SystemUIServer"),
-            "{screen}"
-        );
-        assert!(
-            screen.contains("Plugin hook skipped: example-plugin/Tool"),
-            "{screen}"
-        );
-        assert!(screen.contains("c copy command"), "{screen}");
-        let _ = app.take_output();
-        app.handle_key(&char_key('c'));
-        let output = app.take_output().concat();
-        let payload = base64(b"killall Dock Finder SystemUIServer");
-        assert!(
-            output.contains(&format!("\x1b]52;c;{payload}")),
-            "copy must reach the terminal as OSC 52: {output:?}"
-        );
-        assert!(render(&mut app, 100, 30).contains("Copied to the clipboard"));
-    }
-
-    #[test]
-    fn s1_escape_quits() {
-        let mut app = mock_app();
-        app.handle_key(&key(KeyCode::Esc));
-        assert!(app.quit());
-    }
-
-    #[test]
-    fn interaction_regressions_filter_accepts_typing_and_paste() {
-        let mut app = mock_app();
-        app.handle_key(&char_key('/'));
-        app.handle_key(&char_key('b'));
-        assert_eq!(
-            app.handle(Input::Paste("eta".to_string())),
-            Outcome::Changed
-        );
-        let Screen::Modules(owner) = &app.screen else {
-            panic!("expected modules")
-        };
-        assert_eq!(owner.state.query(), "beta");
-        assert_eq!(owner.state.counts().0, 1);
-        assert!(owner.state.selected_envs().contains(&"alpha".to_string()));
-    }
-
-    #[test]
-    fn interaction_regressions_second_package_row_toggles() {
-        let mut app = mock_app();
-        app.handle_key(&key(KeyCode::Down));
-        app.handle_key(&char_key(' '));
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Down));
-        app.handle_key(&char_key(' '));
-        let Screen::Packages(owner) = &app.screen else {
-            panic!("expected packages")
-        };
-        assert!(owner.state.is_kept("brew", "jq"));
-        assert!(!owner.state.is_kept("brew", "rg"));
-    }
-
-    #[test]
-    fn interaction_regressions_cancel_dialog_dismisses_without_cancelling() {
-        let mut app = mock_app_with(
-            MockBackend::new()
-                .with_origin("brew", "jq", &["alpha"])
-                .with_origin("brew", "rg", &["beta"])
-                .with_apply_delay(std::time::Duration::from_secs(5)),
-        );
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Esc));
-        app.handle_key(&key(KeyCode::Enter));
-        let Screen::Apply(owner) = &app.screen else {
-            panic!("expected apply")
-        };
-        assert!(owner.state.started());
-        assert!(!owner.state.cancel_armed());
-        assert!(!owner.state.cancelling());
-        assert!(owner.state.outcome().is_none());
-    }
-
-    #[test]
-    fn interaction_regressions_resize_requires_redraw() {
-        let mut app = mock_app();
-        assert_eq!(app.handle(Input::Resize(80, 24)), Outcome::Changed);
-    }
-
-    #[test]
-    fn shell_pointer_continue_enters_packages() {
-        let mut app = mock_app();
-        let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 30))
-            .expect("test terminal");
-        draw(&mut app, &mut terminal);
-        click_id(&mut app, WidgetId::of("emc.s1.detail").sub("continue"));
-        assert_eq!(app.screen_name(), "packages");
-    }
-
-    #[test]
-    fn outer_group_scroll_reveals_focused_package() {
-        let mut app = mock_app_many_groups();
-        app.handle_key(&char_key('a'));
-        app.handle_key(&key(KeyCode::Enter));
-        let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 22))
-            .expect("test terminal");
-        draw(&mut app, &mut terminal);
-        for _ in 0..5 {
-            app.handle_key(&key(KeyCode::Down));
-        }
-        draw(&mut app, &mut terminal);
-        assert!(
-            buffer_text(&terminal).contains("pkg5"),
-            "focused final group must be revealed by the outer ScrollView"
-        );
-    }
-
-    #[test]
-    fn module_wheel_reveals_later_environments() {
-        let mut app = mock_app_many_groups();
-        let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 22))
-            .expect("test terminal");
-        draw(&mut app, &mut terminal);
-        let master = WidgetId::of("emc.s1.master");
-        let area = app
-            .shell
-            .hits
-            .regions()
-            .iter()
-            .find(|region| region.id == master)
-            .map(|region| region.area)
-            .expect("module master hit region");
-        let pos = ratatui::layout::Position::new(area.x + 2, area.y + 1);
-        for _ in 0..5 {
-            app.handle(Input::Mouse(junie_tui::core::event::Mouse::new(
-                junie_tui::core::event::MouseKind::WheelDown,
-                pos,
-            )));
-            draw(&mut app, &mut terminal);
-        }
-        assert!(
-            buffer_text(&terminal).contains("e5"),
-            "wheel input must reveal the final environment"
-        );
-    }
-
-    #[test]
-    fn viewport_scrolling_anchors_during_new_output() {
-        let mut app = mock_app();
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        for seq in 1..=40 {
-            app.feed_external(&External::new(crate::backend::ApplyLine {
-                seq,
-                stream: crate::backend::Stream::Stdout,
-                text: format!("line {seq}"),
-            }));
-        }
-        let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 30))
-            .expect("test terminal");
-        draw(&mut app, &mut terminal);
-        app.handle_key(&key(KeyCode::Up));
-        let Screen::Apply(owner) = &mut app.screen else {
-            panic!("expected apply")
-        };
-        assert!(!owner.viewport.follow);
-        let offset = owner.viewport.scroll.offset;
-        let depth = owner.viewport.scrollback_depth();
-        app.feed_external(&External::new(crate::backend::ApplyLine {
-            seq: 41,
-            stream: crate::backend::Stream::Stdout,
-            text: "line 41".to_string(),
-        }));
-        draw(&mut app, &mut terminal);
-        let Screen::Apply(owner) = &mut app.screen else {
-            panic!("expected apply")
-        };
-        assert_eq!(owner.viewport.scroll.offset, offset);
-        assert_eq!(owner.viewport.scrollback_depth(), depth + 1);
-        app.handle_key(&key(KeyCode::End));
-        let Screen::Apply(owner) = &app.screen else {
-            panic!("expected apply")
-        };
-        assert!(owner.viewport.follow);
-    }
-
-    #[test]
-    fn cancel_dialog_confirm_joins_worker_before_results() {
-        let mut app = mock_app_with(
-            MockBackend::new()
-                .with_origin("brew", "jq", &["alpha"])
-                .with_origin("brew", "rg", &["beta"])
-                .with_apply_delay(std::time::Duration::from_secs(5)),
-        );
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Esc));
-        app.handle_key(&key(KeyCode::Right));
-        app.handle_key(&key(KeyCode::Enter));
-        assert!(matches!(&app.screen, Screen::Apply(owner) if owner.state.cancelling()));
-        settle(&mut app);
-        assert_eq!(app.screen_name(), "result");
-    }
-
-    #[test]
-    fn failure_dialog_copies_rerun_and_close_reaches_result() {
-        let mut app = mock_app_with(
-            MockBackend::new()
-                .with_origin("brew", "jq", &["alpha"])
-                .with_origin("brew", "rg", &["beta"])
-                .with_failure(crate::backend::ApplyPhase::Packages),
-        );
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-        while std::time::Instant::now() < deadline {
-            app.pump();
-            if matches!(&app.screen, Screen::Apply(owner) if owner.layer_open()) {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        assert!(matches!(&app.screen, Screen::Apply(owner) if owner.layer_open()));
-        let _ = app.take_output();
-        app.handle_key(&char_key('y'));
-        assert!(!app.take_output().is_empty());
-        assert_eq!(app.screen_name(), "apply");
-        app.handle_key(&key(KeyCode::Enter));
-        assert_eq!(app.screen_name(), "result");
-    }
-
-    #[test]
-    fn resize_redraws_static_chrome_at_new_bottom() {
-        let mut app = mock_app();
-        let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 30))
-            .expect("test terminal");
-        draw(&mut app, &mut terminal);
-        terminal.backend_mut().resize(80, 24);
-        assert_eq!(app.handle(Input::Resize(80, 24)), Outcome::Changed);
-        draw(&mut app, &mut terminal);
-        let text = buffer_text(&terminal);
-        let last = text.lines().nth(23).expect("new bottom row");
-        assert!(last.contains("S1 · search keeps selection"), "{last}");
-    }
-}
+mod tests;

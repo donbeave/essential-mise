@@ -240,6 +240,11 @@ pub fn primary_line(
     label: &str,
 ) {
     let marks = Marks::for_theme(theme);
+    if key.is_empty() {
+        let row = vec![bold(format!("   {label}"), Tone::Warning)];
+        put(buf, area.x, area.y, area.width, &row, theme, bg);
+        return;
+    }
     let row = vec![
         seg(format!(" {} ", marks.primary), Tone::Active),
         bold(key.to_string(), Tone::Active),

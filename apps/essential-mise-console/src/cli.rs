@@ -269,7 +269,8 @@ fn run_lint(cli: &Cli, out: &mut dyn std::io::Write) -> u8 {
 /// fixtures plus canned S2 origins for the fixture envs
 /// (`neovim`, `terminal`, `shell`). `EMC_MOCK_FAIL=packages|base` scripts a
 /// phase failure. `EMC_MOCK_DELAY_MS` keeps the worker active for live-state
-/// and cancellation journeys. `EMC_MOCK_FOLLOW_UPS=1` makes a successful apply
+/// and cancellation journeys. `EMC_MOCK_STATUS=differs` makes the machine need
+/// one change; `differs-then-clean` fixes it after the first apply. `EMC_MOCK_FOLLOW_UPS=1` makes a successful apply
 /// log the relaunch hint and a skipped plugin hook.
 pub fn mock_backend() -> super::backend::mock::MockBackend {
     use super::backend::ApplyPhase;
@@ -279,6 +280,11 @@ pub fn mock_backend() -> super::backend::mock::MockBackend {
         .with_origin("brew", "starship", &["terminal", "shell"])
         .with_origin("brew", "bat", &["terminal"])
         .with_origin("npm", "pyright", &["shell"]);
+    match std::env::var("EMC_MOCK_STATUS").as_deref() {
+        Ok("differs") => mock = mock.with_status_differs(false),
+        Ok("differs-then-clean") => mock = mock.with_status_differs(true),
+        _ => {}
+    }
     if std::env::var_os("EMC_MOCK_FOLLOW_UPS").is_some() {
         mock = mock.with_follow_up_log();
     }

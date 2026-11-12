@@ -43,6 +43,7 @@ pub struct MockBackend {
     plan_entries: Vec<PlanEntry>,
     status_reports: Arc<Mutex<std::collections::VecDeque<StatusReport>>>,
     status_delay: std::time::Duration,
+    status_error: Option<String>,
     log_lines: Vec<String>,
     origins: HashMap<ResId, Vec<String>>,
     fail: Option<ApplyPhase>,
@@ -78,6 +79,7 @@ impl MockBackend {
             plan_entries,
             status_reports: Arc::new(Mutex::new(std::collections::VecDeque::from([clean]))),
             status_delay: std::time::Duration::ZERO,
+            status_error: None,
             log_lines: Vec::new(),
             origins: HashMap::new(),
             fail: None,
@@ -137,6 +139,29 @@ impl MockBackend {
         self
     }
 
+    /// Report the machine as needing one change (the `status-one-differs`
+    /// fixture). With `then_clean`, the first check made after an apply
+    /// reports it fixed.
+    pub fn with_status_differs(self, then_clean: bool) -> Self {
+        let load =
+            |text: &str| StatusReport::parse(text, MOCK_CHECKED_AT).expect("status fixture parses");
+        let differs = load(include_str!("../../tests/fixtures/status-one-differs.json"));
+        // The Review check and the first Result check both see the change.
+        let mut sequence = vec![differs.clone(), differs];
+        if then_clean {
+            sequence.push(load(include_str!(
+                "../../tests/fixtures/status-applied.json"
+            )));
+        }
+        self.with_status_sequence(sequence)
+    }
+
+    /// Make `status` fail with this message.
+    pub fn with_status_error(mut self, message: &str) -> Self {
+        self.status_error = Some(message.to_string());
+        self
+    }
+
     /// Emit these log lines from a successful apply, after the phase header.
     pub fn with_log_lines(mut self, lines: &[&str]) -> Self {
         self.log_lines = lines.iter().map(|l| (*l).to_string()).collect();
@@ -185,6 +210,9 @@ impl Backend for MockBackend {
         self.record(MockCall::Status);
         if !self.status_delay.is_zero() {
             std::thread::sleep(self.status_delay);
+        }
+        if let Some(message) = &self.status_error {
+            return Err(BackendError::Parse(message.clone()));
         }
         let mut reports = self.status_reports.lock().expect("mock status poisoned");
         let report = if reports.len() > 1 {

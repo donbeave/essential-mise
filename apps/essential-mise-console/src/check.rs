@@ -11,15 +11,15 @@ use crate::backend::Backend;
 use crate::status::StatusReport;
 
 /// One check, run to completion on this thread: `status` for `envs`, with
-/// packages outside `keep` marked as skipped.
+/// the packages in `skipped` marked as skipped this time.
 pub fn run(
     backend: &dyn Backend,
     envs: &[String],
-    keep: &[String],
+    skipped: &[String],
 ) -> Result<StatusReport, String> {
     backend
         .status(envs)
-        .map(|report| report.scoped(keep))
+        .map(|report| report.skipping(skipped))
         .map_err(|e| e.to_string())
 }
 
@@ -29,14 +29,14 @@ pub struct CheckHandle {
 }
 
 /// Start a check on a worker thread.
-pub fn spawn(backend: Arc<dyn Backend>, envs: Vec<String>, keep: Vec<String>) -> CheckHandle {
+pub fn spawn(backend: Arc<dyn Backend>, envs: Vec<String>, skipped: Vec<String>) -> CheckHandle {
     let (tx, rx) = channel();
     let spawned = std::thread::Builder::new()
         .name("emc-check".to_string())
         .spawn({
             let tx = tx.clone();
             move || {
-                let _ = tx.send(run(&*backend, &envs, &keep));
+                let _ = tx.send(run(&*backend, &envs, &skipped));
             }
         });
     if let Err(e) = spawned {

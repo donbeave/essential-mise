@@ -523,15 +523,23 @@ impl ResultScreen {
             if command.is_some() {
                 command_index += 1;
             }
-            let row = vec![
-                seg(
-                    format!(" {} ", if focused { marks.focus } else { " " }),
-                    Tone::Active,
-                ),
-                seg(format!("{} ", marks.bullet), Tone::Muted),
-                seg(item.text(), Tone::Normal),
-            ];
-            rows.push(row);
+            for (i, part) in paint::wrap(&item.text(), width.saturating_sub(8).max(10))
+                .into_iter()
+                .enumerate()
+            {
+                if i == 0 {
+                    rows.push(vec![
+                        seg(
+                            format!(" {} ", if focused { marks.focus } else { " " }),
+                            Tone::Active,
+                        ),
+                        seg(format!("{} ", marks.bullet), Tone::Muted),
+                        seg(part, Tone::Normal),
+                    ]);
+                } else {
+                    rows.push(vec![seg(format!("     {part}"), Tone::Normal)]);
+                }
+            }
             if let Some(command) = command {
                 let room = width.saturating_sub(10).max(10);
                 for (i, part) in paint::wrap(&command, room).into_iter().enumerate() {
@@ -617,7 +625,7 @@ impl ResultScreen {
         let mut lines = Vec::new();
         let pending = self.pending_areas();
         lines.push(heading(&format!(
-            "Pending changes ({})",
+            "Changes to apply ({})",
             pending.iter().map(|a| a.changes().len()).sum::<usize>()
         )));
         for area in pending {

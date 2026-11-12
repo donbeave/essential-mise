@@ -10,6 +10,8 @@ pub mod apply;
 pub mod chrome;
 /// Live-substring filter with hidden-rows-keep-state (S1+S2).
 pub mod filter;
+/// The `?` overlay: keys for this screen and the words used.
+pub mod help;
 /// Step 1 Modules: multi-select with search.
 pub mod modules;
 /// S2 Packages: per-package checklist grouped by declaring module.

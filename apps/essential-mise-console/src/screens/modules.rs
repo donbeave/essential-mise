@@ -34,8 +34,9 @@ use ratatui::crossterm::event::KeyCode;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
 
-use super::chrome::{render_header, render_hints, render_status};
+use super::chrome::render_step_header;
 use super::filter::FilterState;
+use super::paint::{self, Marks, footer, primary_line, put, seg};
 use crate::backend::ResId;
 
 /// One selectable environment.
@@ -64,7 +65,7 @@ pub fn read_preticks(path: &Path) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Key intent on the modules screen (§3 keys).
+/// Key intent on the modules screen (Enter reviews, Esc and q quit).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModuleKey {
     /// Move to the previous visible row.
@@ -161,7 +162,7 @@ impl ModulesState {
         if key.is(KeyCode::Enter) {
             return Some(ModuleKey::Confirm);
         }
-        if key.is(KeyCode::Esc) {
+        if key.is(KeyCode::Esc) || key.is_char('q') {
             return Some(ModuleKey::Quit);
         }
         None
@@ -260,6 +261,25 @@ impl ModulesState {
             .filter(|e| self.selected.contains(&e.name))
             .map(|e| e.name.clone())
             .collect()
+    }
+
+    /// Selected modules that the current search hides.
+    pub fn hidden_selected(&self) -> usize {
+        let visible = self.visible_indices();
+        self.envs
+            .iter()
+            .enumerate()
+            .filter(|(i, e)| self.selected.contains(&e.name) && !visible.contains(i))
+            .count()
+    }
+
+    /// The primary action line: what Enter does right now.
+    pub fn primary_label(&self) -> String {
+        match self.selected.len() {
+            0 => "Select at least one module (Space)".to_string(),
+            1 => "Review 1 module".to_string(),
+            n => format!("Review {n} modules"),
+        }
     }
 
     /// `(visible, total, selected)` counts for the header.
@@ -379,7 +399,7 @@ pub(crate) struct ModulesOwner {
 
 impl ModulesOwner {
     pub(crate) fn new(state: ModulesState) -> Self {
-        let filter = TextInput::new(S1_FILTER, "Filter")
+        let filter = TextInput::new(S1_FILTER, "Search")
             .value(state.query())
             .edit_entry(EditEntry::Immediate)
             .blur_action(BlurAction::Commit);
@@ -527,29 +547,64 @@ impl ModulesOwner {
         Response::ignored()
     }
 
+    /// Whether the search box has the keyboard (the app must not treat `?`
+    /// or `q` as commands then).
+    pub(crate) fn typing(&self) -> bool {
+        self.state.filtering()
+    }
+
+    /// Footer hints for the keys that work right now.
+    pub(crate) fn hints(&self) -> Vec<(&'static str, String)> {
+        if self.state.filtering() {
+            return vec![
+                ("Enter", "done searching".into()),
+                ("Esc", "done searching".into()),
+            ];
+        }
+        let mut hints: Vec<(&'static str, String)> = vec![
+            ("↑↓", "move".into()),
+            ("Space", "select".into()),
+            ("a", "all".into()),
+            ("n", "none".into()),
+            ("/", "search".into()),
+        ];
+        hints.push(("?", "help".into()));
+        hints.push(("q", "quit".into()));
+        hints
+    }
+
     pub(crate) fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
         let theme: Theme = *ctx.theme;
         let bg: Color = theme.canvas;
-        render_header(
+        let marks = Marks::for_theme(&theme);
+        render_step_header(
             1,
-            "Modules",
+            "Choose modules",
             Rect::new(area.x, area.y, area.width, 1),
             buf,
             &theme,
         );
-        let body = Rect::new(
-            area.x,
+        put(
+            buf,
+            area.x + 1,
             area.y + 1,
-            area.width,
-            area.height.saturating_sub(3),
+            area.width.saturating_sub(2),
+            &[seg(
+                "Pick what to set up. Nothing changes until you confirm on the next screen.",
+                Tone::Secondary,
+            )],
+            &theme,
+            bg,
         );
-        let input_area = Rect::new(body.x, body.y, body.width, 3.min(body.height));
+        // header, intro, [search 3], list, [inline detail], primary, footer
+        let reserved = 1 + 1 + 2 + 2 + 1;
+        let input_area = Rect::new(area.x, area.y + 2, area.width, 2.min(area.height));
         self.filter.render(input_area, buf, ctx, bg);
         let list_area = Rect::new(
-            body.x,
-            body.y + 3.min(body.height),
-            body.width,
-            body.height.saturating_sub(3),
+            area.x,
+            area.y + 4,
+            area.width,
+            area.height.saturating_sub(reserved),
         );
         let rows = self.state.master_rows();
         self.list.select(self.state.cursor());
@@ -565,10 +620,12 @@ impl ModulesOwner {
             .into_iter()
             .map(|p| DetailLine::Prop(p.label, p.value, p.tone))
             .collect();
-        let (visible, total, selected) = self.state.counts();
+        let (_, total, selected) = self.state.counts();
+        let hidden = self.state.hidden_selected();
+        let meta = format!("{selected} of {total} selected");
         let frame = DetailFrame {
-            title: "environments",
-            meta: format!("showing {visible} of {total} · {selected} selected"),
+            title: "Modules",
+            meta,
             head: vec![],
             rows: &rows,
             under: None,
@@ -576,30 +633,63 @@ impl ModulesOwner {
             detail_meta: String::new(),
             lines,
             actions: vec![
-                DetailAction::new("continue", "Continue →", ButtonKind::Primary)
+                DetailAction::new("continue", "Review →", ButtonKind::Primary)
                     .disabled(!self.state.can_continue()),
             ],
         };
         self.list.render(list_area, buf, ctx, &frame);
-        render_hints(
-            &[
-                ("↑↓", "move"),
-                ("Space", "toggle"),
-                ("/", "filter"),
-                ("a", "all"),
-                ("n", "none"),
-                ("Enter", "continue"),
-                ("Esc", "quit"),
-            ],
-            Rect::new(area.x, area.bottom().saturating_sub(2), area.width, 1),
+        if rows.is_empty() {
+            put(
+                buf,
+                list_area.x + 2,
+                list_area.y + 2,
+                list_area.width.saturating_sub(4),
+                &[seg(
+                    format!(
+                        "No modules match '{}'. Esc clears the search.",
+                        self.state.query()
+                    ),
+                    Tone::Warning,
+                )],
+                &theme,
+                bg,
+            );
+        }
+        let bottom = area.bottom();
+        let note = if hidden > 0 {
+            format!("{hidden} selected hidden by search")
+        } else {
+            String::new()
+        };
+        put(
+            buf,
+            area.x + 1,
+            bottom.saturating_sub(3),
+            area.width.saturating_sub(2),
+            &[seg(
+                paint::fit(&note, area.width.saturating_sub(2) as usize, marks.ellipsis),
+                Tone::Secondary,
+            )],
+            &theme,
+            bg,
+        );
+        primary_line(
+            Rect::new(area.x, bottom.saturating_sub(2), area.width, 1),
             buf,
             &theme,
+            bg,
+            if self.state.can_continue() {
+                "Enter"
+            } else {
+                ""
+            },
+            &self.state.primary_label(),
         );
-        render_status(
-            "S1 · search keeps selection",
-            Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),
+        footer(
+            Rect::new(area.x, bottom.saturating_sub(1), area.width, 1),
             buf,
-            ctx,
+            &theme,
+            &self.hints(),
         );
     }
 }
@@ -671,7 +761,7 @@ mod tests {
             Some(ModuleKey::Confirm)
         );
         assert_eq!(state.map_key(&key(KeyCode::Esc)), Some(ModuleKey::Quit));
-        assert_eq!(state.map_key(&char_key('q')), None);
+        assert_eq!(state.map_key(&char_key('q')), Some(ModuleKey::Quit));
     }
 
     #[test]

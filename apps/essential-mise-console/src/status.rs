@@ -341,17 +341,17 @@ impl StatusReport {
         })
     }
 
-    /// Mark packages outside `keep` (`manager:name`) as skipped this time.
+    /// Mark the packages in `skipped` (`manager:name`) as skipped this time.
     /// They no longer count towards totals or differences.
     #[must_use]
-    pub fn scoped(mut self, keep: &[String]) -> Self {
+    pub fn skipping(mut self, skipped: &[String]) -> Self {
         for area in &mut self.areas {
             if area.key != AreaKey::Packages {
                 continue;
             }
             for entry in &mut area.entries {
                 if let Some(spec) = &entry.spec {
-                    entry.skipped = !keep.contains(spec);
+                    entry.skipped = skipped.contains(spec);
                 }
             }
         }
@@ -819,12 +819,12 @@ mod tests {
             area(&report, AreaKey::Packages).health(),
             Health::NeedsChanges
         );
-        let scoped = report.scoped(&["brew:a".to_string()]);
+        let scoped = report.skipping(&["brew:b".to_string()]);
         let packages = area(&scoped, AreaKey::Packages);
         assert_eq!(packages.health(), Health::UpToDate);
         assert_eq!((packages.total(), packages.skipped()), (1, 1));
-        let none = scoped.scoped(&[]);
-        assert_eq!(area(&none, AreaKey::Packages).health(), Health::Skipped);
+        let all = scoped.skipping(&["brew:a".to_string(), "brew:b".to_string()]);
+        assert_eq!(area(&all, AreaKey::Packages).health(), Health::Skipped);
     }
 
     #[test]
