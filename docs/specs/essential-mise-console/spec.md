@@ -84,6 +84,9 @@ library terminal pane; cancellation forwards to the child process.
 
 ## 5. Screens (P1 scope)
 
+> The shipped flow, keys and exit codes are in `screens.md`; this section is the
+> original design.
+
 1. **Modules** — multi-select list of the modules declared in the `#:` headers, with their
    descriptions; search filter; shows already-installed
    state where `plan --json` reports `noop`.
