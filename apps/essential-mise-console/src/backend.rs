@@ -132,6 +132,9 @@ pub struct ApplyRequest {
     pub skip_parts: Vec<String>,
     /// Parts to run in phase 1 (`--only`). Mutually exclusive with `skip_parts`.
     pub only_parts: Vec<String>,
+    /// Run phase 1 at all. A re-apply that only touches packages sets this
+    /// to `false`.
+    pub run_base: bool,
     /// Pass only packages for this manager to phase 2 (`packages apply -m`).
     pub manager: Option<String>,
     /// Pass `--update` (default true, matches `bootstrap.sh` step 6).
@@ -446,7 +449,7 @@ impl Backend for MiseBackend {
         let current: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
         let worker_current = Arc::clone(&current);
 
-        let phase1 = self.phase1_argv(req);
+        let phase1 = req.run_base.then(|| self.phase1_argv(req));
         let phase2 = self.phase2_argv(req);
 
         let thread_name = format!("emc-apply-{}", worker_req.envs.join(","));
@@ -529,17 +532,17 @@ impl Backend for MiseBackend {
     }
 
     fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String> {
-        let mut argv = vec![
-            "bootstrap".to_string(),
-            "--skip".to_string(),
-            "packages".to_string(),
-        ];
+        let mut argv = vec!["bootstrap".to_string()];
         if !req.only_parts.is_empty() {
+            // `--only` cannot be combined with `--skip`; it already leaves
+            // packages out unless they are named.
             argv.push("--only".to_string());
             argv.push(req.only_parts.join(","));
-        } else if !req.skip_parts.is_empty() {
+        } else {
             argv.push("--skip".to_string());
-            argv.push(req.skip_parts.join(","));
+            let mut skipped = vec!["packages".to_string()];
+            skipped.extend(req.skip_parts.iter().cloned());
+            argv.push(skipped.join(","));
         }
         if req.update {
             argv.push("--update".to_string());
@@ -586,7 +589,7 @@ fn run_apply_worker(
     mise_bin: PathBuf,
     config_dir: PathBuf,
     req: ApplyRequest,
-    phase1: Vec<String>,
+    phase1: Option<Vec<String>>,
     phase2: Option<Vec<String>>,
     tx: ExternalSender,
     log_file: std::fs::File,
@@ -606,14 +609,16 @@ fn run_apply_worker(
     let cancelled = || cancel.load(Ordering::Relaxed);
 
     if req.dry_run {
-        emit(
-            Stream::System,
-            format!(
-                "dry-run: {}",
-                display_argv(&mise_bin, &full_argv(&config_dir, &req, &phase1))
-            ),
-            &mut log,
-        );
+        if let Some(ref p1) = phase1 {
+            emit(
+                Stream::System,
+                format!(
+                    "dry-run: {}",
+                    display_argv(&mise_bin, &full_argv(&config_dir, &req, p1))
+                ),
+                &mut log,
+            );
+        }
         if let Some(ref p2) = phase2 {
             emit(
                 Stream::System,
@@ -707,11 +712,14 @@ fn run_apply_worker(
             &mut log,
         );
     }
-    let mut phases: Vec<(ApplyPhase, &str, Vec<String>)> = vec![(
-        ApplyPhase::Base,
-        "phase 1: base",
-        full_argv(&config_dir, &req, &phase1),
-    )];
+    let mut phases: Vec<(ApplyPhase, &str, Vec<String>)> = Vec::new();
+    if let Some(ref p1) = phase1 {
+        phases.push((
+            ApplyPhase::Base,
+            "phase 1: base",
+            full_argv(&config_dir, &req, p1),
+        ));
+    }
     if let Some(ref p2) = phase2 {
         phases.push((
             ApplyPhase::Packages,

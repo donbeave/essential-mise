@@ -449,6 +449,7 @@ fn run_apply(
         manager: manager.map(|m| m.to_string()),
         skip_parts: skip.to_vec(),
         only_parts: only.to_vec(),
+        run_base: true,
         update,
         upgrade,
         dry_run,

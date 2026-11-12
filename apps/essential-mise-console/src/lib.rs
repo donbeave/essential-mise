@@ -15,6 +15,8 @@ pub mod followup;
 pub mod lint;
 /// `#:` header comments in config files: the engine/config contract.
 pub mod metadata;
+/// Re-apply only what still differs.
+pub mod reapply;
 /// TUI screens (G1-gated); shared modules first, per-screen in T4.2–T4.5.
 pub mod screens;
 /// `setup` stages 1-6: staged plan data and executor.

@@ -48,6 +48,7 @@ pub struct MockBackend {
     fail: Option<ApplyPhase>,
     apply_delay: std::time::Duration,
     calls: Arc<Mutex<Vec<MockCall>>>,
+    requests: Arc<Mutex<Vec<ApplyRequest>>>,
     argv: MiseBackend,
 }
 
@@ -82,7 +83,8 @@ impl MockBackend {
             fail: None,
             apply_delay: std::time::Duration::from_millis(25),
             calls: Arc::new(Mutex::new(Vec::new())),
-            argv: MiseBackend::new("/tmp/emc-mock-config"),
+            requests: Arc::new(Mutex::new(Vec::new())),
+            argv: MiseBackend::new("/tmp/emc-mock-config").with_mise_bin("mise"),
         }
     }
 
@@ -97,6 +99,14 @@ impl MockBackend {
     /// All recorded calls, in order.
     pub fn calls(&self) -> Vec<MockCall> {
         self.calls.lock().expect("mock call log poisoned").clone()
+    }
+
+    /// Every apply request received, in order.
+    pub fn requests(&self) -> Vec<ApplyRequest> {
+        self.requests
+            .lock()
+            .expect("mock requests poisoned")
+            .clone()
     }
 
     /// Script `spawn_apply` to fail in this phase (exit-code goldens).
@@ -190,6 +200,10 @@ impl Backend for MockBackend {
         req: &ApplyRequest,
         tx: ExternalSender,
     ) -> Result<ApplyHandle, BackendError> {
+        self.requests
+            .lock()
+            .expect("mock requests poisoned")
+            .push(req.clone());
         self.record(MockCall::SpawnApply {
             dry_run: req.dry_run,
         });

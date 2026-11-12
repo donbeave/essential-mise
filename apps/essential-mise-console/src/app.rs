@@ -66,6 +66,7 @@ pub struct App {
     selected: Vec<String>,
     keep: Vec<String>,
     check: Option<CheckHandle>,
+    reapplying: bool,
     packages_snapshot: Option<PackagesOwner>,
     shell: Shell<()>,
     clock: WallClock,
@@ -104,6 +105,7 @@ impl App {
             selected: preticks,
             keep: Vec::new(),
             check: None,
+            reapplying: false,
             packages_snapshot: None,
             shell,
             clock: WallClock::new(),
@@ -258,6 +260,10 @@ impl App {
                 self.recheck();
                 Outcome::Changed
             }
+            Some(ResultAction::Reapply) => {
+                self.start_reapply();
+                Outcome::Changed
+            }
             Some(ResultAction::Copy(_) | ResultAction::None) | None => out,
         }
     }
@@ -376,6 +382,7 @@ impl App {
             manager: None,
             skip_parts: Vec::new(),
             only_parts: Vec::new(),
+            run_base: true,
             update: true,
             upgrade: true,
             dry_run: false,
@@ -411,6 +418,9 @@ impl App {
 
     fn enter_result(&mut self) {
         let mut screen = ResultScreen::new();
+        if std::mem::take(&mut self.reapplying) {
+            screen.mark_reapplied();
+        }
         if let Screen::Apply(owner) = &self.screen {
             screen.set_log_follow_ups(crate::followup::from_log(
                 owner.state.lines().map(|line| line.text.as_str()),
@@ -418,6 +428,26 @@ impl App {
         }
         self.set_screen(Screen::Result(Box::new(ResultOwner::new(screen))));
         self.start_check();
+    }
+
+    /// Apply again for exactly the areas that differ. The request is built
+    /// by [`crate::reapply::plan`], the same one whose command the Result
+    /// screen shows and copies.
+    fn start_reapply(&mut self) {
+        let Screen::Result(owner) = &self.screen else {
+            return;
+        };
+        let Some(plan) = owner
+            .state
+            .report()
+            .and_then(|report| crate::reapply::plan(report, &self.selected))
+        else {
+            return;
+        };
+        self.reapplying = true;
+        let mut state = ApplyScreen::new(self.backend.clone(), plan.request);
+        state.start();
+        self.set_screen(Screen::Apply(Box::new(ApplyOwner::new(state))));
     }
 
     fn recheck(&mut self) {
@@ -441,9 +471,16 @@ impl App {
             return Outcome::Ignored;
         };
         self.check = None;
+        let commands = match &result {
+            Ok(report) => crate::reapply::plan(report, &self.selected)
+                .map(|plan| crate::reapply::commands(&*self.backend, &plan.request))
+                .unwrap_or_default(),
+            Err(_) => Vec::new(),
+        };
         match &mut self.screen {
             Screen::Result(owner) => {
                 owner.state.finish_check(result);
+                owner.state.set_reapply_commands(commands);
                 Outcome::Changed
             }
             _ => Outcome::Ignored,
@@ -912,14 +949,99 @@ mod tests {
         assert_eq!(app.exit_code(), Some(3));
     }
 
+    fn app_with_sequence(first: &[&str]) -> (App, MockBackend) {
+        let mock = MockBackend::new()
+            .with_origin("brew", "jq", &["alpha"])
+            .with_status_sequence(first.iter().map(|n| fixture_report(n)).collect());
+        let probe = mock.clone();
+        (mock_app_with(mock), probe)
+    }
+
     #[test]
-    fn result_enter_on_pending_leaves_with_three_and_esc_never_traps() {
+    fn enter_on_pending_applies_again_for_exactly_those_areas_then_checks() {
+        let (mut app, probe) =
+            app_with_sequence(&["status-one-differs.json", "status-applied.json"]);
+        to_result(&mut app);
+        let screen = render(&mut app, 100, 30);
+        assert!(
+            screen.contains("Enter  Apply the 1 pending area again"),
+            "{screen}"
+        );
+        app.handle_key(&key(KeyCode::Enter));
+        assert_eq!(app.screen_name(), "apply", "Enter starts the re-apply");
+        let requests = probe.requests();
+        assert_eq!(requests.len(), 2, "first apply, then the re-apply");
+        let again = &requests[1];
+        assert_eq!(again.only_parts, vec!["macos-defaults"]);
+        assert!(again.keep.is_empty() && again.run_base && !again.update && !again.upgrade);
+        settle(&mut app);
+        wait_check(&mut app);
+        let done = render(&mut app, 100, 30);
+        assert!(done.contains("Step 4 of 4 · Done"), "{done}");
+        assert!(!done.contains("Still different"), "{done}");
+    }
+
+    #[test]
+    fn details_view_shows_the_exact_command_and_enter_runs_it() {
+        let (mut app, probe) =
+            app_with_sequence(&["status-one-differs.json", "status-applied.json"]);
+        to_result(&mut app);
+        app.handle_key(&char_key('d'));
+        let screen = render(&mut app, 100, 30);
+        assert!(screen.contains("com.apple.dock tilesize"), "{screen}");
+        assert!(screen.contains("setting"), "{screen}");
+        assert!(
+            screen.contains("bootstrap --only macos-defaults"),
+            "the command Enter runs is shown: {screen}"
+        );
+        app.handle_key(&char_key('c'));
+        let copied = app.take_output().concat();
+        let shown = crate::reapply::commands(
+            &*app.backend,
+            &crate::reapply::plan(&fixture_report("status-one-differs.json"), &app.selected)
+                .expect("pending")
+                .request,
+        );
+        assert!(
+            copied.contains(&base64(shown[0].as_bytes())),
+            "the copied command is the shown command: {copied:?}"
+        );
+        app.handle_key(&key(KeyCode::Enter));
+        assert_eq!(app.screen_name(), "apply");
+        assert_eq!(probe.requests()[1].only_parts, vec!["macos-defaults"]);
+    }
+
+    #[test]
+    fn still_different_after_applying_stops_the_loop() {
+        let (mut app, probe) =
+            app_with_sequence(&["status-one-differs.json", "status-one-differs.json"]);
+        to_result(&mut app);
+        app.handle_key(&key(KeyCode::Enter));
+        settle(&mut app);
+        wait_check(&mut app);
+        let screen = render(&mut app, 100, 30);
+        assert!(
+            screen.contains("Still different after applying"),
+            "{screen}"
+        );
+        assert!(screen.contains("com.apple.dock tilesize"), "{screen}");
+        assert!(screen.contains("Enter  Finish anyway"), "{screen}");
+        assert!(!screen.contains("Apply the"), "no second loop: {screen}");
+        app.handle_key(&key(KeyCode::Enter));
+        assert!(app.quit());
+        assert_eq!(app.exit_code(), Some(3));
+        assert_eq!(probe.requests().len(), 2, "no third apply");
+    }
+
+    #[test]
+    fn esc_never_traps_on_a_pending_result() {
         let mut app = app_with_status("status-one-differs.json");
         to_result(&mut app);
         app.handle_key(&key(KeyCode::Esc));
         app.handle_key(&key(KeyCode::Esc));
         assert!(!app.quit(), "Esc dismisses the question");
-        app.handle_key(&key(KeyCode::Enter));
+        app.handle_key(&char_key('q'));
+        app.handle_key(&char_key('y'));
         assert!(app.quit());
         assert_eq!(app.exit_code(), Some(3));
     }

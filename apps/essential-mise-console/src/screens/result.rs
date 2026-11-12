@@ -42,6 +42,8 @@ pub enum ResultAction {
     Recheck,
     /// Copy this text to the clipboard.
     Copy(String),
+    /// Apply again, for exactly the areas that differ.
+    Reapply,
 }
 
 /// Which view is showing.
@@ -64,6 +66,9 @@ pub struct ResultScreen {
     confirm_quit: bool,
     toast: Option<String>,
     checking: bool,
+    reapplied: bool,
+    still_different: Option<String>,
+    reapply_commands: Vec<String>,
     log_follow_ups: Vec<FollowUp>,
 }
 
@@ -80,6 +85,9 @@ impl ResultScreen {
             confirm_quit: false,
             toast: None,
             checking: true,
+            reapplied: false,
+            still_different: None,
+            reapply_commands: Vec::new(),
             log_follow_ups: Vec::new(),
         }
     }
@@ -114,6 +122,28 @@ impl ResultScreen {
         self.toast = Some(text.into());
     }
 
+    /// The commands a re-apply would run (shown in the details view and
+    /// copied by `c`); empty when nothing is pending.
+    pub fn set_reapply_commands(&mut self, commands: Vec<String>) {
+        self.reapply_commands = commands;
+    }
+
+    /// The commands a re-apply would run.
+    pub fn reapply_commands(&self) -> &[String] {
+        &self.reapply_commands
+    }
+
+    /// The next check follows a re-apply: if the same items still differ the
+    /// screen stops offering another round.
+    pub fn mark_reapplied(&mut self) {
+        self.reapplied = true;
+    }
+
+    /// Items that still differ after a re-apply.
+    pub fn still_different(&self) -> Option<&str> {
+        self.still_different.as_deref()
+    }
+
     /// A check has started (the screen shows a spinner until it finishes).
     pub fn begin_check(&mut self) {
         self.checking = true;
@@ -139,8 +169,27 @@ impl ResultScreen {
         }
         self.cursor = 0;
         self.confirm_quit = false;
-        if self.pending_areas().is_empty() {
+        self.still_different = None;
+        let pending = self.pending_areas();
+        if pending.is_empty() {
             self.view = View::Summary;
+            self.reapplied = false;
+        } else if self.reapplied {
+            let mut items: Vec<String> = pending
+                .iter()
+                .flat_map(|a| {
+                    a.changes()
+                        .into_iter()
+                        .map(|c| format!("{} ({})", c.item, a.key.label()))
+                })
+                .collect();
+            let more = items.len().saturating_sub(3);
+            items.truncate(3);
+            let mut text = items.join(", ");
+            if more > 0 {
+                text.push_str(&format!(" and {more} more"));
+            }
+            self.still_different = Some(text);
         }
     }
 
@@ -200,14 +249,15 @@ impl ResultScreen {
         let pending = self.pending_areas();
         Some(if pending.is_empty() {
             ("Enter", "Finish and exit".to_string())
+        } else if self.still_different.is_some() || self.reapply_commands.is_empty() {
+            ("Enter", "Finish anyway".to_string())
         } else {
             (
                 "Enter",
                 format!(
-                    "Finish for now ({} {} still {} changes)",
+                    "Apply the {} pending {} again",
                     pending.len(),
-                    plural(pending.len(), "area", "areas"),
-                    plural(pending.len(), "needs", "need")
+                    plural(pending.len(), "area", "areas")
                 ),
             )
         })
@@ -221,6 +271,9 @@ impl ResultScreen {
         }
         if self.view == View::Details {
             hints.push(("↑↓", "scroll".into()));
+            if self.copy_text().is_some() {
+                hints.push(("c", "copy command".into()));
+            }
             hints.push(("Esc", "back".into()));
             hints.push(("?", "help".into()));
             return hints;
@@ -276,10 +329,14 @@ impl ResultScreen {
         }
         let areas = self.pending_areas().len();
         let items = self.commandable();
-        if self.cursor >= areas
+        if self.view == View::Summary
+            && self.cursor >= areas
             && let Some(item) = items.get(self.cursor - areas)
         {
             return item.command();
+        }
+        if !self.reapply_commands.is_empty() && !self.pending_areas().is_empty() {
+            return Some(crate::reapply::command_line(&self.reapply_commands));
         }
         items.first().and_then(FollowUp::command)
     }
@@ -331,6 +388,14 @@ impl ResultScreen {
     }
 
     fn on_details_key(&mut self, key: &Key) -> ResultAction {
+        if key.is(KeyCode::Enter) {
+            return self.primary_action();
+        }
+        if key.is_char('c')
+            && let Some(text) = self.copy_text()
+        {
+            return ResultAction::Copy(text);
+        }
         if key.is(KeyCode::Esc) || key.is_char('q') {
             self.view = View::Summary;
             self.cursor = 0;
@@ -346,10 +411,16 @@ impl ResultScreen {
         if self.error.is_some() {
             return ResultAction::Recheck;
         }
-        match self.report {
-            None => ResultAction::None,
-            Some(_) => ResultAction::Quit(self.exit_code()),
+        if self.report.is_none() {
+            return ResultAction::None;
         }
+        if !self.pending_areas().is_empty()
+            && self.still_different.is_none()
+            && !self.reapply_commands.is_empty()
+        {
+            return ResultAction::Reapply;
+        }
+        ResultAction::Quit(self.exit_code())
     }
 
     /// `q`/`Esc`: leave at once unless changes are pending.
@@ -484,6 +555,14 @@ impl ResultScreen {
     pub fn summary_lines(&self, marks: &Marks, width: usize) -> Vec<Row> {
         let mut lines = Vec::new();
         let attention = self.attention_rows(marks, width);
+        if let Some(items) = &self.still_different {
+            let text =
+                format!("Still different after applying: {items}. They may be managed elsewhere.");
+            for part in paint::wrap(&text, width.saturating_sub(3)) {
+                lines.push(vec![seg(format!(" {part}"), Tone::Warning)]);
+            }
+            lines.push(Vec::new());
+        }
         if !attention.is_empty() {
             lines.push(heading(&format!(
                 "Needs your attention ({})",
@@ -588,6 +667,19 @@ impl ResultScreen {
                     seg("  ", Tone::Normal),
                     seg(change.wanted.clone(), Tone::Success),
                 ]);
+            }
+        }
+        if !self.reapply_commands.is_empty() {
+            lines.push(Vec::new());
+            lines.push(heading("Command that Enter runs"));
+            for command in &self.reapply_commands {
+                for (i, part) in paint::wrap(command, width.saturating_sub(8))
+                    .into_iter()
+                    .enumerate()
+                {
+                    let lead = if i == 0 { "$ " } else { "  " };
+                    lines.push(vec![seg(format!("   {lead}{part}"), Tone::Secondary)]);
+                }
             }
         }
         lines

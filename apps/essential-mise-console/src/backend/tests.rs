@@ -239,6 +239,7 @@ fn spawn_apply_dry_run_spawns_nothing() {
         manager: None,
         skip_parts: Vec::new(),
         only_parts: Vec::new(),
+        run_base: true,
         update: true,
         upgrade: true,
         dry_run: true,

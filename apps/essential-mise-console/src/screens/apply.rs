@@ -101,11 +101,9 @@ impl ApplyScreen {
     /// Build for a request. Phase count follows the keep-list: empty means
     /// phase 2 is skipped (a bare `packages apply` means *every* package).
     pub fn new(backend: std::sync::Arc<dyn Backend>, req: ApplyRequest) -> Self {
-        let phases_total = if req.keep.is_empty() && req.manager.is_none() {
-            1
-        } else {
-            2
-        };
+        let run_base = req.run_base;
+        let packages_phase = !req.keep.is_empty() || req.manager.is_some();
+        let phases_total = usize::from(run_base) + usize::from(packages_phase);
         Self {
             backend,
             req,
@@ -113,7 +111,11 @@ impl ApplyScreen {
             receiver: None,
             lines: VecDeque::new(),
             dropped: 0,
-            current_phase: ApplyPhase::Base,
+            current_phase: if run_base {
+                ApplyPhase::Base
+            } else {
+                ApplyPhase::Packages
+            },
             phases_done: 0,
             phases_total,
             started_at: None,
@@ -328,7 +330,9 @@ impl ApplyScreen {
     pub fn step_states(&self) -> Vec<(&'static str, StepState)> {
         let failed = matches!(self.outcome, Some(ApplyOutcome::Failed { .. }));
         let cancelled = matches!(self.outcome, Some(ApplyOutcome::Cancelled));
-        let base = if (failed || cancelled) && self.current_phase == ApplyPhase::Base {
+        let base = if !self.req.run_base {
+            StepState::Skipped
+        } else if (failed || cancelled) && self.current_phase == ApplyPhase::Base {
             if failed {
                 StepState::Failed
             } else {
@@ -344,14 +348,14 @@ impl ApplyScreen {
             StepState::Done
         };
         let mut steps = vec![("base", base)];
-        if self.phases_total > 1 {
+        if !self.req.keep.is_empty() || self.req.manager.is_some() {
             let packages = if (failed || cancelled) && self.current_phase == ApplyPhase::Packages {
                 if failed {
                     StepState::Failed
                 } else {
                     StepState::Blocked
                 }
-            } else if self.phases_done >= 2 {
+            } else if self.phases_done >= self.phases_total {
                 StepState::Done
             } else if self.current_phase == ApplyPhase::Packages {
                 StepState::Running
@@ -372,7 +376,7 @@ impl ApplyScreen {
         if line.stream == Stream::System {
             if line.text.starts_with(PHASE2_PREFIX) {
                 self.current_phase = ApplyPhase::Packages;
-                self.phases_done = self.phases_done.max(1);
+                self.phases_done = self.phases_done.max(usize::from(self.req.run_base));
             } else if line.text.starts_with(PHASE1_PREFIX) {
                 self.current_phase = ApplyPhase::Base;
             }
@@ -405,7 +409,7 @@ impl ApplyScreen {
             ApplyOutcome::Failed { phase, .. } => {
                 self.current_phase = *phase;
                 self.phases_done = match phase {
-                    ApplyPhase::Packages => 1,
+                    ApplyPhase::Packages => usize::from(self.req.run_base),
                     ApplyPhase::Base => 0,
                 };
                 self.rerun = Some(self.rerun_for(*phase));
@@ -413,7 +417,7 @@ impl ApplyScreen {
             }
             ApplyOutcome::Cancelled => {
                 self.phases_done = match self.current_phase {
-                    ApplyPhase::Packages => 1,
+                    ApplyPhase::Packages => usize::from(self.req.run_base),
                     ApplyPhase::Base => 0,
                 };
                 self.rerun = Some(self.rerun_for(self.current_phase));
@@ -909,6 +913,7 @@ mod tests {
             manager: None,
             skip_parts: Vec::new(),
             only_parts: Vec::new(),
+            run_base: true,
             update: true,
             upgrade: true,
             dry_run: false,
@@ -998,6 +1003,7 @@ mod tests {
             manager: None,
             skip_parts: Vec::new(),
             only_parts: Vec::new(),
+            run_base: true,
             update: true,
             upgrade: true,
             dry_run: false,
