@@ -1145,7 +1145,7 @@ fn every_screen_shows_its_footer_and_nothing_is_cut_without_a_keyed_way_to_read_
                     "{name} at {w}x{h} has no primary line: {primary:?}\n{screen}"
                 );
             }
-            if name.starts_with("result")
+            if (name.starts_with("result") || name == "review")
                 && !name.contains("help")
                 && !name.contains("details")
                 && !name.contains("checking")

@@ -482,17 +482,27 @@ impl PackagesOwner {
         } else {
             String::new()
         };
-        put(
-            buf,
-            area.x + 1,
-            area.y + 1,
-            width,
-            &[bold(format!("{lead}{headline}"), Tone::Normal)],
-            &theme,
-            bg,
-        );
-        let summary = self.state.summary();
-        let box_area = Rect::new(area.x, area.y + 2, area.width, summary.len() as u16 + 2);
+        // Wrap instead of truncating: a narrow terminal must still show every word.
+        let headline_lines = paint::wrap(&format!("{lead}{headline}"), width as usize);
+        for (i, text) in headline_lines.iter().enumerate() {
+            put(
+                buf,
+                area.x + 1,
+                area.y + 1 + i as u16,
+                width,
+                &[bold(text.clone(), Tone::Normal)],
+                &theme,
+                bg,
+            );
+        }
+        let summary: Vec<String> = self
+            .state
+            .summary()
+            .iter()
+            .flat_map(|line| paint::wrap(line, area.width.saturating_sub(4) as usize))
+            .collect();
+        let box_top = area.y + 1 + headline_lines.len() as u16;
+        let box_area = Rect::new(area.x, box_top, area.width, summary.len() as u16 + 2);
         let inner = framed(box_area, buf, &theme, bg, "What will happen");
         for (i, line) in summary.iter().enumerate() {
             put(
