@@ -10,7 +10,7 @@ Run from the repository root unless noted. The console is a Rust crate in `apps/
 | Tests (use nextest, not `cargo test`) | `cargo nextest run --manifest-path apps/essential-mise-console/Cargo.toml` |
 | Lint the starter config | `cargo run -q --manifest-path apps/essential-mise-console/Cargo.toml -- lint --config-dir templates/config-starter` |
 
-These commands check the contract and the unit and functional tests. They do not replace VM verification (see the rules below). Release steps are in `docs/releasing.md`. Never hand-edit `.github/workflows/`; it is generated from `.velnor/config.toml`.
+The functional tests drive the real binary over `MockBackend` (`EMC_MOCK=1`; switches are listed in `docs/specs/essential-mise-console/screens.md`). Visual baselines change only through the pinned `tuiscotti accept` command, and a baseline change must be explained in the commit message. These commands check the contract and the unit and functional tests. They do not replace VM verification (see the rules below). Release steps are in `docs/releasing.md`. Never hand-edit `.github/workflows/`; it is generated from `.velnor/config.toml`.
 
 ## Rules
 

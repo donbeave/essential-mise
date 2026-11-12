@@ -10,10 +10,14 @@ pub mod apply;
 pub mod chrome;
 /// Live-substring filter with hidden-rows-keep-state (S1+S2).
 pub mod filter;
-/// S1 Modules: multi-select with search and badges.
+/// The `?` overlay: keys for this screen and the words used.
+pub mod help;
+/// Step 1 Modules: multi-select with search.
 pub mod modules;
 /// S2 Packages: per-package checklist grouped by declaring module.
 pub mod packages;
+/// Plain-text painting: glyph sets, rows, footer, primary line.
+pub mod paint;
 /// Exact rerun-command formatting (S3+S4).
 pub mod rerun_fmt;
 /// S4 Result: verify screen with drift table and Done gate.

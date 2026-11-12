@@ -36,6 +36,18 @@ Replace `OWNER/REPO` with your repository. The launcher checks the platform, dow
 
 The exact format and rules are in the [config repository contract](docs/config-repo.md).
 
+## Using the console
+
+The console has four steps: **Choose modules**, **Review and confirm**, **Applying**, then **Done** or **Needs attention**. Enter does the main action shown above the footer, Esc goes back, `q` quits, `?` shows the keys for the current screen and the words used. On the last step, `d` lists every pending change and Enter applies again for just those changes.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Nothing differs, or you left before any work |
+| 3 | Changes are still pending when you leave |
+| 1 | The check failed, the apply stopped, or you cancelled |
+
+On exit the console prints the outcome and the commands to run next to your terminal. Keys, vocabulary and layout: [console screens](docs/specs/essential-mise-console/screens.md).
+
 ## Check a config repository
 
 ```bash

@@ -16,6 +16,8 @@ use std::time::Duration;
 
 use junie_tui::runtime::ExternalSender;
 
+use crate::status::StatusReport;
+
 /// A single planned resource change, from `mise bootstrap plan --json`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanEntry {
@@ -68,29 +70,6 @@ impl Action {
             Self::Unknown => "unknown",
         }
     }
-}
-
-/// One per-part drift note, from `mise bootstrap status --json`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StatusPart {
-    /// Part name (e.g. `packages`).
-    pub part: String,
-    /// Observed state string.
-    pub state: String,
-    /// Human-readable drift notes for this part.
-    pub drift: Vec<String>,
-}
-
-/// Result of `mise bootstrap status --json`: per-part state plus the raw note.
-///
-/// `serde_json::Value` never crosses into screens; it is reduced to this
-/// struct inside the backend.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StatusSnapshot {
-    /// Per-part states (best effort; empty when the schema is unrecognized).
-    pub parts: Vec<StatusPart>,
-    /// Full raw `status --json` text, kept for follow-up display.
-    pub raw_note: String,
 }
 
 /// Which stream an [`ApplyLine`] arrived on.
@@ -153,6 +132,9 @@ pub struct ApplyRequest {
     pub skip_parts: Vec<String>,
     /// Parts to run in phase 1 (`--only`). Mutually exclusive with `skip_parts`.
     pub only_parts: Vec<String>,
+    /// Run phase 1 at all. A re-apply that only touches packages sets this
+    /// to `false`.
+    pub run_base: bool,
     /// Pass only packages for this manager to phase 2 (`packages apply -m`).
     pub manager: Option<String>,
     /// Pass `--update` (default true, matches `bootstrap.sh` step 6).
@@ -217,8 +199,8 @@ pub trait Backend: Send + Sync + 'static {
     fn authenticate(&self) -> Result<(), BackendError>;
     /// Run `bootstrap plan --json` for the requested envs.
     fn plan(&self, envs: &[String], jobs: Option<u64>) -> Result<Vec<PlanEntry>, BackendError>;
-    /// Run `bootstrap status --json` for the requested envs.
-    fn status(&self, envs: &[String]) -> Result<StatusSnapshot, BackendError>;
+    /// Run `bootstrap status --json` for the requested envs and parse it.
+    fn status(&self, envs: &[String]) -> Result<StatusReport, BackendError>;
     /// Run phase 1 then phase 2 in a worker thread, streaming lines to `tx`.
     fn spawn_apply(
         &self,
@@ -331,6 +313,29 @@ struct EnvBootstrap {
 }
 
 /// Deadline for read-only queries.
+/// Local wall-clock time as `HH:MM:SS` (from `date`, so the local time zone
+/// applies without a time-zone dependency); UTC when `date` is unavailable.
+fn wall_clock_hms() -> String {
+    if let Ok(out) = Command::new("/bin/date").arg("+%H:%M:%S").output()
+        && out.status.success()
+    {
+        let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if text.len() == 8 {
+            return text;
+        }
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+        % 86_400;
+    format!(
+        "{:02}:{:02}:{:02}",
+        secs / 3600,
+        secs % 3600 / 60,
+        secs % 60
+    )
+}
+
 const QUERY_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Run a command to completion with a deadline; kill on expiry.
@@ -408,7 +413,7 @@ impl Backend for MiseBackend {
             .collect())
     }
 
-    fn status(&self, envs: &[String]) -> Result<StatusSnapshot, BackendError> {
+    fn status(&self, envs: &[String]) -> Result<StatusReport, BackendError> {
         let mut cmd = self.base_command(envs);
         cmd.arg("status").arg("--json");
         let out = run_with_timeout(&mut cmd, QUERY_TIMEOUT)?;
@@ -419,8 +424,8 @@ impl Backend for MiseBackend {
                 String::from_utf8_lossy(&out.stderr).trim()
             )));
         }
-        let raw_note = String::from_utf8_lossy(&out.stdout).into_owned();
-        Ok(snapshot_from_raw(&raw_note))
+        let raw = String::from_utf8_lossy(&out.stdout);
+        StatusReport::parse(&raw, wall_clock_hms()).map_err(|e| BackendError::Parse(e.to_string()))
     }
 
     fn spawn_apply(
@@ -444,7 +449,7 @@ impl Backend for MiseBackend {
         let current: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
         let worker_current = Arc::clone(&current);
 
-        let phase1 = self.phase1_argv(req);
+        let phase1 = req.run_base.then(|| self.phase1_argv(req));
         let phase2 = self.phase2_argv(req);
 
         let thread_name = format!("emc-apply-{}", worker_req.envs.join(","));
@@ -527,17 +532,17 @@ impl Backend for MiseBackend {
     }
 
     fn phase1_argv(&self, req: &ApplyRequest) -> Vec<String> {
-        let mut argv = vec![
-            "bootstrap".to_string(),
-            "--skip".to_string(),
-            "packages".to_string(),
-        ];
+        let mut argv = vec!["bootstrap".to_string()];
         if !req.only_parts.is_empty() {
+            // `--only` cannot be combined with `--skip`; it already leaves
+            // packages out unless they are named.
             argv.push("--only".to_string());
             argv.push(req.only_parts.join(","));
-        } else if !req.skip_parts.is_empty() {
+        } else {
             argv.push("--skip".to_string());
-            argv.push(req.skip_parts.join(","));
+            let mut skipped = vec!["packages".to_string()];
+            skipped.extend(req.skip_parts.iter().cloned());
+            argv.push(skipped.join(","));
         }
         if req.update {
             argv.push("--update".to_string());
@@ -572,232 +577,6 @@ impl Backend for MiseBackend {
     }
 }
 
-/// Tolerant status part used until fixtures pin more of the schema.
-#[derive(Debug, Default, serde::Deserialize)]
-struct RawStatusPart {
-    #[serde(default)]
-    part: String,
-    #[serde(default)]
-    state: String,
-    #[serde(default)]
-    drift: Vec<String>,
-}
-
-/// Build a [`StatusSnapshot`] from raw `status --json` text.
-///
-/// Two shapes, both tolerant: the observed object keyed by part name
-/// (fixtures pin it) and a legacy object with a `parts` array of
-/// `{part,state,drift}`. Never panics; unrecognized shapes yield empty parts
-/// with the raw text preserved.
-///
-/// Part-state derivation (documented heuristic, pinned by unit tests and the
-/// T2.2 fixtures): `packages` and `tools` check installed state, `dotfiles`
-/// requires `applied`, and `repos` requires `current`. Other list-shaped parts
-/// read as pending-work lists, so non-empty means drift and empty means clean.
-/// `login_shell: null` is unrecorded, not drift.
-pub(crate) fn snapshot_from_raw(raw: &str) -> StatusSnapshot {
-    let value: serde_json::Value = match serde_json::from_str(raw) {
-        Ok(v) => v,
-        Err(_) => {
-            return StatusSnapshot {
-                parts: Vec::new(),
-                raw_note: raw.to_string(),
-            };
-        }
-    };
-    let Some(obj) = value.as_object() else {
-        return StatusSnapshot {
-            parts: Vec::new(),
-            raw_note: raw.to_string(),
-        };
-    };
-    if let Some(legacy) = obj.get("parts") {
-        let parts = serde_json::from_value::<Vec<RawStatusPart>>(legacy.clone())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| StatusPart {
-                part: p.part,
-                state: p.state,
-                drift: p.drift,
-            })
-            .collect();
-        return StatusSnapshot {
-            parts,
-            raw_note: raw.to_string(),
-        };
-    }
-    let mut parts: Vec<StatusPart> = obj
-        .iter()
-        .map(|(part, v)| {
-            let (state, drift) = part_state(part, v);
-            StatusPart {
-                part: part.clone(),
-                state,
-                drift,
-            }
-        })
-        .collect();
-    parts.sort_by(|a, b| a.part.cmp(&b.part));
-    StatusSnapshot {
-        parts,
-        raw_note: raw.to_string(),
-    }
-}
-
-/// Derive `(state, drift)` for one status part. States are `ok`/`drift`.
-fn part_state(part: &str, value: &serde_json::Value) -> (String, Vec<String>) {
-    match part {
-        "packages" => packages_state(value),
-        "tools" => tools_state(value),
-        "dotfiles" => dotfiles_state(value),
-        "repos" => repos_state(value),
-        "login_shell" => ("ok".to_string(), vec!["not recorded".to_string()]),
-        _ => pending_list_state(value),
-    }
-}
-
-fn dotfiles_state(value: &serde_json::Value) -> (String, Vec<String>) {
-    let mut drift = Vec::new();
-    for entries in ["files", "edits"] {
-        for entry in value
-            .get(entries)
-            .and_then(serde_json::Value::as_array)
-            .into_iter()
-            .flatten()
-        {
-            if entry.get("state").and_then(|v| v.as_str()) != Some("applied") {
-                let name = entry
-                    .get("target")
-                    .or_else(|| entry.get("path"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("?");
-                let state = entry.get("state").and_then(|v| v.as_str()).unwrap_or("?");
-                drift.push(format!("{name} ({state})"));
-            }
-        }
-    }
-    if drift.is_empty() {
-        ("ok".to_string(), vec!["clean".to_string()])
-    } else {
-        ("drift".to_string(), drift)
-    }
-}
-
-fn repos_state(value: &serde_json::Value) -> (String, Vec<String>) {
-    let Some(entries) = value.as_array() else {
-        return pending_list_state(value);
-    };
-    let drift: Vec<String> = entries
-        .iter()
-        .filter(|entry| entry.get("state").and_then(|v| v.as_str()) != Some("current"))
-        .map(|entry| {
-            let path = entry.get("path").and_then(|v| v.as_str()).unwrap_or("?");
-            let reason = entry
-                .get("reason")
-                .and_then(|v| v.as_str())
-                .filter(|reason| !reason.is_empty())
-                .or_else(|| entry.get("state").and_then(|v| v.as_str()))
-                .unwrap_or("not current");
-            format!("{path} ({reason})")
-        })
-        .collect();
-    if drift.is_empty() {
-        ("ok".to_string(), vec!["clean".to_string()])
-    } else {
-        ("drift".to_string(), drift)
-    }
-}
-
-/// A pending-work list: empty reads clean, anything present reads drift.
-fn pending_list_state(value: &serde_json::Value) -> (String, Vec<String>) {
-    match value {
-        serde_json::Value::Null => ("ok".to_string(), vec!["clean".to_string()]),
-        serde_json::Value::Array(items) if items.is_empty() => {
-            ("ok".to_string(), vec!["clean".to_string()])
-        }
-        serde_json::Value::Array(items) => (
-            "drift".to_string(),
-            vec![format!("{} pending", items.len())],
-        ),
-        serde_json::Value::Object(map) => {
-            let pending: usize = map
-                .values()
-                .filter_map(|v| v.as_array())
-                .map(|a| a.len())
-                .sum();
-            if pending == 0 {
-                ("ok".to_string(), vec!["clean".to_string()])
-            } else {
-                ("drift".to_string(), vec![format!("{} pending", pending)])
-            }
-        }
-        _ => ("ok".to_string(), vec!["clean".to_string()]),
-    }
-}
-
-/// `packages` is a per-manager inventory: an entry reads drift unless its
-/// observed state matches its desired state.
-fn packages_state(value: &serde_json::Value) -> (String, Vec<String>) {
-    let mut drift = Vec::new();
-    if let Some(map) = value.as_object() {
-        let mut managers: Vec<&String> = map.keys().collect();
-        managers.sort();
-        for manager in managers {
-            let entries = map[manager]
-                .get("packages")
-                .and_then(|p| p.as_array())
-                .cloned()
-                .unwrap_or_default();
-            for e in &entries {
-                let name = e.get("package").and_then(|n| n.as_str()).unwrap_or("?");
-                let state = e.get("state").and_then(|s| s.as_str()).unwrap_or("");
-                let desired = e
-                    .get("desired_state")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("present");
-                let ok = (desired == "present" && state == "installed")
-                    || (desired == "absent" && state != "installed");
-                if !ok {
-                    drift.push(format!("{manager}:{name} ({state})"));
-                }
-            }
-        }
-    }
-    if drift.is_empty() {
-        ("ok".to_string(), vec!["in sync".to_string()])
-    } else {
-        ("drift".to_string(), drift)
-    }
-}
-
-/// `tools` is an inventory: an entry reads drift unless installed.
-fn tools_state(value: &serde_json::Value) -> (String, Vec<String>) {
-    let mut drift = Vec::new();
-    let mut installed = 0usize;
-    if let Some(entries) = value.as_array() {
-        for e in entries {
-            let name = e.get("tool").and_then(|n| n.as_str()).unwrap_or("?");
-            let is_installed = e
-                .get("installed")
-                .and_then(|i| i.as_bool())
-                .unwrap_or(false);
-            if is_installed {
-                installed += 1;
-            } else {
-                drift.push(format!("{name} not installed"));
-            }
-        }
-    }
-    if drift.is_empty() {
-        (
-            "ok".to_string(),
-            vec![format!("{installed} tools installed")],
-        )
-    } else {
-        ("drift".to_string(), drift)
-    }
-}
-
 /// Number of log tail lines kept for the failure modal.
 const FAILURE_TAIL_LINES: usize = 20;
 
@@ -810,7 +589,7 @@ fn run_apply_worker(
     mise_bin: PathBuf,
     config_dir: PathBuf,
     req: ApplyRequest,
-    phase1: Vec<String>,
+    phase1: Option<Vec<String>>,
     phase2: Option<Vec<String>>,
     tx: ExternalSender,
     log_file: std::fs::File,
@@ -830,14 +609,16 @@ fn run_apply_worker(
     let cancelled = || cancel.load(Ordering::Relaxed);
 
     if req.dry_run {
-        emit(
-            Stream::System,
-            format!(
-                "dry-run: {}",
-                display_argv(&mise_bin, &full_argv(&config_dir, &req, &phase1))
-            ),
-            &mut log,
-        );
+        if let Some(ref p1) = phase1 {
+            emit(
+                Stream::System,
+                format!(
+                    "dry-run: {}",
+                    display_argv(&mise_bin, &full_argv(&config_dir, &req, p1))
+                ),
+                &mut log,
+            );
+        }
         if let Some(ref p2) = phase2 {
             emit(
                 Stream::System,
@@ -931,11 +712,14 @@ fn run_apply_worker(
             &mut log,
         );
     }
-    let mut phases: Vec<(ApplyPhase, &str, Vec<String>)> = vec![(
-        ApplyPhase::Base,
-        "phase 1: base",
-        full_argv(&config_dir, &req, &phase1),
-    )];
+    let mut phases: Vec<(ApplyPhase, &str, Vec<String>)> = Vec::new();
+    if let Some(ref p1) = phase1 {
+        phases.push((
+            ApplyPhase::Base,
+            "phase 1: base",
+            full_argv(&config_dir, &req, p1),
+        ));
+    }
     if let Some(ref p2) = phase2 {
         phases.push((
             ApplyPhase::Packages,

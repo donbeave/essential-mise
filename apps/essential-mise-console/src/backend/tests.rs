@@ -210,17 +210,22 @@ fn plan_unknown_action_and_missing_summary_parse() {
 }
 
 #[test]
-fn status_fixture_parses_without_panic() {
-    let raw = fixture_text("status.json");
-    let snapshot = snapshot_from_raw(&raw);
-    assert_eq!(
-        snapshot.raw_note, raw,
-        "raw status text preserved for follow-up display"
+fn status_fixtures_parse_into_typed_reports() {
+    for name in [
+        "status.json",
+        "status-applied.json",
+        "status-one-differs.json",
+    ] {
+        let report = StatusReport::parse(&fixture_text(name), "12:00:00")
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert!(!report.areas.is_empty(), "{name} lists configured areas");
+    }
+    assert!(
+        StatusReport::parse("{}", "t")
+            .expect("empty object")
+            .areas
+            .is_empty()
     );
-    // `{}` (missing everything) must also parse without panic.
-    let empty = snapshot_from_raw("{}");
-    assert!(empty.parts.is_empty());
-    assert_eq!(empty.raw_note, "{}");
 }
 
 #[test]
@@ -234,6 +239,7 @@ fn spawn_apply_dry_run_spawns_nothing() {
         manager: None,
         skip_parts: Vec::new(),
         only_parts: Vec::new(),
+        run_base: true,
         update: true,
         upgrade: true,
         dry_run: true,
@@ -275,68 +281,6 @@ fn mock_loads_plan_fixture() {
     );
 }
 
-#[test]
-fn applied_dotfiles_and_current_repos_are_not_pending() {
-    let snapshot = super::snapshot_from_raw(
-        r#"{
-            "dotfiles": {
-                "files": [{"target": "~/.zshrc", "state": "applied"}],
-                "edits": [{"path": "~/.zshrc", "state": "applied"}]
-            },
-            "repos": [{"path": "~/.oh-my-zsh", "state": "current", "reason": ""}]
-        }"#,
-    );
-    for part in ["dotfiles", "repos"] {
-        let status = snapshot
-            .parts
-            .iter()
-            .find(|entry| entry.part == part)
-            .expect("inventory part");
-        assert_eq!(status.state, "ok", "{part} is fully applied: {status:?}");
-    }
-}
-
-#[test]
-fn status_parts_derive_ok_and_drift() {
-    // Fixture host state is fully clean: every part ok.
-    let fixture = super::snapshot_from_raw(&fixture_text("status.json"));
-    assert!(!fixture.parts.is_empty(), "real schema yields parts");
-    assert!(
-        fixture.parts.iter().all(|p| p.state == "ok"),
-        "clean host has no drift: {:?}",
-        fixture
-            .parts
-            .iter()
-            .filter(|p| p.state != "ok")
-            .collect::<Vec<_>>()
-    );
-    // Drifted packages inventory.
-    let drifted = super::snapshot_from_raw(
-        r#"{"packages": {"brew": {"available": true, "packages": [
-            {"package": "jq", "requested_version": "latest", "desired_state": "present", "state": "absent", "managed_by": "mise"}
-        ]}}}"#,
-    );
-    let packages = drifted
-        .parts
-        .iter()
-        .find(|p| p.part == "packages")
-        .expect("packages part");
-    assert_eq!(packages.state, "drift");
-    assert!(packages.drift.iter().any(|d| d.contains("brew:jq")));
-    // Pending-work list with entries.
-    let pending = super::snapshot_from_raw(r#"{"files": [{"x": 1}]}"#);
-    assert_eq!(pending.parts[0].state, "drift");
-    // Uninstalled tool.
-    let tools = super::snapshot_from_raw(
-        r#"{"tools": [{"tool": "rust", "requested_version": "latest", "resolved_version": "1.99.1", "state": "missing", "installed": false}]}"#,
-    );
-    assert_eq!(tools.parts[0].state, "drift");
-    // Legacy parts array still parses.
-    let legacy =
-        super::snapshot_from_raw(r#"{"parts": [{"part": "x", "state": "ok", "drift": []}]}"#);
-    assert_eq!(legacy.parts.len(), 1);
-}
-
 /// Config dir for tier-2 live tests: `$EMC_TEST_CONFIG_DIR`, else the public
 /// starter template (exercised with `-E terminal`).
 fn host_config_dir() -> PathBuf {
@@ -369,8 +313,8 @@ fn tier2_live_plan_readonly_matches_fixture_shape() {
 fn tier2_live_status_readonly_parses() {
     let dir = host_config_dir();
     let backend = MiseBackend::new(dir).with_mise_bin("mise");
-    let snapshot = backend
+    let report = backend
         .status(&["terminal".to_string()])
         .expect("live status --json parses");
-    assert!(!snapshot.raw_note.is_empty(), "live status keeps raw text");
+    assert!(!report.checked_at.is_empty(), "live status is stamped");
 }

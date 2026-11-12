@@ -1,37 +1,32 @@
-//! S2 Packages: per-package checklist grouped by declaring module.
+//! Step 2: Review and confirm.
 //!
-//! The screen owner retains one stable list per declaring group and an outer
-//! `ScrollView`, so filtered and off-screen groups keep their interaction
-//! state. Rows are data, never `Checkbox`-in-`ListBox`; group headers remain
-//! non-focusable `Panel::card` titles. The stable `(manager, name)` keep-set
-//! is authoritative, and hidden rows always keep state.
-//!
-//! A package declared by several selected envs appears once, under its
-//! first declaring env; the detail pane lists every declaring module.
+//! Lists only what will change: packages that are not installed yet (and
+//! settings groups that differ), with the summary of the whole run on top.
+//! Already-installed packages are collapsed (`h` shows them). The person
+//! chooses Install or Skip this time per package; nothing runs before the
+//! explicit Enter ("Apply now"), which is ignored while the check is still
+//! running and for a moment after the screen opens, so a held key cannot
+//! start a real apply.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
+use std::time::{Duration, Instant};
 
-use junie_tui::core::edit::EditEntry;
 use junie_tui::core::event::{Key, Outcome};
-use junie_tui::core::focus::{BlurAction, Focus, FocusChange, FocusRing};
 use junie_tui::core::id::WidgetId;
-use junie_tui::core::intent::Phase;
-use junie_tui::core::pointer::{MouseTarget, PointerEvent};
 use junie_tui::core::response::Response;
 use junie_tui::theme::{Theme, Tone};
 use junie_tui::ui::ctx::RenderCtx;
-use junie_tui::ui::scroll_view::{Axes, ScrollView};
-use junie_tui::widgets::input::{InputAction, TextInput};
-use junie_tui::widgets::list::{ListBox, ListItem, SelectMode};
-use junie_tui::widgets::panel::Panel;
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::KeyCode;
-use ratatui::layout::{Rect, Size};
-use ratatui::style::Color;
+use ratatui::layout::Rect;
 
-use super::chrome::{render_header, render_hints, render_status};
-use super::filter::FilterState;
+use super::chrome::render_step_header;
+use super::paint::{self, Marks, Row, bold, footer, framed, primary_line, put, seg};
 use crate::backend::ResId;
+use crate::status::{AreaKey, StatusReport, Verdict};
+
+/// How long a freshly opened Review ignores Enter.
+pub const DEFAULT_ARM_DELAY: Duration = Duration::from_millis(400);
 
 /// One checklist row, deduplicated by `(manager, name)`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,677 +80,529 @@ pub fn package_rows(
     rows
 }
 
-/// Key intent on the packages screen (§3: `Space` toggles, `A` keep-all,
-/// `N` keep-none, `/` filters, `Enter` applies, `Bksp` goes back).
+/// Where a package stands, from the status check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PackageKey {
-    /// Toggle the cursor row.
-    Toggle,
-    /// Keep all visible (filtered) rows.
-    KeepAllVisible,
-    /// Omit all visible (filtered) rows.
-    KeepNoneVisible,
-    /// Enter filter typing.
-    FilterMode,
-    /// Apply the keep-list.
-    Apply,
-    /// Back to S1 (selection preserved by the caller).
-    Back,
-    /// Leave filter typing (back to navigation).
-    ExitFilter,
+pub enum RowState {
+    /// Not installed (or not as configured): applying changes it.
+    ToInstall,
+    /// Already as configured.
+    Installed,
+    /// The check could not tell (or has not run): treated as to-install.
+    Unknown,
 }
 
-/// Screen-level action returned by [`PackagesState::apply`].
+/// Key intent on the review screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PackageAction {
     /// State changed; stay on screen.
     None,
-    /// Apply the keep-list (empty means apply base only).
+    /// Apply now.
     Apply,
-    /// Back to S1.
+    /// Back to choosing modules.
     Back,
+    /// Leave the console (nothing has run).
+    Quit,
 }
 
-/// S2 checklist state. The keep-set lives on stable `(manager, name)` ids
-/// outside the filter, so hidden rows keep state. Pre-ticked: everything.
+/// Review state: package rows plus what the check found.
 #[derive(Debug, Clone)]
 pub struct PackagesState {
-    /// All rows, in group order.
+    /// Every declared package, in module order.
     pub rows: Vec<PackageRow>,
-    keep: HashSet<(String, String)>,
-    filter: FilterState,
+    states: Vec<RowState>,
+    install: Vec<bool>,
+    modules: usize,
+    checking: bool,
+    error: Option<String>,
+    settings_groups: usize,
+    show_installed: bool,
     cursor: usize,
-    filtering: bool,
+    created: Instant,
+    arm_delay: Duration,
 }
 
 impl PackagesState {
-    /// Build from rows; everything starts kept.
-    pub fn new(rows: Vec<PackageRow>) -> Self {
-        let keep: HashSet<(String, String)> = rows
-            .iter()
-            .map(|r| (r.manager.clone(), r.name.clone()))
-            .collect();
+    /// A review of `rows` for `modules` selected modules; the check is
+    /// running until [`apply_check`](Self::apply_check) is called.
+    pub fn new(rows: Vec<PackageRow>, modules: usize) -> Self {
+        let len = rows.len();
         Self {
             rows,
-            keep,
-            filter: FilterState::new(),
+            states: vec![RowState::Unknown; len],
+            install: vec![true; len],
+            modules,
+            checking: true,
+            error: None,
+            settings_groups: 0,
+            show_installed: false,
             cursor: 0,
-            filtering: false,
+            created: Instant::now(),
+            arm_delay: DEFAULT_ARM_DELAY,
         }
     }
 
-    /// Map a key to an intent (§3). Typing and `Bksp` go to the filter
-    /// input while filtering; `Esc` leaves filter typing.
-    pub fn map_key(&self, key: &junie_tui::core::event::Key) -> Option<PackageKey> {
-        use ratatui::crossterm::event::KeyCode;
-        if self.filtering {
-            if key.is(KeyCode::Esc) {
-                return Some(PackageKey::ExitFilter);
-            }
-            return None;
-        }
-        if key.is_char(' ') {
-            return Some(PackageKey::Toggle);
-        }
-        if key.is_char('A') || key.is_char('a') {
-            return Some(PackageKey::KeepAllVisible);
-        }
-        if key.is_char('N') || key.is_char('n') {
-            return Some(PackageKey::KeepNoneVisible);
-        }
-        if key.is_char('/') {
-            return Some(PackageKey::FilterMode);
-        }
-        if key.is(KeyCode::Enter) {
-            return Some(PackageKey::Apply);
-        }
-        if key.is(KeyCode::Backspace) {
-            return Some(PackageKey::Back);
-        }
-        None
+    /// Override how long Enter is ignored after opening (tests, tools).
+    #[must_use]
+    pub fn with_arm_delay(mut self, delay: Duration) -> Self {
+        self.arm_delay = delay;
+        self
     }
 
-    /// Apply an intent; returns the screen-level action.
-    pub fn apply(&mut self, key: PackageKey) -> PackageAction {
-        match key {
-            PackageKey::Toggle => self.toggle_cursor(),
-            PackageKey::KeepAllVisible => {
-                for i in self.visible_indices() {
-                    let r = &self.rows[i];
-                    self.keep.insert((r.manager.clone(), r.name.clone()));
+    /// Take the result of the status check.
+    pub fn apply_check(&mut self, result: Result<StatusReport, String>) {
+        self.checking = false;
+        match result {
+            Ok(report) => {
+                self.error = None;
+                let packages = report.areas.iter().find(|a| a.key == AreaKey::Packages);
+                for (i, row) in self.rows.iter().enumerate() {
+                    let spec = row.spec();
+                    let verdict = packages
+                        .and_then(|a| a.entries.iter().find(|e| e.spec.as_deref() == Some(&spec)))
+                        .map(|e| e.verdict);
+                    self.states[i] = match verdict {
+                        Some(Verdict::Satisfied) => RowState::Installed,
+                        Some(Verdict::Differs) => RowState::ToInstall,
+                        _ => RowState::Unknown,
+                    };
                 }
+                self.settings_groups = report
+                    .needs_changes()
+                    .iter()
+                    .filter(|a| a.key != AreaKey::Packages)
+                    .count();
             }
-            PackageKey::KeepNoneVisible => {
-                for i in self.visible_indices() {
-                    let r = &self.rows[i];
-                    self.keep.remove(&(r.manager.clone(), r.name.clone()));
-                }
+            Err(reason) => {
+                self.error = Some(reason);
+                self.states.iter_mut().for_each(|s| *s = RowState::Unknown);
             }
-            PackageKey::FilterMode => self.filtering = true,
-            PackageKey::ExitFilter => self.filtering = false,
-            PackageKey::Apply => return PackageAction::Apply,
-            PackageKey::Back => return PackageAction::Back,
         }
-        self.clamp_cursor();
-        PackageAction::None
-    }
-
-    /// Indices into [`PackagesState::rows`] visible under the filter,
-    /// matching `manager:name` text.
-    pub fn visible_indices(&self) -> Vec<usize> {
-        self.rows
-            .iter()
-            .enumerate()
-            .filter(|(_, r)| {
-                self.filter.matches(&r.spec())
-                    || self.filter.matches(&r.name)
-                    || self.filter.matches(&r.manager)
-            })
-            .map(|(i, _)| i)
-            .collect()
-    }
-
-    /// Cursor row within the visible list.
-    pub fn cursor(&self) -> usize {
-        self.cursor
-    }
-
-    /// Whether filter typing is active.
-    pub fn filtering(&self) -> bool {
-        self.filtering
-    }
-
-    /// Current filter query (for the filter input widget).
-    pub fn query(&self) -> &str {
-        self.filter.query()
-    }
-
-    /// Replace the query (resets the cursor into the filtered view).
-    pub fn set_query(&mut self, query: impl Into<String>) {
-        self.filter.set_query(query);
         self.cursor = 0;
     }
 
-    /// `(kept, total)` counts.
-    pub fn counts(&self) -> (usize, usize) {
-        (self.keep.len(), self.rows.len())
+    /// Whether the check is still running.
+    pub fn is_checking(&self) -> bool {
+        self.checking
     }
 
-    /// True when nothing is kept: apply runs base parts only
-    /// (`--skip packages`, never a bare `packages apply`).
-    pub fn apply_base_only(&self) -> bool {
-        self.keep.is_empty()
+    /// Rows shown in the list: everything that changes, plus installed ones
+    /// when `h` expanded them.
+    pub fn visible(&self) -> Vec<usize> {
+        (0..self.rows.len())
+            .filter(|&i| self.show_installed || self.states[i] != RowState::Installed)
+            .collect()
     }
 
-    /// Kept `manager:name` specs in row order.
-    pub fn kept_specs(&self) -> Vec<String> {
+    /// Package state of a row.
+    pub fn row_state(&self, index: usize) -> RowState {
+        self.states[index]
+    }
+
+    /// Whether a row will be installed.
+    pub fn will_install(&self, index: usize) -> bool {
+        self.install[index]
+    }
+
+    /// Packages that change, kept or not.
+    fn changing(&self) -> Vec<usize> {
+        (0..self.rows.len())
+            .filter(|&i| self.states[i] != RowState::Installed)
+            .collect()
+    }
+
+    /// Packages that will be installed: `manager:name`, in row order.
+    pub fn install_specs(&self) -> Vec<String> {
+        self.changing()
+            .into_iter()
+            .filter(|&i| self.install[i])
+            .map(|i| self.rows[i].spec())
+            .collect()
+    }
+
+    /// Packages the person chose to skip this time.
+    pub fn skipped_specs(&self) -> Vec<String> {
+        self.changing()
+            .into_iter()
+            .filter(|&i| !self.install[i])
+            .map(|i| self.rows[i].spec())
+            .collect()
+    }
+
+    /// Whether the package is installed or will be (for tests).
+    pub fn is_kept(&self, manager: &str, name: &str) -> bool {
         self.rows
             .iter()
-            .filter(|r| self.keep.contains(&(r.manager.clone(), r.name.clone())))
-            .map(|r| r.spec())
-            .collect()
+            .position(|r| r.manager == manager && r.name == name)
+            .is_some_and(|i| self.install[i])
     }
 
-    /// Whether a row is kept.
-    pub fn is_kept(&self, manager: &str, name: &str) -> bool {
-        self.keep.contains(&(manager.to_string(), name.to_string()))
-    }
-
-    /// Move the flattened visible-row cursor.
-    pub fn set_cursor(&mut self, cursor: usize) {
-        self.cursor = cursor;
-        self.clamp_cursor();
-    }
-
-    /// Set one visible row's stable keep flag.
-    pub fn set_kept(&mut self, row: usize, kept: bool) {
-        if let Some(row) = self.rows.get(row) {
-            let key = (row.manager.clone(), row.name.clone());
-            if kept {
-                self.keep.insert(key);
-            } else {
-                self.keep.remove(&key);
-            }
-        }
-    }
-
-    /// Group sections for render: `(group, items)` in first-seen order.
-    /// Headers render as `Panel::card` titles, never as rows.
-    pub fn group_sections(&self) -> Vec<(String, Vec<ListItem>)> {
-        self.group_order()
-            .into_iter()
-            .map(|(group, indices)| {
-                let items = indices.iter().map(|&i| self.list_item(i)).collect();
-                (group, items)
-            })
-            .collect()
-    }
-
-    /// Groups with visible row indices, in first-seen order.
-    pub fn group_order(&self) -> Vec<(String, Vec<usize>)> {
-        let mut order: Vec<String> = Vec::new();
-        let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
-        for i in self.visible_indices() {
-            let group = self.rows[i].group().to_string();
-            if !groups.contains_key(&group) {
-                order.push(group.clone());
-            }
-            groups.entry(group).or_default().push(i);
-        }
-        order
-            .into_iter()
-            .map(|g| {
-                let indices = groups.remove(&g).unwrap_or_default();
-                (g, indices)
-            })
-            .collect()
-    }
-
-    /// One checklist row as an inventoried [`ListItem`].
-    pub fn list_item(&self, row_idx: usize) -> ListItem {
-        let r = &self.rows[row_idx];
-        let kept = self.is_kept(&r.manager, &r.name);
-        ListItem::new(&r.name)
-            .meta(&format!(
-                "{} · {}",
-                r.manager,
-                if kept { "kept" } else { "omitted" }
-            ))
-            .meta_tone(if kept { Tone::Normal } else { Tone::Muted })
-    }
-
-    /// Detail props for the cursor row: origin modules + manager + keep state.
-    pub fn detail_props(&self) -> Vec<junie_tui::widgets::props::Prop> {
-        use junie_tui::widgets::props::Prop;
-        let Some(i) = self.visible_indices().get(self.cursor).copied() else {
-            return Vec::new();
-        };
-        let r = &self.rows[i];
-        let origins = r
-            .declared_by
+    fn installed_count(&self) -> usize {
+        self.states
             .iter()
-            .map(|e| format!("config.{e}.toml"))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let mut state = Prop::new(
-            "keep",
-            if self.is_kept(&r.manager, &r.name) {
-                "kept — included in `packages apply <kept…>`"
+            .filter(|s| **s == RowState::Installed)
+            .count()
+    }
+
+    /// The summary lines of the box.
+    pub fn summary(&self) -> Vec<String> {
+        let modules = format!(
+            "{} {}",
+            self.modules,
+            if self.modules == 1 {
+                "module"
             } else {
-                "omitted — one-shot, never recorded"
-            },
-        );
-        state.tone = Tone::Secondary;
-        vec![
-            Prop::new("origin", origins),
-            Prop::new("manager", &r.manager),
-            state,
-        ]
-    }
-
-    fn toggle_cursor(&mut self) {
-        if let Some(i) = self.visible_indices().get(self.cursor).copied() {
-            let r = &self.rows[i];
-            let key = (r.manager.clone(), r.name.clone());
-            if !self.keep.remove(&key) {
-                self.keep.insert(key);
+                "modules"
             }
+        );
+        if self.checking {
+            return vec![
+                format!("{modules} · checking what is already installed"),
+                "Asks for your administrator password once, at the start.".to_string(),
+            ];
         }
+        let to_install = self.changing().len();
+        let mut line = format!(
+            "{modules} · {to_install} {} to install",
+            if to_install == 1 {
+                "package"
+            } else {
+                "packages"
+            }
+        );
+        if self.error.is_none() {
+            line.push_str(&format!(" ({} already installed)", self.installed_count()));
+            line.push_str(&format!(
+                " · {} {} of settings to update",
+                self.settings_groups,
+                if self.settings_groups == 1 {
+                    "group"
+                } else {
+                    "groups"
+                }
+            ));
+        }
+        let mut lines = vec![line];
+        if let Some(reason) = &self.error {
+            lines.push(format!(
+                "Could not check this Mac ({reason}); every package is listed."
+            ));
+        }
+        lines.push(
+            "Asks for your administrator password once, at the start. Usually 5-15 minutes."
+                .to_string(),
+        );
+        lines
     }
 
-    fn clamp_cursor(&mut self) {
-        let len = self.visible_indices().len();
-        self.cursor = self.cursor.min(len.saturating_sub(1));
+    fn armed(&self) -> bool {
+        !self.checking && self.created.elapsed() >= self.arm_delay
+    }
+
+    /// Footer hints for the keys that work right now.
+    pub fn hints(&self) -> Vec<(&'static str, String)> {
+        let mut hints: Vec<(&'static str, String)> = Vec::new();
+        if self.checking {
+            return vec![
+                ("Esc", "back".into()),
+                ("?", "help".into()),
+                ("q", "quit".into()),
+            ];
+        }
+        if self.visible().len() > 1 {
+            hints.push(("↑↓", "move".into()));
+        }
+        if !self.changing().is_empty() {
+            hints.push(("Space", "toggle".into()));
+            hints.push(("a", "all".into()));
+            hints.push(("n", "none".into()));
+        }
+        if self.installed_count() > 0 {
+            hints.push((
+                "h",
+                if self.show_installed {
+                    "hide installed".into()
+                } else {
+                    "show installed".into()
+                },
+            ));
+        }
+        hints.push(("Esc", "back".into()));
+        hints.push(("?", "help".into()));
+        hints.push(("q", "quit".into()));
+        hints
+    }
+
+    /// Handle a key.
+    pub fn on_key(&mut self, key: &Key) -> PackageAction {
+        if key.is(KeyCode::Enter) {
+            return if self.armed() {
+                PackageAction::Apply
+            } else {
+                PackageAction::None
+            };
+        }
+        if key.is(KeyCode::Esc) {
+            return PackageAction::Back;
+        }
+        if key.is_char('q') {
+            return PackageAction::Quit;
+        }
+        if self.checking {
+            return PackageAction::None;
+        }
+        let visible = self.visible();
+        if key.is(KeyCode::Down) {
+            self.cursor = (self.cursor + 1).min(visible.len().saturating_sub(1));
+        } else if key.is(KeyCode::Up) {
+            self.cursor = self.cursor.saturating_sub(1);
+        } else if key.is_char(' ') {
+            if let Some(&i) = visible.get(self.cursor)
+                && self.states[i] != RowState::Installed
+            {
+                self.install[i] = !self.install[i];
+            }
+        } else if key.is_char('a') || key.is_char('n') {
+            let on = key.is_char('a');
+            for i in self.changing() {
+                self.install[i] = on;
+            }
+        } else if key.is_char('h') && self.installed_count() > 0 {
+            self.show_installed = !self.show_installed;
+            self.cursor = self.cursor.min(self.visible().len().saturating_sub(1));
+        }
+        PackageAction::None
+    }
+
+    /// Rows of the list, each `(row index, painted row)`.
+    fn list_rows(&self, marks: &Marks, width: usize) -> Vec<Row> {
+        let visible = self.visible();
+        visible
+            .iter()
+            .enumerate()
+            .map(|(pos, &i)| {
+                let row = &self.rows[i];
+                let focus = if pos == self.cursor { marks.focus } else { " " };
+                let (check, note, tone) = match self.states[i] {
+                    RowState::Installed => (
+                        format!("{} ", marks.ok),
+                        "already installed".to_string(),
+                        Tone::Muted,
+                    ),
+                    _ if self.install[i] => (
+                        "[x]".to_string(),
+                        format!("from {}", row.group()),
+                        Tone::Normal,
+                    ),
+                    _ => (
+                        "[ ]".to_string(),
+                        "skipped this time (not saved)".to_string(),
+                        Tone::Muted,
+                    ),
+                };
+                let name_w = width.saturating_sub(44).clamp(12, 32);
+                vec![
+                    seg(format!(" {focus} {check} "), Tone::Active),
+                    seg(format!("{:<10}", row.manager), Tone::Secondary),
+                    seg(
+                        format!("{:<name_w$}", paint::fit(&row.name, name_w, marks.ellipsis)),
+                        tone,
+                    ),
+                    seg(note, Tone::Muted),
+                ]
+            })
+            .collect()
     }
 }
 
-const S2_FILTER: WidgetId = WidgetId::of("emc.s2.filter");
-const S2_LIST: WidgetId = WidgetId::of("emc.s2.list");
-const S2_GROUPS: WidgetId = WidgetId::of("emc.s2.groups");
+const S2_PAGE: WidgetId = WidgetId::of("emc.s2.page");
 
-fn group_height(rows: usize) -> u16 {
-    (rows as u16).saturating_add(3)
-}
-
-#[derive(Clone)]
+/// Paints [`PackagesState`] and maps keys.
 pub(crate) struct PackagesOwner {
     pub(crate) state: PackagesState,
-    filter: TextInput,
-    lists: BTreeMap<String, ListBox>,
-    scroll: ScrollView,
 }
 
 impl PackagesOwner {
     pub(crate) fn new(state: PackagesState) -> Self {
-        let filter = TextInput::new(S2_FILTER, "Filter")
-            .value(state.query())
-            .edit_entry(EditEntry::Immediate)
-            .blur_action(BlurAction::Commit);
-        let mut owner = Self {
-            state,
-            filter,
-            lists: BTreeMap::new(),
-            scroll: ScrollView::new(S2_GROUPS)
-                .axes(Axes::VERTICAL)
-                .follow_focus(true),
-        };
-        owner.project_domain_to_widgets();
-        owner
+        Self { state }
     }
 
     pub(crate) fn primary_focus(&self) -> WidgetId {
-        if self.state.filtering() {
-            return S2_FILTER;
-        }
-        self.group_at_cursor()
-            .map(|(group, _)| S2_LIST.sub(&group))
-            .unwrap_or(S2_FILTER)
+        S2_PAGE
     }
 
-    fn group_at_cursor(&self) -> Option<(String, usize)> {
-        let mut start = 0;
-        for (group, indices) in self.state.group_order() {
-            if self.state.cursor() >= start && self.state.cursor() < start + indices.len() {
-                return Some((group, self.state.cursor() - start));
-            }
-            start += indices.len();
-        }
-        None
+    pub(crate) fn hints(&self) -> Vec<(&'static str, String)> {
+        self.state.hints()
     }
 
-    fn focused_group(&self, focus: Option<WidgetId>) -> Option<String> {
-        self.lists
-            .keys()
-            .find(|group| focus == Some(S2_LIST.sub(group)))
-            .cloned()
-            .or_else(|| self.group_at_cursor().map(|(group, _)| group))
-    }
-
-    fn project_domain_to_widgets(&mut self) {
-        let mut start = 0;
-        for (group, indices) in self.state.group_order() {
-            let items: Vec<ListItem> = indices.iter().map(|&i| self.state.list_item(i)).collect();
-            let checks: Vec<bool> = indices
-                .iter()
-                .map(|&i| {
-                    let row = &self.state.rows[i];
-                    self.state.is_kept(&row.manager, &row.name)
-                })
-                .collect();
-            let cursor = self
-                .state
-                .cursor()
-                .checked_sub(start)
-                .filter(|&cursor| cursor < indices.len());
-            let list = self.lists.entry(group.clone()).or_insert_with(|| {
-                ListBox::new(S2_LIST.sub(&group), items.clone(), SelectMode::Multi)
-            });
-            list.items = items;
-            if let Some(cursor) = cursor {
-                list.core.cursor = cursor.min(list.items.len().saturating_sub(1));
-            }
-            for (i, checked) in checks.into_iter().enumerate() {
-                list.set_checked(i, checked);
-            }
-            start += indices.len();
+    pub(crate) fn key(&mut self, key: &Key) -> Response<PackageAction> {
+        let before = (
+            self.state.cursor,
+            self.state.show_installed,
+            self.state.install.clone(),
+        );
+        let action = self.state.on_key(key);
+        if action != PackageAction::None {
+            return Response::emit(action);
         }
-    }
-
-    fn sync_from_group(&mut self, group: &str) -> Outcome {
-        let Some((_, indices)) = self
-            .state
-            .group_order()
-            .into_iter()
-            .find(|(name, _)| name == group)
-        else {
-            return Outcome::Ignored;
-        };
-        let before = self.state.cursor();
-        let mut changed = false;
-        let mut local = 0;
-        let mut start = 0;
-        for (name, rows) in self.state.group_order() {
-            if name == group {
-                let Some(list) = self.lists.get(group) else {
-                    return Outcome::Ignored;
-                };
-                local = list.core.cursor.min(indices.len().saturating_sub(1));
-                for (i, row) in indices.iter().copied().enumerate() {
-                    let checked = list.is_checked(i);
-                    let package = &self.state.rows[row];
-                    if self.state.is_kept(&package.manager, &package.name) != checked {
-                        self.state.set_kept(row, checked);
-                        changed = true;
-                    }
-                }
-                break;
-            }
-            start += rows.len();
-        }
-        self.state.set_cursor(start + local);
-        if changed || before != self.state.cursor() {
-            Outcome::Changed
+        let after = (
+            self.state.cursor,
+            self.state.show_installed,
+            self.state.install.clone(),
+        );
+        if before == after {
+            Response::from(Outcome::Ignored)
         } else {
-            Outcome::Ignored
+            Response::changed()
         }
-    }
-
-    fn sync_query_from_input(&mut self) -> Outcome {
-        if self.filter.text() == self.state.query() {
-            return Outcome::Ignored;
-        }
-        self.state.set_query(self.filter.text());
-        self.project_domain_to_widgets();
-        Outcome::Changed
-    }
-
-    fn leave_filter(&mut self, focus: &mut Focus) -> Outcome {
-        let out = self.sync_query_from_input();
-        self.filter.commit();
-        self.state.filtering = false;
-        let id = self.primary_focus();
-        focus.focus(id);
-        out.or(Outcome::Changed)
-    }
-
-    pub(crate) fn key(
-        &mut self,
-        key: &Key,
-        focus: &mut Focus,
-        _ring: &FocusRing,
-    ) -> Response<PackageAction> {
-        if self.state.filtering() {
-            if key.is(KeyCode::Esc) || key.is(KeyCode::Enter) {
-                return self.leave_filter(focus).into();
-            }
-            let (out, action) = self.filter.on_key(key);
-            let out = out.or(self.sync_query_from_input());
-            if matches!(
-                action,
-                Some(InputAction::Committed | InputAction::CommittedTab { .. })
-            ) {
-                self.state.filtering = false;
-            }
-            return out.into();
-        }
-
-        if key.is_char('/') {
-            self.state.filtering = true;
-            focus.focus(S2_FILTER);
-            self.filter.begin_edit();
-            return Outcome::Changed.into();
-        }
-        if key.is(KeyCode::Enter) {
-            return Response::emit(PackageAction::Apply);
-        }
-        if key.is(KeyCode::Backspace) {
-            return Response::emit(PackageAction::Back);
-        }
-        if key.is_char('A') || key.is_char('a') {
-            self.state.apply(PackageKey::KeepAllVisible);
-            self.project_domain_to_widgets();
-            return Outcome::Changed.into();
-        }
-        if key.is_char('N') || key.is_char('n') {
-            self.state.apply(PackageKey::KeepNoneVisible);
-            self.project_domain_to_widgets();
-            return Outcome::Changed.into();
-        }
-
-        let group = self.focused_group(focus.current());
-        if let Some(group) = group {
-            let before = self.state.cursor();
-            let out = match self.lists.get_mut(&group) {
-                Some(list) => list.on_key(key),
-                None => Outcome::Ignored,
-            };
-            let out = out.or(self.sync_from_group(&group));
-            if matches!(key.code, KeyCode::Up | KeyCode::Down) && self.state.cursor() == before {
-                let boundary = self.move_group_boundary(key, focus);
-                if boundary != Outcome::Ignored {
-                    return boundary.into();
-                }
-            }
-            if out != Outcome::Ignored {
-                return out.into();
-            }
-        }
-        self.scroll.on_key(key).unwrap_or(Outcome::Ignored).into()
-    }
-
-    fn move_group_boundary(&mut self, key: &Key, focus: &mut Focus) -> Outcome {
-        let visible = self.state.visible_indices().len();
-        let target = match key.code {
-            KeyCode::Up => self.state.cursor().checked_sub(1),
-            KeyCode::Down if self.state.cursor() + 1 < visible => Some(self.state.cursor() + 1),
-            _ => None,
-        };
-        let Some(target) = target else {
-            return Outcome::Ignored;
-        };
-        self.state.set_cursor(target);
-        let Some((group, local)) = self.group_at_cursor() else {
-            return Outcome::Ignored;
-        };
-        if let Some(list) = self.lists.get_mut(&group) {
-            list.core.cursor = local;
-        }
-        focus.focus(S2_LIST.sub(&group));
-        Outcome::Changed
-    }
-
-    pub(crate) fn paste(&mut self, text: &str, focus: &Focus) -> Outcome {
-        if !self.state.filtering() && focus.current() != Some(S2_FILTER) {
-            return Outcome::Ignored;
-        }
-        self.filter.on_paste(text).or(self.sync_query_from_input())
-    }
-
-    pub(crate) fn blur(&mut self, change: FocusChange) -> Outcome {
-        if change.from != S2_FILTER {
-            return Outcome::Ignored;
-        }
-        let _ = self.filter.on_blur();
-        let out = self.sync_query_from_input();
-        self.state.filtering = false;
-        out
-    }
-
-    pub(crate) fn pointer(
-        &mut self,
-        ev: &PointerEvent,
-        focus: &mut Focus,
-    ) -> Response<PackageAction> {
-        if let Some(response) = self.filter.route(ev) {
-            if ev.is(Phase::Click) {
-                self.state.filtering = true;
-            }
-            let out = response.outcome().or(self.sync_query_from_input());
-            return out.into();
-        }
-        let groups: Vec<String> = self.lists.keys().cloned().collect();
-        for group in groups {
-            let response = self.lists.get_mut(&group).and_then(|list| list.route(ev));
-            if let Some(response) = response {
-                if ev.is(Phase::Click) {
-                    focus.focus(S2_LIST.sub(&group));
-                }
-                let out = response.outcome().or(self.sync_from_group(&group));
-                return out.into();
-            }
-        }
-        if let Some(response) = self.scroll.pointer(ev) {
-            return response.lift();
-        }
-        Response::ignored()
     }
 
     pub(crate) fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
-        self.project_domain_to_widgets();
         let theme: Theme = *ctx.theme;
-        let bg: Color = theme.canvas;
-        render_header(
+        let bg = theme.canvas;
+        let marks = Marks::for_theme(&theme);
+        paint::clear(buf, area, bg);
+        render_step_header(
             2,
-            "Packages",
+            "Review and confirm",
             Rect::new(area.x, area.y, area.width, 1),
             buf,
             &theme,
         );
-        let body = Rect::new(
-            area.x,
-            area.y + 1,
-            area.width,
-            area.height.saturating_sub(3),
-        );
-        let input_area = Rect::new(body.x, body.y, body.width, 3.min(body.height));
-        self.filter.render(input_area, buf, ctx, bg);
-        let groups_area = Rect::new(
-            body.x,
-            body.y + 3.min(body.height),
-            body.width,
-            body.height.saturating_sub(3),
-        );
-        let groups = self.state.group_order();
-        let height = groups.iter().fold(0u16, |height, (_, indices)| {
-            height.saturating_add(group_height(indices.len()))
-        });
-        let lists = &mut self.lists;
-        self.scroll.render(
-            groups_area,
-            Size::new(groups_area.width, height),
-            buf,
-            ctx,
-            |content, buf, ctx| {
-                let mut y = content.y;
-                for (group, indices) in &groups {
-                    let group_area =
-                        Rect::new(content.x, y, content.width, group_height(indices.len()));
-                    let inner = Panel::card(Some(group.as_str())).render(group_area, buf, &theme);
-                    if let Some(list) = lists.get_mut(group) {
-                        list.render(inner, buf, ctx, bg);
-                    }
-                    y = y.saturating_add(group_height(indices.len()));
-                }
-            },
-        );
-        let (kept, total) = self.state.counts();
-        render_hints(
-            &[
-                ("Space", "toggle"),
-                ("A", "keep-all"),
-                ("N", "keep-none"),
-                ("/", "filter"),
-                ("Enter", "apply"),
-                ("Bksp", "back"),
-            ],
-            Rect::new(area.x, area.bottom().saturating_sub(2), area.width, 1),
-            buf,
-            &theme,
-        );
-        render_status(
-            &format!("S2 · keeping {kept} of {total}"),
+        let width = area.width.saturating_sub(2);
+        let headline = if self.state.is_checking() {
+            "Checking what this Mac already has...".to_string()
+        } else if self.state.changing().is_empty() && self.state.settings_groups == 0 {
+            "This Mac already matches. Applying again is safe: it only changes what differs."
+                .to_string()
+        } else {
+            "This will change this Mac. Review, then apply.".to_string()
+        };
+        let lead = if self.state.is_checking() {
+            format!("{} ", marks.frame(ctx.interaction.tick))
+        } else {
+            String::new()
+        };
+        // Wrap instead of truncating: a narrow terminal must still show every word.
+        let headline_lines = paint::wrap(&format!("{lead}{headline}"), width as usize);
+        for (i, text) in headline_lines.iter().enumerate() {
+            put(
+                buf,
+                area.x + 1,
+                area.y + 1 + i as u16,
+                width,
+                &[bold(text.clone(), Tone::Normal)],
+                &theme,
+                bg,
+            );
+        }
+        let summary: Vec<String> = self
+            .state
+            .summary()
+            .iter()
+            .flat_map(|line| paint::wrap(line, area.width.saturating_sub(4) as usize))
+            .collect();
+        let box_top = area.y + 1 + headline_lines.len() as u16;
+        let box_area = Rect::new(area.x, box_top, area.width, summary.len() as u16 + 2);
+        let inner = framed(box_area, buf, &theme, bg, "What will happen");
+        for (i, line) in summary.iter().enumerate() {
+            put(
+                buf,
+                inner.x,
+                inner.y + i as u16,
+                inner.width,
+                &[seg(line.clone(), Tone::Normal)],
+                &theme,
+                bg,
+            );
+        }
+        let list_top = box_area.bottom();
+        let list_bottom = area.bottom().saturating_sub(2);
+        if !self.state.is_checking() && list_bottom > list_top + 1 {
+            let changing = self.state.changing().len();
+            let title = if changing == 0 {
+                "No packages to install".to_string()
+            } else {
+                format!("Packages to install ({changing})")
+            };
+            let mut head = vec![bold(format!(" {title}"), Tone::Normal)];
+            if changing > 0 {
+                head.push(seg("   Space: Install / Skip this time", Tone::Muted));
+            }
+            put(buf, area.x, list_top, area.width, &head, &theme, bg);
+            let rows = self.state.list_rows(&marks, width as usize);
+            let room = (list_bottom - list_top - 1) as usize;
+            let start = self.state.cursor.saturating_sub(room.saturating_sub(1));
+            for (i, row) in rows.iter().skip(start).take(room).enumerate() {
+                put(
+                    buf,
+                    area.x,
+                    list_top + 1 + i as u16,
+                    area.width,
+                    row,
+                    &theme,
+                    bg,
+                );
+            }
+            if rows.len() > start + room {
+                put(
+                    buf,
+                    area.x,
+                    list_bottom - 1,
+                    area.width,
+                    &[seg(
+                        format!("   {} more below", rows.len() - start - room),
+                        Tone::Muted,
+                    )],
+                    &theme,
+                    bg,
+                );
+            }
+        }
+        let primary_y = area.bottom().saturating_sub(2);
+        if self.state.is_checking() {
+            put(
+                buf,
+                area.x + 1,
+                primary_y,
+                width,
+                &[seg("Checking before you can apply...", Tone::Muted)],
+                &theme,
+                bg,
+            );
+        } else {
+            primary_line(
+                Rect::new(area.x, primary_y, area.width, 1),
+                buf,
+                &theme,
+                bg,
+                "Enter",
+                "Apply now",
+            );
+        }
+        footer(
             Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),
             buf,
-            ctx,
+            &theme,
+            &self.state.hints(),
         );
     }
+}
+
+/// Group rows by the first declaring module (used by tests and summaries).
+pub fn rows_by_module(rows: &[PackageRow]) -> HashMap<String, Vec<String>> {
+    let mut map: HashMap<String, Vec<String>> = HashMap::new();
+    for row in rows {
+        map.entry(row.group().to_string())
+            .or_default()
+            .push(row.spec());
+    }
+    map
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use junie_tui::core::event::Key;
-    use ratatui::crossterm::event::{KeyCode, KeyModifiers};
-
-    fn origins() -> HashMap<ResId, Vec<String>> {
-        let mut map = HashMap::new();
-        map.insert(
-            ResId {
-                kind: "brew".to_string(),
-                name: "ripgrep".to_string(),
-            },
-            vec!["neovim".to_string()],
-        );
-        map.insert(
-            ResId {
-                kind: "brew".to_string(),
-                name: "starship".to_string(),
-            },
-            vec!["neovim".to_string(), "shell".to_string()],
-        );
-        map.insert(
-            ResId {
-                kind: "npm".to_string(),
-                name: "pyright".to_string(),
-            },
-            vec!["shell".to_string()],
-        );
-        map
-    }
-
-    fn selected() -> Vec<String> {
-        vec!["neovim".to_string(), "shell".to_string()]
-    }
+    use ratatui::crossterm::event::KeyModifiers;
 
     fn key(code: KeyCode) -> Key {
         Key {
@@ -764,132 +611,168 @@ mod tests {
         }
     }
 
-    fn char_key(c: char) -> Key {
-        Key {
-            code: KeyCode::Char(c),
-            mods: KeyModifiers::empty(),
+    fn ch(c: char) -> Key {
+        key(KeyCode::Char(c))
+    }
+
+    fn origins() -> HashMap<ResId, Vec<String>> {
+        let mut map = HashMap::new();
+        for (kind, name, module) in [
+            ("brew", "bat", "alpha"),
+            ("brew", "jq", "alpha"),
+            ("brew-cask", "example-editor", "beta"),
+        ] {
+            map.insert(
+                ResId {
+                    kind: kind.to_string(),
+                    name: name.to_string(),
+                },
+                vec![module.to_string()],
+            );
+        }
+        map
+    }
+
+    const STATUS: &str = r#"{"packages":{
+      "brew":{"available":true,"packages":[
+        {"package":"bat","desired_state":"present","state":"installed"},
+        {"package":"jq","desired_state":"present","state":"missing"}]},
+      "brew-cask":{"available":true,"packages":[
+        {"package":"example-editor","desired_state":"present","state":"missing"}]}},
+      "macos_defaults":{"entries":[{"domain":"d","key":"k","value":1,"current":"2","state":"differs"}]}}"#;
+
+    fn reviewed() -> PackagesState {
+        let rows = package_rows(&["alpha".to_string(), "beta".to_string()], &origins());
+        let mut state = PackagesState::new(rows, 2).with_arm_delay(Duration::ZERO);
+        state.apply_check(Ok(StatusReport::parse(STATUS, "t").unwrap()));
+        state
+    }
+
+    #[test]
+    fn lists_only_what_changes_and_counts_the_rest() {
+        let state = reviewed();
+        let shown: Vec<String> = state
+            .visible()
+            .iter()
+            .map(|&i| state.rows[i].spec())
+            .collect();
+        assert_eq!(shown, vec!["brew:jq", "brew-cask:example-editor"]);
+        let summary = state.summary().join("\n");
+        assert!(
+            summary.contains("2 modules · 2 packages to install (1 already installed) · 1 group of settings to update"),
+            "{summary}"
+        );
+        assert!(summary.contains("administrator password once"), "{summary}");
+    }
+
+    #[test]
+    fn space_toggles_install_and_skip_and_skipped_specs_are_named() {
+        let mut state = reviewed();
+        state.on_key(&key(KeyCode::Down));
+        state.on_key(&ch(' '));
+        assert_eq!(state.install_specs(), vec!["brew:jq"]);
+        assert_eq!(state.skipped_specs(), vec!["brew-cask:example-editor"]);
+        state.on_key(&ch('n'));
+        assert!(state.install_specs().is_empty());
+        state.on_key(&ch('a'));
+        assert_eq!(state.install_specs().len(), 2);
+    }
+
+    #[test]
+    fn h_shows_installed_packages_and_they_cannot_be_toggled() {
+        let mut state = reviewed();
+        state.on_key(&ch('h'));
+        assert_eq!(state.visible().len(), 3);
+        let installed = state.rows.iter().position(|r| r.name == "bat").unwrap();
+        let pos = state
+            .visible()
+            .iter()
+            .position(|&i| i == installed)
+            .unwrap();
+        state.cursor = pos;
+        state.on_key(&ch(' '));
+        assert!(
+            state.will_install(installed),
+            "installed rows keep their state"
+        );
+        assert!(state.skipped_specs().is_empty());
+    }
+
+    #[test]
+    fn enter_is_ignored_while_checking_and_right_after_opening() {
+        let rows = package_rows(&["alpha".to_string()], &origins());
+        let mut checking = PackagesState::new(rows.clone(), 1).with_arm_delay(Duration::ZERO);
+        assert_eq!(checking.on_key(&key(KeyCode::Enter)), PackageAction::None);
+        let mut fresh = PackagesState::new(rows, 1).with_arm_delay(Duration::from_secs(60));
+        fresh.apply_check(Ok(StatusReport::parse(STATUS, "t").unwrap()));
+        assert_eq!(
+            fresh.on_key(&key(KeyCode::Enter)),
+            PackageAction::None,
+            "held key"
+        );
+        let mut armed = reviewed();
+        assert_eq!(armed.on_key(&key(KeyCode::Enter)), PackageAction::Apply);
+    }
+
+    #[test]
+    fn failed_check_lists_every_package_and_says_so() {
+        let rows = package_rows(&["alpha".to_string()], &origins());
+        let mut state = PackagesState::new(rows, 1).with_arm_delay(Duration::ZERO);
+        state.apply_check(Err("mise exited 1".to_string()));
+        assert_eq!(state.visible().len(), 2);
+        assert!(
+            state
+                .summary()
+                .join("\n")
+                .contains("Could not check this Mac (mise exited 1)")
+        );
+    }
+
+    #[test]
+    fn keys_back_and_quit() {
+        let mut state = reviewed();
+        assert_eq!(state.on_key(&key(KeyCode::Esc)), PackageAction::Back);
+        assert_eq!(state.on_key(&ch('q')), PackageAction::Quit);
+    }
+
+    #[test]
+    fn every_listed_key_does_something() {
+        let base = reviewed();
+        for (label, _) in base.hints() {
+            let mut s = reviewed();
+            let before = (s.cursor, s.show_installed, s.install.clone());
+            let k = match label {
+                "↑↓" => key(KeyCode::Down),
+                "Space" => ch(' '),
+                "a" => ch('n'),
+                "n" => ch('n'),
+                "h" => ch('h'),
+                "Esc" => key(KeyCode::Esc),
+                "q" => ch('q'),
+                "?" => continue,
+                other => panic!("unmapped hint {other}"),
+            };
+            let action = s.on_key(&k);
+            assert!(
+                action != PackageAction::None
+                    || before != (s.cursor, s.show_installed, s.install.clone()),
+                "{label} did nothing"
+            );
         }
     }
 
     #[test]
-    fn rows_dedupe_shared_packages_under_first_env() {
-        let rows = package_rows(&selected(), &origins());
-        assert_eq!(rows.len(), 3);
-        let starship = rows
-            .iter()
-            .find(|r| r.name == "starship")
-            .expect("starship row");
-        assert_eq!(
-            starship.declared_by,
-            vec!["neovim".to_string(), "shell".to_string()]
+    fn rows_dedupe_shared_packages_under_first_module() {
+        let mut map = origins();
+        map.insert(
+            ResId {
+                kind: "brew".into(),
+                name: "bat".into(),
+            },
+            vec!["alpha".into(), "beta".into()],
         );
-        assert_eq!(starship.group(), "neovim");
-        // Deterministic within-env order: brew:ripgrep before brew:starship.
-        let neovim: Vec<&str> = rows
-            .iter()
-            .filter(|r| r.group() == "neovim")
-            .map(|r| r.name.as_str())
-            .collect();
-        assert_eq!(neovim, vec!["ripgrep", "starship"]);
-    }
-
-    #[test]
-    fn toggle_flips_keep_and_counts() {
-        let mut state = PackagesState::new(package_rows(&selected(), &origins()));
-        assert_eq!(state.counts(), (3, 3));
-        assert_eq!(state.apply(PackageKey::Toggle), PackageAction::None);
-        assert_eq!(state.counts(), (2, 3));
-        assert!(!state.is_kept("brew", "ripgrep"));
-        assert_eq!(state.apply(PackageKey::Toggle), PackageAction::None);
-        assert_eq!(state.counts(), (3, 3));
-    }
-
-    #[test]
-    fn keep_all_and_none_scope_to_visible() {
-        let mut state = PackagesState::new(package_rows(&selected(), &origins()));
-        state.set_query("starship");
-        assert_eq!(
-            state.apply(PackageKey::KeepNoneVisible),
-            PackageAction::None
-        );
-        assert_eq!(state.kept_specs().len(), 2);
-        assert!(!state.is_kept("brew", "starship"));
-        assert_eq!(state.apply(PackageKey::KeepAllVisible), PackageAction::None);
-        assert_eq!(state.counts(), (3, 3));
-    }
-
-    #[test]
-    fn empty_keep_means_apply_base_only() {
-        let mut state = PackagesState::new(package_rows(&selected(), &origins()));
-        assert!(!state.apply_base_only());
-        assert_eq!(
-            state.apply(PackageKey::KeepNoneVisible),
-            PackageAction::None
-        );
-        // No filter: all rows visible, all cleared.
-        assert!(state.apply_base_only());
-        assert!(state.kept_specs().is_empty());
-    }
-
-    #[test]
-    fn hidden_rows_keep_state() {
-        let mut state = PackagesState::new(package_rows(&selected(), &origins()));
-        assert_eq!(state.apply(PackageKey::Toggle), PackageAction::None);
-        assert!(!state.is_kept("brew", "ripgrep"));
-        state.set_query("pyright");
-        assert_eq!(state.visible_indices().len(), 1);
-        assert!(!state.is_kept("brew", "ripgrep"));
-        state.set_query("");
-        assert!(!state.is_kept("brew", "ripgrep"));
-        assert!(state.is_kept("brew", "starship"));
-    }
-
-    #[test]
-    fn keys_match_section_3() {
-        let state = PackagesState::new(package_rows(&selected(), &origins()));
-        assert_eq!(state.map_key(&char_key(' ')), Some(PackageKey::Toggle));
-        assert_eq!(
-            state.map_key(&char_key('A')),
-            Some(PackageKey::KeepAllVisible)
-        );
-        assert_eq!(
-            state.map_key(&char_key('a')),
-            Some(PackageKey::KeepAllVisible)
-        );
-        assert_eq!(
-            state.map_key(&char_key('N')),
-            Some(PackageKey::KeepNoneVisible)
-        );
-        assert_eq!(state.map_key(&char_key('/')), Some(PackageKey::FilterMode));
-        assert_eq!(state.map_key(&key(KeyCode::Enter)), Some(PackageKey::Apply));
-        assert_eq!(
-            state.map_key(&key(KeyCode::Backspace)),
-            Some(PackageKey::Back)
-        );
-        assert_eq!(state.map_key(&key(KeyCode::Esc)), None);
-        assert_eq!(state.map_key(&char_key('q')), None);
-    }
-
-    #[test]
-    fn groups_render_as_sections_with_meta() {
-        let state = PackagesState::new(package_rows(&selected(), &origins()));
-        let sections = state.group_sections();
-        assert_eq!(sections.len(), 2);
-        assert_eq!(sections[0].0, "neovim");
-        assert_eq!(sections[1].0, "shell");
-        assert!(
-            sections[0]
-                .1
-                .iter()
-                .all(|i| i.meta.as_deref().is_some_and(|m| m.contains("kept")))
-        );
-        assert!(!state.detail_props().is_empty());
-    }
-
-    #[test]
-    fn apply_and_back_actions() {
-        let mut state = PackagesState::new(package_rows(&selected(), &origins()));
-        assert_eq!(state.apply(PackageKey::Apply), PackageAction::Apply);
-        assert_eq!(state.apply(PackageKey::Back), PackageAction::Back);
+        let rows = package_rows(&["alpha".to_string(), "beta".to_string()], &map);
+        assert_eq!(rows.iter().filter(|r| r.name == "bat").count(), 1);
+        assert_eq!(rows_by_module(&rows)["alpha"].len(), 2);
     }
 }

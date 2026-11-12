@@ -109,6 +109,9 @@ emc [--mise PATH] [--config-dir DIR] [-E/--env …] [-y/--yes] [-v…|-q] <CMD>
 
 ## 3. TUI screens (P1)
 
+> Superseded by `screens.md` (four steps, new keys, typed status, exit codes). The
+> text below is the original design record.
+
 Global chrome: `PageHeader` (`src/widgets/page_header.rs:9`), `StatusBar`
 (`:124`), `HintBar` (`src/widgets/hintbar.rs:67` + `HintKeys` `:70`),
 `TerminalSession::enter/leave` + free `runtime::run` (`src/runtime.rs:208,249,363`)

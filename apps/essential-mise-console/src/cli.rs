@@ -12,18 +12,24 @@ use std::path::{Path, PathBuf};
 
 use super::backend::{Action, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend};
 
-/// Exit 0: ok.
+/// Exit 0: ok. For the console: nothing differs, or you left before any work.
 pub const EXIT_OK: u8 = 0;
-/// Exit 1: a part failed (or usage error).
+/// Exit 1: a part failed (or usage error). For the console: the apply stopped,
+/// the check failed, or you pressed Ctrl+C.
 pub const EXIT_ERROR: u8 = 1;
 /// Exit 3: partial apply (phase 1 ok, phase 2 failed). 2 is taken by plan
-/// would-change, so partial apply must not reuse it.
+/// would-change, so partial apply must not reuse it. For the console: changes
+/// are still pending when you leave.
 pub const EXIT_PARTIAL: u8 = 3;
 
 /// `essential-mise-console`: module multi-select, package checklist,
 /// two-phase apply, and verify over stock `mise bootstrap`.
 #[derive(Debug, Clone, clap::Parser)]
-#[command(name = "essential-mise-console", version)]
+#[command(
+    name = "essential-mise-console",
+    version,
+    after_help = "Exit codes: 0 done (nothing differs, or you left before any work), 3 changes are still pending, 1 error, stopped apply or cancel."
+)]
 pub struct Cli {
     /// Use this `mise` binary instead of `mise` on `PATH`.
     #[arg(long, global = true, value_name = "PATH")]
@@ -269,7 +275,9 @@ fn run_lint(cli: &Cli, out: &mut dyn std::io::Write) -> u8 {
 /// fixtures plus canned S2 origins for the fixture envs
 /// (`neovim`, `terminal`, `shell`). `EMC_MOCK_FAIL=packages|base` scripts a
 /// phase failure. `EMC_MOCK_DELAY_MS` keeps the worker active for live-state
-/// and cancellation journeys.
+/// and cancellation journeys. `EMC_MOCK_STATUS=differs` makes the machine need
+/// one change; `differs-then-clean` fixes it after the first apply. `EMC_MOCK_FOLLOW_UPS=1` makes a successful apply
+/// log the relaunch hint and a skipped plugin hook.
 pub fn mock_backend() -> super::backend::mock::MockBackend {
     use super::backend::ApplyPhase;
     let mut mock = super::backend::mock::MockBackend::new()
@@ -278,6 +286,14 @@ pub fn mock_backend() -> super::backend::mock::MockBackend {
         .with_origin("brew", "starship", &["terminal", "shell"])
         .with_origin("brew", "bat", &["terminal"])
         .with_origin("npm", "pyright", &["shell"]);
+    match std::env::var("EMC_MOCK_STATUS").as_deref() {
+        Ok("differs") => mock = mock.with_status_differs(false),
+        Ok("differs-then-clean") => mock = mock.with_status_differs(true),
+        _ => {}
+    }
+    if std::env::var_os("EMC_MOCK_FOLLOW_UPS").is_some() {
+        mock = mock.with_follow_up_log();
+    }
     match std::env::var("EMC_MOCK_FAIL").as_deref() {
         Ok("packages") => mock = mock.with_failure(ApplyPhase::Packages),
         Ok("base") => mock = mock.with_failure(ApplyPhase::Base),
@@ -297,7 +313,7 @@ pub fn run_tui(
     backend: std::sync::Arc<dyn Backend>,
     cli: &Cli,
     screen: Option<TuiScreen>,
-    _out: &mut dyn std::io::Write,
+    out: &mut dyn std::io::Write,
 ) -> u8 {
     if let Err(e) = backend.authenticate() {
         eprintln!("essential-mise-console: cannot start the console: {e}");
@@ -315,11 +331,26 @@ pub fn run_tui(
         app.jump_to(screen);
     }
     match junie_tui::runtime::run(&mut app) {
-        Ok(()) => app.exit_code().unwrap_or(EXIT_ERROR),
+        Ok(()) => {
+            write_exit_summary(out, &app.exit_summary());
+            app.exit_code().unwrap_or(EXIT_ERROR)
+        }
         Err(e) => {
             eprintln!("essential-mise-console: console loop failed: {e}");
             EXIT_ERROR
         }
+    }
+}
+
+/// Print the closing summary to the normal terminal (the console used the
+/// alternate screen, so nothing of it would otherwise remain).
+pub fn write_exit_summary(out: &mut dyn std::io::Write, lines: &[String]) {
+    if lines.is_empty() {
+        return;
+    }
+    let _ = writeln!(out);
+    for line in lines {
+        let _ = writeln!(out, "{line}");
     }
 }
 
@@ -445,6 +476,7 @@ fn run_apply(
         manager: manager.map(|m| m.to_string()),
         skip_parts: skip.to_vec(),
         only_parts: only.to_vec(),
+        run_base: true,
         update,
         upgrade,
         dry_run,

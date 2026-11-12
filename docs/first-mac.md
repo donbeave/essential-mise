@@ -23,7 +23,7 @@ The launcher does three things (`[1/3]` to `[3/3]`): it checks for Apple silicon
 5. Adoption of the config repository into the config directory. The headers are read here; an invalid header or an unmet `min_console` stops setup.
 6. The base modules (`#: base = true`).
 
-The module-selection TUI then opens. Select modules with Space, press Enter to review packages, and confirm the apply.
+The module-selection TUI then opens. Select modules with Space and press Enter to review what will change. The review lists only what is not installed or set yet; Space chooses Install or Skip this time per package, and Enter on "Apply now" starts the apply. The last step says whether the Mac matches your config, and what to do next if it does not.
 
 The default config directory is `~/.config/mise`; `XDG_CONFIG_HOME` changes its parent and `MISE_CONFIG_DIR` selects an explicit path. Unsafe aliases, symlinked path components, colon-containing paths, bare repositories, repository subdirectories, and a conflicting `origin` fail closed. A nonempty non-Git target is preserved and stops setup; move it aside first. Rerunning the launcher skips adoption, does not pull, and reopens the TUI.
 

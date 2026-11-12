@@ -63,7 +63,9 @@ impl App {
             .with_env("LANG", "C.UTF-8")
             .with_env("LC_ALL", "C.UTF-8")
             .with_env("TZ", "UTC")
-            .with_env("EMC_MOCK", "1");
+            .with_env("EMC_MOCK", "1")
+            // A held Enter must not start an apply; tests press keys fast.
+            .with_env("EMC_REVIEW_ARM_MS", "0");
         for (k, v) in extra_env {
             launch = launch.with_env(k, v);
         }
@@ -266,13 +268,13 @@ impl App {
     }
 
     /// Send a quit key, then wait for process exit.
-    pub fn finish_with_key(&self, key: &str) {
+    pub fn finish_with_key(&self, key: &str) -> Option<i32> {
         self.key(key);
-        self.finish_wait();
+        self.finish_wait()
     }
 
     /// Wait for process exit (the app already quit itself).
-    pub fn finish_wait(&self) {
+    pub fn finish_wait(&self) -> Option<i32> {
         self.session
             .execute(Operation::WaitExit {
                 timeout_ms: Some(10_000),
@@ -284,6 +286,7 @@ impl App {
             panic!("missing exit state");
         };
         self.log(format!("exit {:?}", state.exited));
+        state.exited
     }
 
     fn assert_running(&self, reason: &str) {

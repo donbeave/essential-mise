@@ -1,6 +1,8 @@
-//! Screen baselines (one per screen, S1–S4, plus the S3 failure modal)
-//! and the PTY-driven journey. Screens render with `MockBackend`
-//! (`EMC_MOCK=1`); the failure modal adds `EMC_MOCK_FAIL=packages`.
+//! Screen baselines for the four steps and the PTY-driven journeys, including
+//! exit codes. Screens render with `MockBackend` (`EMC_MOCK=1`);
+//! `EMC_MOCK_FAIL=packages` scripts a failed apply, `EMC_MOCK_STATUS=differs`
+//! makes the machine need one change, `EMC_MOCK_FOLLOW_UPS=1` adds the log
+//! lines behind the follow-ups.
 
 use std::path::PathBuf;
 
@@ -29,45 +31,50 @@ fn app(name: &str, extra_env: &[(&str, &str)]) -> App {
 }
 
 #[test]
-fn s1_modules_matches_baseline() {
+fn step1_choose_modules_matches_baseline() {
     let app = app("s1-modules", &[]);
     app.wait_text("terminal");
     app.visual("emc/s1-modules");
-    app.finish_with_key("escape");
+    assert_eq!(
+        app.finish_with_key("escape"),
+        Some(0),
+        "quitting before any work is not a failure"
+    );
 }
 
 #[test]
-fn s2_packages_matches_baseline() {
-    let app = app("s2-packages", &[]);
+fn step2_review_matches_baseline_and_esc_goes_back() {
+    let app = app("s2-review", &[]);
     app.wait_text("terminal");
-    // Select everything, then continue to the checklist.
     app.key("a");
     app.key("enter");
-    app.wait_text("ripgrep");
+    app.wait_text("Apply now");
     app.visual("emc/s2-packages");
-    // Back out and quit: S2 → S1 → Esc.
-    app.key("backspace");
-    app.wait_text("terminal");
-    app.finish_with_key("escape");
+    app.key("escape");
+    app.wait_text("Choose modules");
+    assert_eq!(app.finish_with_key("q"), Some(0));
 }
 
 #[test]
-fn s1_filter_accepts_typed_query() {
+fn s1_search_accepts_typed_query_and_paste() {
     let app = app("s1-filter-typing", &[]);
     app.wait_text("terminal");
     app.key("/");
     for key in ["g", "h", "o", "s", "t", "t", "y"] {
         app.key(key);
     }
-    app.wait_text("showing 1");
     app.wait_absent("neovim");
     app.key("escape");
-    app.finish_with_key("escape");
+    app.key("/");
+    app.expect_cursor_visible();
+    app.paste("x");
+    app.key("escape");
+    assert_eq!(app.finish_with_key("escape"), Some(0));
 }
 
 #[test]
-fn s2_arrow_navigation_toggles_the_cursor_row() {
-    let app = app("s2-arrow-navigation", &[]);
+fn step2_space_skips_a_package_this_time() {
+    let app = app("s2-skip", &[]);
     app.wait_text("terminal");
     app.key("enter");
     app.wait_text("starship");
@@ -77,166 +84,167 @@ fn s2_arrow_navigation_toggles_the_cursor_row() {
     let point = super::support::find(&screen, "starship");
     let row = super::support::row_text(&screen, point.y.into());
     assert!(
-        row.contains("omitted"),
-        "Down then Space must omit starship, not the first row: {row}"
+        row.contains("skipped this time"),
+        "Down then Space must skip starship, not the first row: {row}"
     );
-    app.key("backspace");
-    app.wait_text("terminal");
-    app.finish_with_key("escape");
+    app.key("q");
+    app.finish_wait();
 }
 
 #[test]
-fn s3_apply_and_s4_result_match_baselines() {
+fn step3_success_moves_on_to_a_clean_result_and_enter_exits_zero() {
     let app = app("s3-s4", &[]);
     app.wait_text("terminal");
     app.key("enter");
     app.wait_text("starship");
     app.key("enter");
-    app.wait_text("Apply complete");
-    app.visual("emc/s3-apply");
-    app.key("enter");
-    app.wait_text("4/4 Result");
+    app.wait_text("Step 4 of 4 · Done");
     app.visual("emc/s4-result");
-    app.key("enter");
-    app.finish_wait();
+    assert_eq!(app.finish_with_key("enter"), Some(0));
 }
 
 #[test]
-fn s3_failure_modal_matches_baseline() {
+fn step4_result_without_colour_still_matches_a_baseline() {
+    let app = app("s4-no-color", &[("NO_COLOR", "1")]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.wait_text("starship");
+    app.key("enter");
+    app.wait_text("Step 4 of 4 · Done");
+    app.visual("emc/s4-result-no-color");
+    assert_eq!(app.finish_with_key("enter"), Some(0));
+}
+
+#[test]
+fn step4_needs_attention_names_the_change_and_quit_exits_three() {
+    let app = app("s4-pending", &[("EMC_MOCK_STATUS", "differs")]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.wait_text("starship");
+    app.key("enter");
+    app.wait_text("Step 4 of 4 · Needs attention");
+    app.wait_text("1 of 67 values differs");
+    app.visual("emc/s4-needs-attention");
+    app.key("q");
+    app.wait_text("Quit with 1 area");
+    assert_eq!(app.finish_with_key("y"), Some(3));
+    // The summary and the command survive in the normal terminal.
+    let after = super::support::text(&app.screen());
+    assert!(after.contains("Needs changes: macOS settings"), "{after}");
+    assert!(after.contains("$ mise -C"), "{after}");
+    assert!(after.contains("bootstrap --only macos-defaults"), "{after}");
+}
+
+#[test]
+fn step4_details_and_help_overlay_open_and_close() {
+    let app = app("s4-details", &[("EMC_MOCK_STATUS", "differs")]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.wait_text("starship");
+    app.key("enter");
+    app.wait_text("Step 4 of 4 · Needs attention");
+    app.key("d");
+    app.wait_text("com.apple.dock tilesize");
+    app.key("escape");
+    app.wait_absent("Command that Enter runs");
+    app.key("?");
+    app.wait_text("Words used here");
+    app.key("escape");
+    app.wait_absent("Words used here");
+    app.key("q");
+    assert_eq!(app.finish_with_key("y"), Some(3));
+}
+
+#[test]
+fn step3_failure_shows_the_stopped_banner_and_matches_baseline() {
     let app = app("s3-failed", &[("EMC_MOCK_FAIL", "packages")]);
     app.wait_text("terminal");
     app.key("enter");
     app.wait_text("starship");
     app.key("enter");
-    app.wait_text("Apply failed");
+    app.wait_text("Stopped at: Packages");
     app.visual("emc/s3-failed");
-    app.key("enter");
-    app.wait_text("4/4 Result");
-    app.key("enter");
-    app.finish_wait();
+    assert_eq!(
+        app.finish_with_key("q"),
+        Some(1),
+        "a stopped apply is an error exit"
+    );
 }
 
 #[test]
-fn s1_filter_paste_focus_and_continue_click() {
-    let app = app("s1-filter-paste-focus", &[]);
-    app.wait_text("terminal");
-    app.key("/");
-    app.expect_cursor_visible();
-    app.paste("ghostty");
-    app.wait_text("showing 1");
-    app.wait_absent("neovim");
-    app.key("escape");
-    app.click_text("Continue");
-    app.wait_text("starship");
-    app.key("backspace");
-    app.wait_text("terminal");
-    app.finish_with_key("escape");
-}
-
-#[test]
-fn s2_marker_click_toggles_the_clicked_row() {
-    let app = app("s2-marker-click", &[]);
-    app.wait_text("terminal");
-    app.key("enter");
-    let point = app.point("starship");
-    app.click(super::support::Point {
-        x: point.x.saturating_sub(3),
-        y: point.y,
-    });
-    let screen = app.stable_screen();
-    let point = super::support::find(&screen, "starship");
-    let row = super::support::row_text(&screen, point.y.into());
-    assert!(row.contains("omitted"), "clicked row must toggle: {row}");
-    app.key("backspace");
-    app.wait_text("terminal");
-    app.finish_with_key("escape");
-}
-
-#[test]
-fn s3_cancel_dialog_dismisses_and_confirms() {
+fn step3_stop_asks_first_then_offers_try_again() {
     let app = app("s3-cancel-dialog", &[("EMC_MOCK_DELAY_MS", "5000")]);
     app.wait_text("terminal");
     app.key("enter");
+    app.wait_text("starship");
     app.key("enter");
-    app.wait_text("Applying base configuration");
+    app.wait_text("Setting up your Mac");
     app.key("escape");
-    app.wait_text("Cancel apply?");
-    app.key("enter");
-    app.wait_absent("Cancel apply?");
+    app.wait_text("Stop applying?");
     app.key("escape");
-    app.key("right");
-    app.key("enter");
-    app.wait_text("Apply cancelled");
-    app.key("enter");
-    app.wait_text("4/4 Result");
-    app.key("enter");
-    app.finish_wait();
-}
-
-#[test]
-fn s3_running_shows_activity_instead_of_empty_zero_percent() {
-    let app = app("s3-running", &[("EMC_MOCK_DELAY_MS", "5000")]);
-    app.wait_text("terminal");
-    app.key("enter");
-    app.key("enter");
-    app.wait_text("Applying base configuration");
-    app.wait_text("phase 1: base");
-    app.wait_absent("0%");
-    app.wait_absent("Enter done");
+    app.wait_absent("Stop applying?");
     app.key("escape");
     app.key("right");
     app.key("enter");
-    app.wait_text("Apply cancelled");
-    app.key("enter");
-    app.wait_text("4/4 Result");
-    app.key("enter");
-    app.finish_wait();
+    app.wait_text("Stopped. Some changes may already have been made.");
+    app.wait_text("Try again");
+    assert_eq!(app.finish_with_key("q"), Some(1));
 }
 
 #[test]
-fn s3_failure_copy_reaches_terminal_clipboard() {
+fn step3_failure_copy_reaches_terminal_clipboard() {
     let app = app("s3-failure-copy", &[("EMC_MOCK_FAIL", "packages")]);
     app.wait_text("terminal");
     app.key("enter");
+    app.wait_text("starship");
     app.key("enter");
-    app.wait_text("Apply failed");
-    app.key("y");
+    app.wait_text("Stopped at: Packages");
+    app.key("c");
     app.wait_clipboard("mise");
-    app.key("enter");
-    app.wait_text("4/4 Result");
-    app.key("enter");
-    app.finish_wait();
+    assert_eq!(app.finish_with_key("q"), Some(1));
 }
 
 #[test]
-fn s4_copy_reaches_terminal_clipboard() {
-    let app = app("s4-copy", &[]);
+fn step4_follow_up_command_reaches_terminal_clipboard() {
+    let app = app("s4-copy", &[("EMC_MOCK_FOLLOW_UPS", "1")]);
     app.wait_text("terminal");
     app.key("enter");
+    app.wait_text("starship");
     app.key("enter");
-    app.wait_text("Apply complete");
-    app.key("enter");
-    app.wait_text("4/4 Result");
+    app.wait_text("Step 4 of 4 · Done");
+    app.wait_text("Plugin hook skipped");
     app.key("c");
-    app.wait_clipboard("parts ok");
-    app.key("enter");
-    app.finish_wait();
+    app.wait_clipboard("killall Dock Finder SystemUIServer");
+    assert_eq!(app.finish_with_key("enter"), Some(0));
 }
 
 #[test]
-fn static_screen_resize_redraws_and_preserves_filtering() {
+fn step4_reapply_fixes_the_pending_area_and_finishes_clean() {
+    let app = app("s4-reapply", &[("EMC_MOCK_STATUS", "differs-then-clean")]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.wait_text("starship");
+    app.key("enter");
+    app.wait_text("Apply the 1 pending area again");
+    app.key("enter");
+    app.wait_text("Step 4 of 4 · Done");
+    assert_eq!(app.finish_with_key("enter"), Some(0));
+}
+
+#[test]
+fn static_screen_resize_redraws_and_keeps_the_footer_in_view() {
     let app = app("s1-resize", &[]);
     app.wait_text("terminal");
     app.resize(80, 24);
-    let screen = app.wait_text("S1 · search keeps selection");
+    let screen = app.wait_text("q quit");
     assert_eq!(screen.rows(), 24);
-    assert!(super::support::row_text(&screen, 23).contains("search keeps selection"));
+    assert!(super::support::row_text(&screen, 23).contains("q quit"));
+    assert!(super::support::row_text(&screen, 22).contains("Enter"));
     app.key("/");
     app.paste("ghostty");
-    app.wait_text("showing 1");
     app.wait_absent("neovim");
     app.key("escape");
-    app.finish_with_key("escape");
+    assert_eq!(app.finish_with_key("escape"), Some(0));
 }
 
 #[test]

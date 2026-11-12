@@ -1,15 +1,15 @@
-//! S1 Modules: environment multi-select with search and badges.
+//! Step 1: module multi-select with search.
 //!
 //! The screen owner retains the filter and list/detail widgets. Domain
-//! selection stays keyed by stable environment names; row and badge widgets
+//! selection stays keyed by stable environment names; row widgets
 //! use inventoried components only via the shared filter and chrome helpers.
 //!
 //! Environment names/descriptions come from the config repository's
 //! `#:` headers of the config files (`crate::metadata`). Pre-ticks come from
 //! the `env` key of `miserc.local.toml` (read-only).
-//! Badges: status drift anywhere conservative-marks drift; otherwise an
-//! env with no packages is pending and all-`noop` packages is installed
-//! (packages-only, since plan is blind to repos/dotfiles/shell).
+//! There is deliberately no per-module status marker: `mise bootstrap status`
+//! is not per module, so any marker would be a guess. The detail pane shows
+//! only facts read from the config files.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -21,7 +21,7 @@ use junie_tui::core::id::WidgetId;
 use junie_tui::core::intent::Phase;
 use junie_tui::core::pointer::{MouseTarget, PointerEvent};
 use junie_tui::core::response::Response;
-use junie_tui::theme::{ButtonKind, StatusKind, Theme, Tone};
+use junie_tui::theme::{ButtonKind, Theme, Tone};
 use junie_tui::ui::ctx::RenderCtx;
 use junie_tui::ui::layout::Split;
 use junie_tui::widgets::input::{InputAction, TextInput};
@@ -34,9 +34,10 @@ use ratatui::crossterm::event::KeyCode;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
 
-use super::chrome::{render_header, render_hints, render_status};
+use super::chrome::render_step_header;
 use super::filter::FilterState;
-use crate::backend::{Action, PlanEntry, ResId};
+use super::paint::{self, Marks, footer, primary_line, put, seg};
+use crate::backend::ResId;
 
 /// One selectable environment.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,45 +65,7 @@ pub fn read_preticks(path: &Path) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Per-environment badge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EnvBadge {
-    /// All known state clean (packages-only when plan-derived).
-    Installed,
-    /// Status drift, or a non-`noop` plan action.
-    Drift,
-    /// The env declares no packages (e.g. `js`, `system-preferences`).
-    Pending,
-}
-
-impl EnvBadge {
-    /// Short label for headers and detail panes.
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Installed => "installed",
-            Self::Drift => "drift",
-            Self::Pending => "pending",
-        }
-    }
-}
-
-/// Aggregate an env badge: status drift wins, then empty means pending,
-/// all-`noop` means installed, anything else is drift.
-pub fn badge_for_env(actions: &[Action], parts_ok: bool) -> EnvBadge {
-    if !parts_ok {
-        return EnvBadge::Drift;
-    }
-    if actions.is_empty() {
-        return EnvBadge::Pending;
-    }
-    if actions.iter().all(|a| *a == Action::Noop) {
-        EnvBadge::Installed
-    } else {
-        EnvBadge::Drift
-    }
-}
-
-/// Key intent on the modules screen (§3 keys).
+/// Key intent on the modules screen (Enter reviews, Esc and q quit).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModuleKey {
     /// Move to the previous visible row.
@@ -146,7 +109,7 @@ pub struct ModulesState {
     filter: FilterState,
     cursor: usize,
     filtering: bool,
-    badges: HashMap<String, EnvBadge>,
+    package_counts: HashMap<String, usize>,
 }
 
 impl ModulesState {
@@ -164,7 +127,7 @@ impl ModulesState {
             filter: FilterState::new(),
             cursor: 0,
             filtering: false,
-            badges: HashMap::new(),
+            package_counts: HashMap::new(),
         }
     }
 
@@ -199,7 +162,7 @@ impl ModulesState {
         if key.is(KeyCode::Enter) {
             return Some(ModuleKey::Confirm);
         }
-        if key.is(KeyCode::Esc) {
+        if key.is(KeyCode::Esc) || key.is_char('q') {
             return Some(ModuleKey::Quit);
         }
         None
@@ -300,6 +263,25 @@ impl ModulesState {
             .collect()
     }
 
+    /// Selected modules that the current search hides.
+    pub fn hidden_selected(&self) -> usize {
+        let visible = self.visible_indices();
+        self.envs
+            .iter()
+            .enumerate()
+            .filter(|(i, e)| self.selected.contains(&e.name) && !visible.contains(i))
+            .count()
+    }
+
+    /// The primary action line: what Enter does right now.
+    pub fn primary_label(&self) -> String {
+        match self.selected.len() {
+            0 => "Select at least one module (Space)".to_string(),
+            1 => "Review 1 module".to_string(),
+            n => format!("Review {n} modules"),
+        }
+    }
+
     /// `(visible, total, selected)` counts for the header.
     pub fn counts(&self) -> (usize, usize, usize) {
         (
@@ -309,49 +291,29 @@ impl ModulesState {
         )
     }
 
-    /// Recompute badges from plan entries joined with declaring modules.
-    /// `parts_ok` is false when `status --json` reports any drift.
-    pub fn refresh_badges(
-        &mut self,
-        plan: &[PlanEntry],
-        origins: &HashMap<ResId, Vec<String>>,
-        parts_ok: bool,
-    ) {
-        for env in &self.envs {
-            let actions: Vec<Action> = plan
-                .iter()
-                .filter(|e| {
-                    origins
-                        .get(&ResId {
-                            kind: e.kind.clone(),
-                            name: e.name.clone(),
-                        })
-                        .is_some_and(|decl| decl.contains(&env.name))
-                })
-                .map(|e| e.action)
-                .collect();
-            self.badges
-                .insert(env.name.clone(), badge_for_env(&actions, parts_ok));
+    /// Record how many packages each module declares (from the config files;
+    /// no `mise` call).
+    pub fn set_package_counts(&mut self, origins: &HashMap<ResId, Vec<String>>) {
+        self.package_counts.clear();
+        for declaring in origins.values() {
+            for module in declaring {
+                *self.package_counts.entry(module.clone()).or_insert(0) += 1;
+            }
         }
     }
 
-    /// Badge for an env (defaults to pending before the first refresh).
-    pub fn badge(&self, name: &str) -> EnvBadge {
-        self.badges.get(name).copied().unwrap_or(EnvBadge::Pending)
+    /// Packages a module declares.
+    pub fn package_count(&self, name: &str) -> usize {
+        self.package_counts.get(name).copied().unwrap_or(0)
     }
 
     /// Master-pane rows as inventoried [`ListRow`]s: name label,
-    /// description detail, `[x]`/`[ ]` meta, badge mark.
+    /// description detail, `[x]`/`[ ]` meta.
     pub fn master_rows(&self) -> Vec<ListRow> {
         self.visible_indices()
             .into_iter()
             .map(|i| {
                 let env = &self.envs[i];
-                let mark = match self.badge(&env.name) {
-                    EnvBadge::Installed => StatusKind::Ok,
-                    EnvBadge::Drift => StatusKind::Warn,
-                    EnvBadge::Pending => StatusKind::Pending,
-                };
                 let (meta, tone) = if self.selected.contains(&env.name) {
                     ("[x]", Tone::Normal)
                 } else {
@@ -360,38 +322,45 @@ impl ModulesState {
                 ListRow::new(&env.name)
                     .detail(&env.description)
                     .meta(meta, tone)
-                    .mark(mark)
             })
             .collect()
     }
 
-    /// Detail-pane props for the cursor env.
+    /// Detail-pane props for the cursor module: what it is and what it
+    /// brings. Only facts read from the config files.
     pub fn detail_props(&self) -> Vec<Prop> {
         let Some(i) = self.visible_indices().get(self.cursor).copied() else {
             return Vec::new();
         };
         let env = &self.envs[i];
-        let (status, tone) = match self.badge(&env.name) {
-            EnvBadge::Installed => ("installed (packages)", Tone::Normal),
-            EnvBadge::Drift => ("drift — re-check in S4", Tone::Warning),
-            EnvBadge::Pending => ("pending — no packages declared", Tone::Muted),
-        };
-        let mut kept = Prop::new(
-            "selection",
-            if self.selected.contains(&env.name) {
-                "kept"
-            } else {
-                "omitted"
+        let count = self.package_count(&env.name);
+        let mut props = vec![Prop::new("about", &env.description)];
+        let mut packages = Prop::new(
+            "packages",
+            match count {
+                0 => "none".to_string(),
+                1 => "1 package".to_string(),
+                n => format!("{n} packages"),
             },
         );
-        kept.tone = Tone::Secondary;
-        let mut status_prop = Prop::new("status", status);
-        status_prop.tone = tone;
-        vec![
-            Prop::new("description", &env.description),
-            status_prop,
-            kept,
-        ]
+        packages.tone = Tone::Secondary;
+        props.push(packages);
+        if count > 0 {
+            let mut admin = Prop::new("access", "asks for your administrator password");
+            admin.tone = Tone::Warning;
+            props.push(admin);
+        }
+        let mut chosen = Prop::new(
+            "chosen",
+            if self.selected.contains(&env.name) {
+                "yes"
+            } else {
+                "no"
+            },
+        );
+        chosen.tone = Tone::Secondary;
+        props.push(chosen);
+        props
     }
 
     fn move_cursor(&mut self, delta: isize) {
@@ -430,7 +399,7 @@ pub(crate) struct ModulesOwner {
 
 impl ModulesOwner {
     pub(crate) fn new(state: ModulesState) -> Self {
-        let filter = TextInput::new(S1_FILTER, "Filter")
+        let filter = TextInput::new(S1_FILTER, "Search")
             .value(state.query())
             .edit_entry(EditEntry::Immediate)
             .blur_action(BlurAction::Commit);
@@ -578,29 +547,64 @@ impl ModulesOwner {
         Response::ignored()
     }
 
+    /// Whether the search box has the keyboard (the app must not treat `?`
+    /// or `q` as commands then).
+    pub(crate) fn typing(&self) -> bool {
+        self.state.filtering()
+    }
+
+    /// Footer hints for the keys that work right now.
+    pub(crate) fn hints(&self) -> Vec<(&'static str, String)> {
+        if self.state.filtering() {
+            return vec![
+                ("Enter", "done searching".into()),
+                ("Esc", "done searching".into()),
+            ];
+        }
+        let mut hints: Vec<(&'static str, String)> = vec![
+            ("↑↓", "move".into()),
+            ("Space", "select".into()),
+            ("a", "all".into()),
+            ("n", "none".into()),
+            ("/", "search".into()),
+        ];
+        hints.push(("?", "help".into()));
+        hints.push(("q", "quit".into()));
+        hints
+    }
+
     pub(crate) fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
         let theme: Theme = *ctx.theme;
         let bg: Color = theme.canvas;
-        render_header(
+        let marks = Marks::for_theme(&theme);
+        render_step_header(
             1,
-            "Modules",
+            "Choose modules",
             Rect::new(area.x, area.y, area.width, 1),
             buf,
             &theme,
         );
-        let body = Rect::new(
-            area.x,
+        put(
+            buf,
+            area.x + 1,
             area.y + 1,
-            area.width,
-            area.height.saturating_sub(3),
+            area.width.saturating_sub(2),
+            &[seg(
+                "Pick what to set up. Nothing changes until you confirm on the next screen.",
+                Tone::Secondary,
+            )],
+            &theme,
+            bg,
         );
-        let input_area = Rect::new(body.x, body.y, body.width, 3.min(body.height));
+        // header, intro, [search 3], list, [inline detail], primary, footer
+        let reserved = 1 + 1 + 2 + 2 + 1;
+        let input_area = Rect::new(area.x, area.y + 2, area.width, 2.min(area.height));
         self.filter.render(input_area, buf, ctx, bg);
         let list_area = Rect::new(
-            body.x,
-            body.y + 3.min(body.height),
-            body.width,
-            body.height.saturating_sub(3),
+            area.x,
+            area.y + 4,
+            area.width,
+            area.height.saturating_sub(reserved),
         );
         let rows = self.state.master_rows();
         self.list.select(self.state.cursor());
@@ -616,45 +620,76 @@ impl ModulesOwner {
             .into_iter()
             .map(|p| DetailLine::Prop(p.label, p.value, p.tone))
             .collect();
-        let (visible, total, selected) = self.state.counts();
+        let (_, total, selected) = self.state.counts();
+        let hidden = self.state.hidden_selected();
+        let meta = format!("{selected} of {total} selected");
         let frame = DetailFrame {
-            title: "environments",
-            meta: format!("showing {visible} of {total} · {selected} selected"),
+            title: "Modules",
+            meta,
             head: vec![],
             rows: &rows,
             under: None,
             detail_title: cursor_name,
-            detail_meta: self
-                .state
-                .cursor_env()
-                .map(|e| self.state.badge(&e.name).label().to_string())
-                .unwrap_or_default(),
+            detail_meta: String::new(),
             lines,
             actions: vec![
-                DetailAction::new("continue", "Continue →", ButtonKind::Primary)
+                DetailAction::new("continue", "Review →", ButtonKind::Primary)
                     .disabled(!self.state.can_continue()),
             ],
         };
         self.list.render(list_area, buf, ctx, &frame);
-        render_hints(
-            &[
-                ("↑↓", "move"),
-                ("Space", "toggle"),
-                ("/", "filter"),
-                ("a", "all"),
-                ("n", "none"),
-                ("Enter", "continue"),
-                ("Esc", "quit"),
-            ],
-            Rect::new(area.x, area.bottom().saturating_sub(2), area.width, 1),
+        if rows.is_empty() {
+            put(
+                buf,
+                list_area.x + 2,
+                list_area.y + 2,
+                list_area.width.saturating_sub(4),
+                &[seg(
+                    format!(
+                        "No modules match '{}'. Esc clears the search.",
+                        self.state.query()
+                    ),
+                    Tone::Warning,
+                )],
+                &theme,
+                bg,
+            );
+        }
+        let bottom = area.bottom();
+        let note = if hidden > 0 {
+            format!("{hidden} selected hidden by search")
+        } else {
+            String::new()
+        };
+        put(
+            buf,
+            area.x + 1,
+            bottom.saturating_sub(3),
+            area.width.saturating_sub(2),
+            &[seg(
+                paint::fit(&note, area.width.saturating_sub(2) as usize, marks.ellipsis),
+                Tone::Secondary,
+            )],
+            &theme,
+            bg,
+        );
+        primary_line(
+            Rect::new(area.x, bottom.saturating_sub(2), area.width, 1),
             buf,
             &theme,
+            bg,
+            if self.state.can_continue() {
+                "Enter"
+            } else {
+                ""
+            },
+            &self.state.primary_label(),
         );
-        render_status(
-            "S1 · search keeps selection",
-            Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),
+        footer(
+            Rect::new(area.x, bottom.saturating_sub(1), area.width, 1),
             buf,
-            ctx,
+            &theme,
+            &self.hints(),
         );
     }
 }
@@ -707,21 +742,6 @@ mod tests {
     }
 
     #[test]
-    fn badges_cover_installed_drift_pending() {
-        assert_eq!(
-            badge_for_env(&[Action::Noop, Action::Noop], true),
-            EnvBadge::Installed
-        );
-        assert_eq!(
-            badge_for_env(&[Action::Noop, Action::Create], true),
-            EnvBadge::Drift
-        );
-        assert_eq!(badge_for_env(&[Action::Noop], false), EnvBadge::Drift);
-        assert_eq!(badge_for_env(&[], true), EnvBadge::Pending);
-        assert_eq!(badge_for_env(&[Action::Unknown], true), EnvBadge::Drift);
-    }
-
-    #[test]
     fn keys_match_section_3() {
         let state = ModulesState::new(two_envs(), &[]);
         assert_eq!(state.map_key(&key(KeyCode::Up)), Some(ModuleKey::Up));
@@ -741,7 +761,7 @@ mod tests {
             Some(ModuleKey::Confirm)
         );
         assert_eq!(state.map_key(&key(KeyCode::Esc)), Some(ModuleKey::Quit));
-        assert_eq!(state.map_key(&char_key('q')), None);
+        assert_eq!(state.map_key(&char_key('q')), Some(ModuleKey::Quit));
     }
 
     #[test]
@@ -787,32 +807,42 @@ mod tests {
     }
 
     #[test]
-    fn rows_carry_badge_marks() {
-        let mut state = ModulesState::new(two_envs(), &["alpha".to_string()]);
-        let mut origins = HashMap::new();
-        origins.insert(
-            ResId {
-                kind: "brew".to_string(),
-                name: "jq".to_string(),
-            },
-            vec!["alpha".to_string()],
-        );
-        let plan = vec![PlanEntry {
-            kind: "brew".to_string(),
-            name: "jq".to_string(),
-            current: "present".to_string(),
-            desired: "present".to_string(),
-            action: Action::Noop,
-        }];
-        state.refresh_badges(&plan, &origins, true);
-        assert_eq!(state.badge("alpha"), EnvBadge::Installed);
-        assert_eq!(state.badge("beta"), EnvBadge::Pending);
+    fn rows_carry_no_global_status_marker() {
+        let state = ModulesState::new(two_envs(), &["alpha".to_string()]);
         let rows = state.master_rows();
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].mark, Some(StatusKind::Ok));
-        assert_eq!(rows[1].mark, Some(StatusKind::Pending));
+        assert!(rows.iter().all(|r| r.mark.is_none()), "no per-row marker");
         assert_eq!(rows[0].meta, "[x]");
         assert_eq!(rows[1].meta, "[ ]");
-        assert!(!state.detail_props().is_empty());
+    }
+
+    #[test]
+    fn detail_pane_has_description_package_count_and_admin_note() {
+        let mut state = ModulesState::new(two_envs(), &[]);
+        let mut origins = HashMap::new();
+        for name in ["jq", "rg"] {
+            origins.insert(
+                ResId {
+                    kind: "brew".to_string(),
+                    name: name.to_string(),
+                },
+                vec!["alpha".to_string()],
+            );
+        }
+        state.set_package_counts(&origins);
+        let text = |props: Vec<Prop>| {
+            props
+                .iter()
+                .map(|p| format!("{} {}", p.label, p.value))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        let alpha = text(state.detail_props());
+        assert!(alpha.contains("2 packages"), "{alpha}");
+        assert!(alpha.contains("administrator password"), "{alpha}");
+        state.apply(ModuleKey::Down);
+        let beta = text(state.detail_props());
+        assert!(beta.contains("none"), "{beta}");
+        assert!(!beta.contains("administrator"), "{beta}");
     }
 }

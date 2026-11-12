@@ -47,6 +47,13 @@ use junie_tui::widgets::hintbar::HintBar;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
+/// Paint the step header: `essential-mise ... Step n of 4 · <name>`.
+pub fn render_step_header(step: u8, name: &str, area: Rect, buf: &mut Buffer, theme: &Theme) {
+    PageHeader::new("essential-mise")
+        .right(&format!("Step {step} of 4 · {name}"))
+        .render(area, buf, theme);
+}
+
 /// Paint the shared page header.
 pub fn render_header(step: u8, screen: &str, area: Rect, buf: &mut Buffer, theme: &Theme) {
     page_header(step, screen).render(area, buf, theme);

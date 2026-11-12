@@ -14,6 +14,7 @@ differ from the shipped console, `README.md`, `docs/config-repo.md`, and
 | `setup` runs stages 1-5 | `setup` runs six stages: Command Line Tools, Homebrew, mise, repository access, adoption of the config repository, base modules |
 | `setup` takes no arguments | `setup [--config SOURCE] [--dry-run]`; `--config` falls back to `$ESSENTIAL_MISE_CONFIG` |
 | Module catalogue from the `config.<name>.toml` files, 29 environments | Module catalogue from the `#:` headers of your own config repository; the engine ships none |
+| Four screens: Modules, Packages, Apply, Result | Four steps: Choose modules, Review and confirm, Applying, Done or Needs attention. See `screens.md` |
 | `status` and `verify` commands | Listed in `--help`, not implemented yet: they exit 1 with a "lands in a later task" message |
 | No `lint` command | `lint` checks a config repository against the header contract |
 | `bootstrap.sh` is a ~15-line fetcher | `bootstrap.sh` also checks the platform and caches the verified download |
@@ -22,6 +23,7 @@ differ from the shipped console, `README.md`, `docs/config-repo.md`, and
 |---|---|
 | `spec.md` | Goal, non-goals, architecture, screens, phases, verification |
 | `implementation-spec.md` | Build-ready CLI and TUI spec: commands, screens, backend trait, scenarios |
+| `screens.md` | The interactive console as shipped: flow, words, keys, exit codes, accessibility, follow-ups |
 
 ## Decisions
 
