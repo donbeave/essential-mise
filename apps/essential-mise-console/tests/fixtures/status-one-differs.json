@@ -1,0 +1,743 @@
+{
+  "secrets": [],
+  "packages": {
+    "brew-cask": {
+      "available": true,
+      "packages": [
+        {
+          "package": "example-terminal",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.4.0",
+          "auto_updates": true,
+          "managed_by": "mise"
+        },
+        {
+          "package": "example-editor",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "2.0.1",
+          "auto_updates": true,
+          "managed_by": "mise"
+        }
+      ]
+    },
+    "brew": {
+      "available": true,
+      "packages": [
+        {
+          "package": "example-cli",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "1.27.0"
+        },
+        {
+          "package": "example-prompt",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "3.2.1"
+        },
+        {
+          "package": "example-search",
+          "requested_version": "latest",
+          "desired_state": "present",
+          "state": "installed",
+          "installed_version": "14.1.0"
+        }
+      ]
+    }
+  },
+  "accounts": [],
+  "files": [],
+  "services": [],
+  "user_services": [],
+  "firewall": [],
+  "compose": [],
+  "repos": [
+    {
+      "path": "/Users/test/.example-plugin",
+      "path_raw": "~/.example-plugin",
+      "url": "https://github.com/OWNER/REPO.git",
+      "ref": "main",
+      "origin": "https://github.com/OWNER/REPO.git",
+      "current_ref": "main",
+      "current_sha": "0123456789abcdef0123456789abcdef01234567",
+      "state": "current",
+      "reason": ""
+    }
+  ],
+  "dotfiles": {
+    "files": [
+      {
+        "target": "/Users/test/.config/example/config",
+        "source": "~/.config/mise/dotfiles/example/config",
+        "mode": "copy",
+        "state": "applied"
+      },
+      {
+        "target": "~/.config/example-prompt.toml",
+        "source": "~/.config/mise/dotfiles/example/prompt.toml",
+        "mode": "copy",
+        "state": "applied"
+      }
+    ],
+    "edits": [
+      {
+        "path": "~/.zshrc",
+        "edit": "block:terminal",
+        "state": "applied"
+      }
+    ]
+  },
+  "mise_shell_activate": [],
+  "macos_login_items": {
+    "available": true,
+    "exclusive": false,
+    "entries": [
+      {
+        "path": "/Applications/Example App.app",
+        "state": "set"
+      },
+      {
+        "path": "/Applications/Sample Tool.app",
+        "state": "set"
+      }
+    ]
+  },
+  "macos_defaults": {
+    "available": true,
+    "entries": [
+      {
+        "domain": "com.apple.dock",
+        "host": "any",
+        "path": null,
+        "key": "autohide",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.apple.dock",
+        "host": "any",
+        "path": null,
+        "key": "orientation",
+        "value": "bottom",
+        "current": "bottom",
+        "state": "set"
+      },
+      {
+        "domain": "com.apple.dock",
+        "host": "any",
+        "path": null,
+        "key": "tilesize",
+        "value": 36,
+        "current": "48",
+        "state": "differs"
+      },
+      {
+        "domain": "com.apple.dock",
+        "host": "any",
+        "path": null,
+        "key": "magnification",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-01",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-02",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-03",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-04",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-05",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-06",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-07",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-08",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-09",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-10",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-11",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-12",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-13",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-14",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-15",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-16",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-17",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-18",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-19",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-20",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-21",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-22",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-23",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-24",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-25",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-26",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-27",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-28",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-29",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-30",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-31",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-32",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-33",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-34",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-35",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-36",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-37",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-38",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-39",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-40",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-41",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-42",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-43",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-44",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-45",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-46",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-47",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-48",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-49",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-50",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-51",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-52",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-53",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-54",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-55",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-56",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-57",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-58",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-59",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-60",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-61",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-62",
+        "value": true,
+        "current": "true",
+        "state": "set"
+      },
+      {
+        "domain": "com.example.app",
+        "host": "any",
+        "path": null,
+        "key": "setting-63",
+        "value": false,
+        "current": "false",
+        "state": "set"
+      }
+    ]
+  },
+  "launchd": {
+    "agents": []
+  },
+  "systemd": {
+    "units": []
+  },
+  "login_shell": null,
+  "tools": [
+    {
+      "tool": "example-runtime",
+      "requested_version": "latest",
+      "resolved_version": "1.99.1",
+      "state": "installed",
+      "installed": true
+    },
+    {
+      "tool": "example-tool",
+      "requested_version": "latest",
+      "resolved_version": "0.1.7",
+      "state": "installed",
+      "installed": true
+    }
+  ],
+  "plugin_deps": []
+}
