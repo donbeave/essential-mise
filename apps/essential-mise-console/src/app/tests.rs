@@ -1128,6 +1128,10 @@ fn every_screen_shows_its_footer_and_nothing_is_cut_without_a_keyed_way_to_read_
             assert_eq!(lines.len(), h as usize, "{name}");
             let footer = lines[h as usize - 1];
             assert!(
+                !footer.contains('…'),
+                "{name} at {w}x{h} cuts its footer: {footer:?}\n{screen}"
+            );
+            assert!(
                 footer.split_whitespace().count() >= 2,
                 "{name} at {w}x{h} has no footer: {footer:?}\n{screen}"
             );

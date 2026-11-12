@@ -312,9 +312,9 @@ impl PackagesState {
             hints.push(("↑↓", "move".into()));
         }
         if !self.changing().is_empty() {
-            hints.push(("Space", "install or skip".into()));
-            hints.push(("a", "install all".into()));
-            hints.push(("n", "skip all".into()));
+            hints.push(("Space", "toggle".into()));
+            hints.push(("a", "all".into()));
+            hints.push(("n", "none".into()));
         }
         if self.installed_count() > 0 {
             hints.push((
