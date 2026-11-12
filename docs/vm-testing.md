@@ -26,6 +26,8 @@ The generic suite uses `templates/config-starter` as its config. Config-specific
 
 ## Typical run
 
+`stage0` is the built-in scenario: a cold run of the launcher (`bootstrap.sh`) on a fresh clone with no Homebrew or global config. It asserts that setup reaches `stage 6/6`, that a rerun converges, and that a wrong `origin` is refused.
+
 ```bash
 VM_REVIEWED_COMMIT=$(git rev-parse HEAD) VM_NAME=essential-mise-test-stage0 \
   testing/vm/run-test-scenario.sh --config OWNER/REPO stage0

@@ -1,5 +1,19 @@
 # Agent rules
 
+## Commands
+
+Run from the repository root unless noted. The console is a Rust crate in `apps/essential-mise-console/`.
+
+| Task | Command |
+| --- | --- |
+| Build and run | `cargo run -q --manifest-path apps/essential-mise-console/Cargo.toml -- --help` |
+| Tests (use nextest, not `cargo test`) | `cargo nextest run --manifest-path apps/essential-mise-console/Cargo.toml` |
+| Lint the starter config | `cargo run -q --manifest-path apps/essential-mise-console/Cargo.toml -- lint --config-dir templates/config-starter` |
+
+These commands check the contract and the unit and functional tests. They do not replace VM verification (see the rules below). Release steps are in `docs/releasing.md`. Never hand-edit `.github/workflows/`; it is generated from `.velnor/config.toml`.
+
+## Rules
+
 - Never add personal or company data to this repository: no names, emails, account aliases, internal project or host names, secret references, local paths, or machine-specific package lists. Machine configuration belongs in a config repository (see `docs/config-repo.md` and `templates/config-starter/`), never here. The author name may appear only in `LICENSE` and Cargo metadata.
 - New product code in this repo is Rust. The only sanctioned exception is the
   zero-dependency stage-0 `bootstrap.sh` (bash + curl), which stays minimal and
@@ -15,3 +29,7 @@
 - Preserve a clean Tart baseline before application installation. Create fresh working VMs from that baseline for independent clean-install tests. Never overwrite or delete an existing VM or baseline without identifying it and preserving user data. Never exceed Tart's two-running-VM limit; stop one test VM before starting another.
 - Use Tart as the only VM manager and guest-side Cua Driver for desktop automation and MCP over SSH. Do not install testvm, Cua Lume, Cua Spaces, or another overlapping VM manager. Never fall back to host execution or host screenshots.
 - Record the guest version/build, VM and baseline names, resources, workflows, screenshots, accessibility interactions, logs, failures, and fixes. Compilation and dry runs alone do not establish runtime verification.
+
+## Known issues
+
+- **First interactive zsh in a fresh guest prints `command not found: mise`.** Seen after a fresh VM `stage0` run. The shell activation blocks that `setup` writes run before `~/.local/bin` is on `PATH`. The next shell, or `export PATH="$HOME/.local/bin:$PATH"`, works. Not fixed yet; do not work around it in a scenario by hiding the message.

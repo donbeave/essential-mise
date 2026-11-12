@@ -16,8 +16,8 @@ result — without reimplementing any install logic.
   source of truth for packages; the TUI never writes package declarations
   (one-shot installs stay unrecorded). The module catalogue comes from the
   config repository's `#:` header comments (see `docs/config-repo.md`).
-- No replacement of VM verification scripts or docs. Stage 0–5 *orchestration*
-  lives in `emc setup` (calling official installers); install logic itself is
+- No replacement of VM verification scripts or docs. Stage 1–6 *orchestration*
+  lives in `essential-mise-console setup` (calling official installers); install logic itself is
   never reimplemented. The TUI covers the setup + selection + apply + verify
   loop.
 - No contribution to `junie-tui` in P1. Generic widgets go upstream only

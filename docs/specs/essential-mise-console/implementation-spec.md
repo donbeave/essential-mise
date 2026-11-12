@@ -43,8 +43,8 @@ Goal: replace `bootstrap.sh` steps 6/7 free-text selection with a clap CLI plus 
 Ratatui TUI (modules → packages → apply → result) over stock `mise bootstrap`.
 Non-goals (locked): no reimplemented install logic (official Apple/Homebrew/mise
 installers are called as subprocesses, including from `emc setup`); TOML stays source of truth;
-one-shot installs stay unrecorded (no `packages use` in P1); no stages 0–5
-replacement; no `junie-tui` contributions in P1; no `unapply`/prune/persistent-env
+one-shot installs stay unrecorded (no `packages use` in P1); no replacement of
+install logic (stages 1–6 only orchestrate official installers); no `junie-tui` contributions in P1; no `unapply`/prune/persistent-env
 editor/sysprefs-review screens in P1 (P2).
 
 ## 2. CLI reference (`essential-mise-console`, clap derive)
@@ -69,9 +69,11 @@ emc [--mise PATH] [--config-dir DIR] [-E/--env …] [-y/--yes] [-v…|-q] <CMD>
   status [-E …] [-J/--json] [--missing]
   verify [-E …] [--json]                   # status --json + plan per env;
                                            # `foundation doctor` as hint only
-  setup                                    # stages 1-5 orchestration (CLT, brew,
-                                           # mise, adoption, foundation) calling
-                                           # official installers; fetcher execs this
+  setup [--config SOURCE] [--dry-run]      # stages 1-6 orchestration (CLT, brew,
+                                           # mise, repository access, adoption,
+                                           # base modules) calling official
+                                           # installers; bootstrap.sh execs this
+  lint                                     # check a config repository's `#:` headers
   tui [modules|packages|apply|result] [-E …]
 ```
 
@@ -258,8 +260,8 @@ mirror: the framework's `with_external` builder hook and the
 
 | # | Scenario | P | Console behavior |
 |---|---|---|---|
-| 1 | Fresh-Mac run (stages 1–5) | — | Out of scope (stages 0–5 untouched); console starts at module select |
-| 2 | Category multi-select, search, skip | P1 | S1, 29 parsed envs, badges from `status --json` |
+| 1 | Fresh-Mac run (stages 1–6) | P1 | `setup` orchestrates the stages, then opens module select |
+| 2 | Category multi-select, search, skip | P1 | S1, modules parsed from the `#:` headers, badges from `status --json` |
 | 3 | Per-package deselect, grouped | P1 | S2 checklist; empty keep-list skips phase 2 |
 | 4 | Dry-run preview before apply | P1 | `-n` in CLI and TUI |
 | 5 | Apply, live log, native part order | P1 | S3 sudo pre-flight + two-phase worker |
@@ -319,9 +321,9 @@ driven to merge — no orphans.
   release flow (versioned per-target artifacts + sha256 manifest, the
   `release-manifest.json` pattern). `bootstrap.sh` shrinks to a ~15-line fetcher
   (arch guard, download pinned binary, verify sha256, exec). The binary owns
-  everything after that — including stages 1–5 orchestration (`emc setup`) with
+  everything after that — including stages 1–6 orchestration (`essential-mise-console setup`) with
   TUI progress — calling the same official installers as subprocesses. The old
-  "no stages 0–5 replacement" non-goal is lifted for orchestration only; install
+  "no stage replacement" non-goal is lifted for orchestration only; install
   logic still stays stock (Apple/Homebrew/mise official installers).
   The fetcher itself narrates: staged `==>` output (platform → download →
   handoff), curl progress, checksum verdict, cached-binary reuse — exact

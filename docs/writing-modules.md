@@ -7,8 +7,9 @@ A module is one file in your config repository named `config.<name>.toml`. It de
 1. Create `config.<name>.toml`. Use native mise resources first: packages (`brew`, `brew-cask`, `mas`), dotfiles, repositories, tools, hooks, and macOS defaults.
 2. Start the file with a `#:` header: `#: description = "..."` (one line) and, to place it in the TUI list, `#: order = <number>`. Add `#: base = true` instead of `order` for a module that setup applies automatically. The module name is the file name.
 3. Put files that a `[dotfiles]` entry copies under `dotfiles/<module>/`.
-4. Run `essential-mise-console lint --config-dir .`.
-5. Preview, then apply in a disposable VM or a sandbox home: `MISE_CEILING_PATHS=$PWD mise -C . -E <name> bootstrap --dry-run`.
+4. Pin versions where the package manager allows it. For Homebrew and App Store entries, add a `# pin-exception: <reason>` comment (see [Pinning](config-repo.md#pinning)).
+5. Run `essential-mise-console lint --config-dir .`.
+6. Preview, then apply in a disposable VM or a sandbox home: `MISE_CEILING_PATHS=$PWD mise -C . -E <name> bootstrap --dry-run`.
 
 ## Rules
 
