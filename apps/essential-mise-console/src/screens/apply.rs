@@ -763,15 +763,42 @@ fn view_line(line: &ApplyLine) -> Vec<ViewportSpan> {
         line.text.clone(),
         match line.stream {
             Stream::Stdout => Tone::Normal,
-            Stream::Stderr => Tone::Error,
+            Stream::Stderr if looks_like_failure(&line.text) => Tone::Error,
+            Stream::Stderr => Tone::Normal,
             Stream::System => Tone::Secondary,
         },
     )]
 }
 
+/// mise and Homebrew write ordinary progress to stderr, so only lines that
+/// say something went wrong are painted as errors.
+fn looks_like_failure(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    ["error", "failed", "fatal", "denied", "cannot", "could not"]
+        .iter()
+        .any(|word| lower.contains(word))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_failure_like_stderr_lines_are_painted_as_errors() {
+        let line = |text: &str| ApplyLine {
+            seq: 0,
+            stream: Stream::Stderr,
+            text: text.to_string(),
+        };
+        assert_eq!(
+            view_line(&line("mise brew:bat download bat-0.26.1.tar.gz"))[0].tone,
+            Tone::Normal
+        );
+        assert_eq!(
+            view_line(&line("mise ERROR: could not link bat"))[0].tone,
+            Tone::Error
+        );
+    }
     use crate::backend::MiseBackend;
     use junie_tui::core::event::Key;
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
