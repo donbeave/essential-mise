@@ -2,7 +2,7 @@
 
 An engine that sets up and maintains an Apple silicon Mac from a **config repository that you own**. The engine is a small bash launcher (`bootstrap.sh`) plus a Rust console (CLI and TUI) over [mise bootstrap](https://mise.jdx.dev/bootstrap.html). It contains no machine configuration: your packages, dotfiles, and module list live in your own repository, described by `#:` header comments in its own config files.
 
-**Status:** pre-1.0. The launcher pins console release `v0.2.0`. The config contract can change in a minor release; the changes are listed in the [release notes](https://github.com/donbeave/essential-mise/releases). Review `bootstrap.sh` and the console release it pins before you run them.
+**Status:** pre-1.0. The launcher pins console release `v0.3.0`. The config contract can change in a minor release; the changes are listed in the [release notes](https://github.com/donbeave/essential-mise/releases). Review `bootstrap.sh` and the console release it pins before you run them.
 
 ## Requirements
 
