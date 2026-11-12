@@ -14,6 +14,8 @@ pub mod filter;
 pub mod modules;
 /// S2 Packages: per-package checklist grouped by declaring module.
 pub mod packages;
+/// Plain-text painting: glyph sets, rows, footer, primary line.
+pub mod paint;
 /// Exact rerun-command formatting (S3+S4).
 pub mod rerun_fmt;
 /// S4 Result: verify screen with drift table and Done gate.

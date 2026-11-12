@@ -63,6 +63,7 @@ pub struct App {
     screen: Screen,
     envs: Vec<ModuleInfo>,
     selected: Vec<String>,
+    keep: Vec<String>,
     packages_snapshot: Option<PackagesOwner>,
     shell: Shell<()>,
     clock: WallClock,
@@ -99,6 +100,7 @@ impl App {
             ))),
             envs,
             selected: preticks,
+            keep: Vec::new(),
             packages_snapshot: None,
             shell,
             clock: WallClock::new(),
@@ -153,7 +155,6 @@ impl App {
             return Outcome::Consumed;
         }
         let clipboard = self.shell.clipboard.clone();
-        let backend = self.backend.clone();
         let out = match &mut self.screen {
             Screen::Modules(owner) => {
                 let response = owner.key(key, &mut self.shell.focus, &self.shell.ring);
@@ -168,13 +169,7 @@ impl App {
                 self.apply_response(response)
             }
             Screen::Result(owner) => {
-                let response = owner.key(
-                    key,
-                    &mut self.shell.focus,
-                    &self.shell.ring,
-                    &*backend,
-                    &clipboard,
-                );
+                let response = owner.key(key, &clipboard);
                 self.result_response(response)
             }
         };
@@ -251,13 +246,13 @@ impl App {
     fn result_response(&mut self, response: Response<ResultAction>) -> Outcome {
         let (out, action) = response.into_parts();
         match action {
-            Some(ResultAction::Back) => {
-                self.back_to_packages();
+            Some(ResultAction::Quit(code)) => {
+                self.exit_code = Some(code);
+                self.shell.quit = true;
                 Outcome::Changed
             }
-            Some(ResultAction::Done) => {
-                self.exit_code = Some(0);
-                self.shell.quit = true;
+            Some(ResultAction::Recheck) => {
+                self.recheck();
                 Outcome::Changed
             }
             Some(ResultAction::None) | None => out,
@@ -378,6 +373,7 @@ impl App {
             Screen::Packages(owner) => Some(owner.clone()),
             _ => None,
         };
+        self.keep = keep.clone();
         let req = ApplyRequest {
             envs,
             keep,
@@ -409,12 +405,6 @@ impl App {
         }
     }
 
-    fn back_to_packages(&mut self) {
-        if let Some(owner) = self.packages_snapshot.clone() {
-            self.set_screen(Screen::Packages(owner));
-        }
-    }
-
     fn back_to_modules(&mut self) {
         self.set_screen(Screen::Modules(ModulesOwner::new(ModulesState::new(
             self.envs.clone(),
@@ -424,20 +414,17 @@ impl App {
     }
 
     fn enter_result(&mut self) {
-        let backend = self.backend.clone();
-        let envs = self.selected.clone();
-        let keep = match &self.screen {
-            Screen::Packages(owner) => owner.state.kept_specs(),
-            Screen::Apply(_) => self
-                .packages_snapshot
-                .as_ref()
-                .map(|s| s.state.kept_specs())
-                .unwrap_or_default(),
-            _ => Vec::new(),
-        };
-        let mut screen = ResultScreen::new(backend.clone(), envs, keep);
-        screen.refresh(&*backend);
+        let mut screen = ResultScreen::new();
+        screen.refresh(&*self.backend, &self.selected, &self.keep);
         self.set_screen(Screen::Result(Box::new(ResultOwner::new(screen))));
+    }
+
+    fn recheck(&mut self) {
+        if let Screen::Result(owner) = &mut self.screen {
+            owner
+                .state
+                .refresh(&*self.backend, &self.selected, &self.keep);
+        }
     }
 
     fn set_screen(&mut self, screen: Screen) {
@@ -536,12 +523,11 @@ impl ShellApp for App {
     }
 
     fn on_blur(&mut self, change: FocusChange) -> Outcome {
-        let clipboard = self.shell.clipboard.clone();
         match &mut self.screen {
             Screen::Modules(owner) => owner.blur(change),
             Screen::Packages(owner) => owner.blur(change),
             Screen::Apply(_) => Outcome::Ignored,
-            Screen::Result(owner) => owner.blur(change, &clipboard),
+            Screen::Result(_) => Outcome::Ignored,
         }
     }
 
@@ -597,10 +583,9 @@ impl PointerHost for App {
                 let response = owner.pointer(ev, &mut self.shell.focus, &clipboard);
                 self.apply_response(response).into()
             }
-            Screen::Result(owner) => {
-                let response =
-                    owner.pointer(ev, &mut self.shell.focus, &self.shell.ring, &clipboard);
-                self.result_response(response).into()
+            Screen::Result(_) => {
+                let _ = ev;
+                Response::ignored()
             }
         }
     }
@@ -785,20 +770,91 @@ mod tests {
     }
 
     #[test]
-    fn s4_back_restores_packages_and_done_quits() {
+    fn result_enter_finishes_a_clean_mac_with_exit_zero() {
         let mut app = mock_app();
         app.handle_key(&key(KeyCode::Enter));
         app.handle_key(&key(KeyCode::Enter));
         settle(&mut app);
         assert_eq!(app.screen_name(), "result");
         app.handle_key(&char_key('B'));
-        assert_eq!(app.screen_name(), "packages");
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        settle(&mut app);
+        assert_eq!(app.screen_name(), "result", "B is no longer a key");
         app.handle_key(&key(KeyCode::Enter));
         assert!(app.quit());
         assert_eq!(app.exit_code(), Some(0));
+    }
+
+    fn fixture_report(name: &str) -> crate::status::StatusReport {
+        let text = std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures")
+                .join(name),
+        )
+        .expect("fixture readable");
+        crate::status::StatusReport::parse(&text, crate::backend::mock::MOCK_CHECKED_AT)
+            .expect("fixture parses")
+    }
+
+    fn app_with_status(name: &str) -> App {
+        mock_app_with(
+            MockBackend::new()
+                .with_origin("brew", "jq", &["alpha"])
+                .with_status_sequence(vec![fixture_report(name)]),
+        )
+    }
+
+    fn render(app: &mut App, w: u16, h: u16) -> String {
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(w, h)).expect("terminal");
+        draw(app, &mut terminal);
+        buffer_text(&terminal)
+    }
+
+    fn to_result(app: &mut App) {
+        app.handle_key(&key(KeyCode::Enter));
+        app.handle_key(&key(KeyCode::Enter));
+        settle(app);
+        assert_eq!(app.screen_name(), "result");
+    }
+
+    #[test]
+    fn result_shows_up_to_date_for_sixty_six_already_set_defaults() {
+        let mut app = app_with_status("status-applied.json");
+        to_result(&mut app);
+        let screen = render(&mut app, 100, 30);
+        assert!(screen.contains("Step 4 of 4 · Done"), "{screen}");
+        assert!(screen.contains("Your Mac is set up"), "{screen}");
+        assert!(screen.contains("Enter  Finish and exit"), "{screen}");
+        assert!(!screen.contains("Needs your attention"), "{screen}");
+        assert!(!screen.contains("pending"), "{screen}");
+    }
+
+    #[test]
+    fn result_names_the_single_differing_value_and_quit_exits_three() {
+        let mut app = app_with_status("status-one-differs.json");
+        to_result(&mut app);
+        let screen = render(&mut app, 100, 30);
+        assert!(screen.contains("Step 4 of 4 · Needs attention"), "{screen}");
+        assert!(screen.contains("1 of 67 values differs"), "{screen}");
+        assert!(screen.contains("com.apple.dock tilesize"), "{screen}");
+        assert!(screen.contains("(now 48, wanted 36)"), "{screen}");
+        app.handle_key(&char_key('q'));
+        assert!(!app.quit(), "q asks first while changes are pending");
+        assert!(render(&mut app, 100, 30).contains("Quit with 1 area"));
+        app.handle_key(&char_key('y'));
+        assert!(app.quit());
+        assert_eq!(app.exit_code(), Some(3));
+    }
+
+    #[test]
+    fn result_enter_on_pending_leaves_with_three_and_esc_never_traps() {
+        let mut app = app_with_status("status-one-differs.json");
+        to_result(&mut app);
+        app.handle_key(&key(KeyCode::Esc));
+        app.handle_key(&key(KeyCode::Esc));
+        assert!(!app.quit(), "Esc dismisses the question");
+        app.handle_key(&key(KeyCode::Enter));
+        assert!(app.quit());
+        assert_eq!(app.exit_code(), Some(3));
     }
 
     #[test]
@@ -865,20 +921,6 @@ mod tests {
     fn interaction_regressions_resize_requires_redraw() {
         let mut app = mock_app();
         assert_eq!(app.handle(Input::Resize(80, 24)), Outcome::Changed);
-    }
-
-    #[test]
-    fn interaction_regressions_result_copy_emits_osc52() {
-        let mut app = mock_app();
-        app.handle_key(&key(KeyCode::Enter));
-        app.handle_key(&key(KeyCode::Enter));
-        settle(&mut app);
-        assert_eq!(app.screen_name(), "result");
-        let _ = app.take_output();
-        app.handle_key(&char_key('c'));
-        let output = app.take_output();
-        assert!(!output.is_empty(), "copy must reach terminal output");
-        assert!(output[0].starts_with("\x1b]52;c;"));
     }
 
     #[test]

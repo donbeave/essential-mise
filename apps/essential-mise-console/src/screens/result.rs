@@ -1,510 +1,767 @@
-//! S4 Result: verify screen with drift table, Done gate, and re-check.
+//! Step 4: Done / Needs attention.
 //!
-//! Entry auto-runs [`Backend::status`](crate::backend::Backend::status); the
-//! drift verdict joins plan entries with status parts. The screen owner keeps
-//! one read-only `DataGrid`, preserving navigation and scrolling across
-//! refreshes. Follow-ups stay read-only and are never auto-executed. `Done`
-//! exits 0 only when nothing drifts; `R` re-checks, `B` restores S2, and `c`
-//! copies the summary through the shell clipboard.
+//! The screen reads one typed [`StatusReport`]. It leads with a verdict and
+//! ONE primary action, then groups what matters: "Needs your attention"
+//! first, "Optional, for your information" next, and "All good" collapsed.
+//! The state lives in [`ResultScreen`] (pure, testable); [`ResultOwner`] only
+//! paints it and turns keys into [`ResultAction`]s that the app executes.
+//!
+//! Exit semantics: 0 when nothing differs, 3 when changes are pending, 1 when
+//! the check itself failed.
 
 use junie_tui::core::event::{Key, Outcome};
-use junie_tui::core::focus::{Focus, FocusChange, FocusRing};
 use junie_tui::core::id::WidgetId;
-use junie_tui::core::intent::Phase;
-use junie_tui::core::pointer::{MouseTarget, PointerEvent};
 use junie_tui::core::response::Response;
 use junie_tui::shell::clipboard::Clipboard;
 use junie_tui::theme::{Theme, Tone};
 use junie_tui::ui::ctx::RenderCtx;
-use junie_tui::widgets::grid::{CellValue, ColumnSpec, DataGrid, GridAction, GridRows, RowTotal};
-use junie_tui::widgets::props::{self, Prop};
 use ratatui::buffer::Buffer;
+use ratatui::crossterm::event::KeyCode;
 use ratatui::layout::Rect;
-use ratatui::style::Color;
 
-use super::chrome::{render_header, render_hints, render_status};
-use super::rerun_fmt::rerun_command;
+use super::chrome::render_step_header;
+use super::paint::{self, Marks, Row, bold, footer, primary_line, put, seg};
 use crate::backend::Backend;
-use crate::status::{Health, Note, StatusReport};
+use crate::status::{AreaKey, AreaStatus, Note, StatusReport};
 
-/// Per-part drift state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PartState {
-    /// Clean (status clean and no plan drift).
-    Ok,
-    /// Drifted (plan non-`noop` or status-derived drift).
-    Drift,
-}
+/// Exit code: nothing differs.
+pub const EXIT_CLEAN: u8 = 0;
+/// Exit code: changes are still pending, or the check failed.
+pub const EXIT_PENDING: u8 = 3;
+/// Exit code: the check failed.
+pub const EXIT_FAILED: u8 = 1;
 
-/// One drift-table row.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PartRow {
-    /// Part name (e.g. `packages`).
-    pub part: String,
-    /// Drift state.
-    pub state: PartState,
-    /// Human note (counts, pending specs, context).
-    pub note: String,
-}
-
-/// Key intent on the result screen (§3: `R` re-checks, `B` back to S2,
-/// `c` copies, `Enter`/`D` dones when all ok).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ResultKey {
-    /// Re-run `status --json` (+ plan) now.
-    Recheck,
-    /// Back to S2 (selection preserved by the caller).
-    Back,
-    /// Copy the summary.
-    Copy,
-    /// Done (only when [`ResultScreen::can_done`]).
-    Done,
-}
-
-/// Screen-level action returned by [`ResultScreen::apply`].
+/// What the app should do after a key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResultAction {
-    /// State changed; stay on screen.
+    /// Stay on the screen.
     None,
-    /// Back to S2.
-    Back,
-    /// Done; the caller exits 0 (only reachable when all ok).
-    Done,
+    /// Leave the console with this exit code.
+    Quit(u8),
+    /// Check this Mac again.
+    Recheck,
 }
 
-/// S4 verify state. Owns the last `status` + `plan` snapshots.
+/// Which view is showing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum View {
+    /// Verdict and grouped sections.
+    Summary,
+    /// Every pending change as `setting | now | wanted`.
+    Details,
+}
+
+/// Step 4 state.
 pub struct ResultScreen {
-    backend: std::sync::Arc<dyn Backend>,
-    envs: Vec<String>,
-    keep: Vec<String>,
-    parts: Vec<PartRow>,
-    summary: String,
-    follow_ups: Vec<String>,
+    report: Option<StatusReport>,
+    error: Option<String>,
     checks: u32,
-    last_error: Option<String>,
-    last_drift: Vec<String>,
+    expanded: bool,
+    view: View,
+    cursor: usize,
+    confirm_quit: bool,
+    toast: Option<String>,
 }
 
 impl ResultScreen {
-    /// Build for the selected envs and the S2 keep-list (for reruns).
-    pub fn new(backend: std::sync::Arc<dyn Backend>, envs: Vec<String>, keep: Vec<String>) -> Self {
+    /// A screen with no check yet.
+    pub fn new() -> Self {
         Self {
-            backend,
-            envs,
-            keep,
-            parts: Vec::new(),
-            summary: String::new(),
-            follow_ups: Vec::new(),
+            report: None,
+            error: None,
             checks: 0,
-            last_error: None,
-            last_drift: Vec::new(),
+            expanded: false,
+            view: View::Summary,
+            cursor: 0,
+            confirm_quit: false,
+            toast: None,
         }
     }
 
-    /// Auto-run on entry: `status --json` plus plan, rebuilding the table.
-    /// A backend failure is recorded, never panics.
-    pub fn refresh(&mut self, backend: &dyn Backend) {
-        match backend.status(&self.envs) {
-            Ok(report) => {
-                self.rebuild(&report.scoped(&self.keep));
-                self.last_error = None;
-            }
-            Err(e) => {
-                self.last_error = Some(format!("status failed: {e}"));
-            }
-        }
+    /// Record a finished check.
+    pub fn finish_check(&mut self, result: Result<StatusReport, String>) {
         self.checks += 1;
-    }
-
-    /// Map a key to an intent (`Enter`/`D` only fire when all ok).
-    pub fn map_key(&self, key: &junie_tui::core::event::Key) -> Option<ResultKey> {
-        use ratatui::crossterm::event::KeyCode;
-        if key.is_char('R') || key.is_char('r') {
-            return Some(ResultKey::Recheck);
-        }
-        if key.is_char('B') || key.is_char('b') {
-            return Some(ResultKey::Back);
-        }
-        if key.is_char('c') {
-            return Some(ResultKey::Copy);
-        }
-        if (key.is(KeyCode::Enter) || key.is_char('D') || key.is_char('d')) && self.can_done() {
-            return Some(ResultKey::Done);
-        }
-        None
-    }
-
-    /// Apply an intent. `Recheck` re-runs against the given backend and `Copy`
-    /// queues the summary through the shared shell clipboard.
-    pub fn apply(
-        &mut self,
-        key: ResultKey,
-        backend: &dyn Backend,
-        clipboard: &Clipboard,
-    ) -> ResultAction {
-        match key {
-            ResultKey::Recheck => {
-                self.refresh(backend);
-                ResultAction::None
+        match result {
+            Ok(report) => {
+                self.report = Some(report);
+                self.error = None;
             }
-            ResultKey::Back => ResultAction::Back,
-            ResultKey::Copy => {
-                self.copy_summary(clipboard);
-                ResultAction::None
-            }
-            ResultKey::Done => {
-                if self.can_done() {
-                    ResultAction::Done
-                } else {
-                    ResultAction::None
-                }
-            }
+            Err(reason) => self.error = Some(reason),
+        }
+        self.cursor = 0;
+        self.confirm_quit = false;
+        if self.pending_areas().is_empty() {
+            self.view = View::Summary;
         }
     }
 
-    /// Done is enabled only when nothing drifts.
-    pub fn can_done(&self) -> bool {
-        !self.parts.is_empty() && self.parts.iter().all(|p| p.state == PartState::Ok)
+    /// Run the check now, on this thread (tests and tools; the app runs it on
+    /// a worker).
+    pub fn refresh(&mut self, backend: &dyn Backend, envs: &[String], keep: &[String]) {
+        let result = backend
+            .status(envs)
+            .map(|report| report.scoped(keep))
+            .map_err(|e| e.to_string());
+        self.finish_check(result);
     }
 
-    /// Drifted kept specs (`manager:name`) for the rerun command.
-    /// Only kept packages count: omitted entries stay omitted (one-shot).
-    pub fn drifted_specs(&self) -> Vec<String> {
-        self.last_drift.clone()
-    }
-
-    /// Exact rerun command for the drifted subset, if any.
-    pub fn rerun(&self) -> Option<String> {
-        self.rerun_text()
-    }
-
-    /// Summary line (`✓ N of M parts ok · K drift`).
-    pub fn summary(&self) -> &str {
-        &self.summary
-    }
-
-    /// Read-only follow-ups (never auto-executed).
-    pub fn follow_ups(&self) -> &[String] {
-        &self.follow_ups
-    }
-
-    /// Drift-table rows, in part order.
-    pub fn parts(&self) -> &[PartRow] {
-        &self.parts
-    }
-
-    /// Re-check count.
+    /// How many checks have finished.
     pub fn checks(&self) -> u32 {
         self.checks
     }
 
-    /// Last backend error, if any.
-    pub fn last_error(&self) -> Option<&str> {
-        self.last_error.as_deref()
+    /// The latest report.
+    pub fn report(&self) -> Option<&StatusReport> {
+        self.report.as_ref()
     }
 
-    /// Grid columns for the drift table (`part`, `state`, `note`).
-    pub fn grid_columns() -> Vec<ColumnSpec> {
-        use junie_tui::widgets::grid::CellKind;
-        vec![
-            ColumnSpec::new("part", CellKind::Text),
-            ColumnSpec::new("state", CellKind::Text),
-            ColumnSpec::new("note", CellKind::Text),
-        ]
+    /// The latest error, when the last check failed.
+    pub fn error(&self) -> Option<&str> {
+        self.error.as_deref()
     }
 
-    /// Grid rows for the drift table, matching [`grid_columns`](Self::grid_columns).
-    pub fn grid_rows(&self) -> Vec<Vec<CellValue>> {
-        self.parts
-            .iter()
-            .map(|p| {
-                vec![
-                    CellValue::Text(p.part.clone()),
-                    CellValue::Text(
-                        match p.state {
-                            PartState::Ok => "ok",
-                            PartState::Drift => "drift",
-                        }
-                        .to_string(),
+    /// The current view.
+    pub fn view(&self) -> View {
+        self.view
+    }
+
+    /// Whether "All good" is expanded.
+    pub fn expanded(&self) -> bool {
+        self.expanded
+    }
+
+    /// Areas that need changes.
+    pub fn pending_areas(&self) -> Vec<&AreaStatus> {
+        match (&self.error, &self.report) {
+            (None, Some(report)) => report.needs_changes(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Exit code for "leave now": 0 clean, 3 pending, 1 failed.
+    pub fn exit_code(&self) -> u8 {
+        if self.error.is_some() || self.report.is_none() {
+            EXIT_FAILED
+        } else if self.pending_areas().is_empty() {
+            EXIT_CLEAN
+        } else {
+            EXIT_PENDING
+        }
+    }
+
+    /// The primary action as `(key, label)`; `None` while nothing can be done.
+    pub fn primary(&self) -> Option<(&'static str, String)> {
+        if self.error.is_some() {
+            return Some(("Enter", "Check again".to_string()));
+        }
+        self.report.as_ref()?;
+        let pending = self.pending_areas();
+        Some(if pending.is_empty() {
+            ("Enter", "Finish and exit".to_string())
+        } else {
+            (
+                "Enter",
+                format!(
+                    "Finish for now ({} {} still {} changes)",
+                    pending.len(),
+                    plural(pending.len(), "area", "areas"),
+                    plural(pending.len(), "needs", "need")
+                ),
+            )
+        })
+    }
+
+    /// Footer hints for the keys that do something right now.
+    pub fn hints(&self) -> Vec<(&'static str, String)> {
+        let mut hints: Vec<(&'static str, String)> = Vec::new();
+        if self.confirm_quit {
+            return vec![("y", "quit anyway".into()), ("n", "stay".into())];
+        }
+        if self.view == View::Details {
+            hints.push(("↑↓", "scroll".into()));
+            hints.push(("Esc", "back".into()));
+            hints.push(("?", "help".into()));
+            return hints;
+        }
+        if self.report.is_none() && self.error.is_none() {
+            return vec![("?", "help".into()), ("q", "quit".into())];
+        }
+        if self.can_move() {
+            hints.push(("↑↓", "move".into()));
+        }
+        if !self.pending_areas().is_empty() {
+            hints.push(("d", "details".into()));
+        }
+        if self.can_expand() {
+            hints.push(("e", "expand".into()));
+        }
+        hints.push(("R", "check again".into()));
+        hints.push(("?", "help".into()));
+        hints.push(("q", "quit".into()));
+        hints
+    }
+
+    fn can_move(&self) -> bool {
+        self.selectable_rows() > 1
+    }
+
+    fn can_expand(&self) -> bool {
+        self.report
+            .as_ref()
+            .is_some_and(|r| !r.up_to_date().is_empty())
+            && self.error.is_none()
+    }
+
+    fn selectable_rows(&self) -> usize {
+        self.pending_areas().len()
+    }
+
+    /// Handle a key.
+    pub fn on_key(&mut self, key: &Key) -> ResultAction {
+        self.toast = None;
+        if self.confirm_quit {
+            if key.is_char('y') || key.is_char('Y') {
+                return ResultAction::Quit(self.exit_code());
+            }
+            self.confirm_quit = false;
+            return ResultAction::None;
+        }
+        if self.view == View::Details {
+            return self.on_details_key(key);
+        }
+        if key.is(KeyCode::Enter) {
+            return self.primary_action();
+        }
+        if key.is_char('q') || key.is(KeyCode::Esc) {
+            return self.try_quit();
+        }
+        if key.is_char('R') || key.is_char('r') {
+            return ResultAction::Recheck;
+        }
+        if key.is_char('e') && self.can_expand() {
+            self.expanded = !self.expanded;
+        } else if key.is_char('d') && !self.pending_areas().is_empty() {
+            self.view = View::Details;
+            self.cursor = 0;
+        } else if key.is(KeyCode::Down) && self.can_move() {
+            self.cursor = (self.cursor + 1).min(self.selectable_rows() - 1);
+        } else if key.is(KeyCode::Up) && self.can_move() {
+            self.cursor = self.cursor.saturating_sub(1);
+        }
+        ResultAction::None
+    }
+
+    fn on_details_key(&mut self, key: &Key) -> ResultAction {
+        if key.is(KeyCode::Esc) || key.is_char('q') {
+            self.view = View::Summary;
+            self.cursor = 0;
+        } else if key.is(KeyCode::Down) {
+            self.cursor += 1;
+        } else if key.is(KeyCode::Up) {
+            self.cursor = self.cursor.saturating_sub(1);
+        }
+        ResultAction::None
+    }
+
+    fn primary_action(&mut self) -> ResultAction {
+        if self.error.is_some() {
+            return ResultAction::Recheck;
+        }
+        match self.report {
+            None => ResultAction::None,
+            Some(_) => ResultAction::Quit(self.exit_code()),
+        }
+    }
+
+    /// `q`/`Esc`: leave at once unless changes are pending.
+    fn try_quit(&mut self) -> ResultAction {
+        if self.pending_areas().is_empty() {
+            ResultAction::Quit(self.exit_code())
+        } else {
+            self.confirm_quit = true;
+            ResultAction::None
+        }
+    }
+
+    /// Whether the "quit anyway?" question is open.
+    pub fn confirming_quit(&self) -> bool {
+        self.confirm_quit
+    }
+
+    fn verdict_row(&self, marks: &Marks) -> Row {
+        if let Some(reason) = &self.error {
+            return vec![
+                bold(format!("{} ", marks.fail), Tone::Error),
+                bold(format!("Could not check: {reason}"), Tone::Error),
+            ];
+        }
+        let Some(report) = &self.report else {
+            return vec![seg("Checking your Mac...", Tone::Muted)];
+        };
+        let pending = report.needs_changes().len();
+        let good = report.up_to_date().len();
+        let unknown = report.unknown().len();
+        if pending == 0 {
+            let mut text = format!(
+                "Your Mac is set up.  {} {} checked, all up to date.",
+                report.areas.len() - unknown,
+                plural(report.areas.len() - unknown, "area", "areas")
+            );
+            if unknown > 0 {
+                text = format!(
+                    "Your Mac is set up.  {good} up to date, {unknown} could not be checked."
+                );
+            }
+            vec![
+                bold(format!("{} ", marks.ok), Tone::Success),
+                bold(text, Tone::Success),
+            ]
+        } else {
+            vec![
+                bold(format!("{} ", marks.ok), Tone::Success),
+                seg(
+                    format!("{good} of {} areas up to date", report.areas.len()),
+                    Tone::Normal,
+                ),
+                seg("     ", Tone::Normal),
+                bold(format!("{} ", marks.warn), Tone::Warning),
+                bold(
+                    format!(
+                        "{pending} need{} changes",
+                        if pending == 1 { "s" } else { "" }
                     ),
-                    CellValue::Text(p.note.clone()),
-                ]
-            })
-            .collect()
+                    Tone::Warning,
+                ),
+            ]
+        }
     }
 
-    /// Follow-ups as props for the follow-up pane.
-    pub fn follow_up_props(&self) -> Vec<Prop> {
-        self.follow_ups
+    /// The title shown in the header: Done, Needs attention, or Checking.
+    pub fn step_name(&self) -> &'static str {
+        match (&self.error, &self.report) {
+            (Some(_), _) => "Needs attention",
+            (None, None) => "Checking",
+            (None, Some(_)) if self.pending_areas().is_empty() => "Done",
+            _ => "Needs attention",
+        }
+    }
+
+    fn attention_rows(&self, marks: &Marks, width: usize) -> Vec<Row> {
+        let areas = self.pending_areas();
+        let focusable = areas.len() > 1;
+        areas
             .iter()
-            .map(|f| {
-                let mut prop = Prop::new("follow-up", f);
-                prop.tone = Tone::Secondary;
-                prop
-            })
+            .enumerate()
+            .map(|(i, area)| attention_row(area, marks, focusable && i == self.cursor, width))
             .collect()
     }
 
-    /// Copy the summary through the shell clipboard (OSC52).
-    pub fn copy_summary(
-        &self,
-        clipboard: &junie_tui::shell::clipboard::Clipboard,
-    ) -> junie_tui::shell::clipboard::Copied {
-        clipboard.copy(&self.summary)
+    fn optional_rows(&self, marks: &Marks) -> Vec<Row> {
+        let mut rows = Vec::new();
+        let Some(report) = &self.report else {
+            return rows;
+        };
+        if report.notes.contains(&Note::LoginShellNotRecorded) {
+            rows.push(bullet(
+                marks,
+                "Open a new terminal window to start using your shell",
+            ));
+        }
+        for area in report.unknown() {
+            rows.push(bullet(
+                marks,
+                &format!("Could not check {} automatically", area.key.label()),
+            ));
+        }
+        rows
     }
 
-    fn rebuild(&mut self, report: &StatusReport) {
-        let mut parts = Vec::with_capacity(report.areas.len());
-        let mut drifted = 0usize;
-        let mut drifted_specs = Vec::new();
-        for area in &report.areas {
-            let changes = area.changes();
-            let (state, note) = match area.health() {
-                Health::NeedsChanges => {
-                    drifted += 1;
-                    drifted_specs.extend(changes.iter().filter_map(|e| e.spec.clone()));
-                    (
-                        PartState::Drift,
-                        format!("{} of {} differ", changes.len(), area.total()),
-                    )
+    /// Lines of the summary view, top to bottom.
+    pub fn summary_lines(&self, marks: &Marks, width: usize) -> Vec<Row> {
+        let mut lines = Vec::new();
+        let attention = self.attention_rows(marks, width);
+        if !attention.is_empty() {
+            lines.push(heading(&format!(
+                "Needs your attention ({})",
+                attention.len()
+            )));
+            lines.extend(attention);
+            lines.push(Vec::new());
+        }
+        let optional = self.optional_rows(marks);
+        if !optional.is_empty() {
+            lines.push(heading(&format!(
+                "Optional, for your information ({})",
+                optional.len()
+            )));
+            lines.extend(optional);
+            lines.push(Vec::new());
+        }
+        if let Some(report) = &self.report {
+            let good = report.up_to_date();
+            if !good.is_empty() {
+                let glyph = if self.expanded {
+                    marks.open
+                } else {
+                    marks.closed
+                };
+                let hint = if self.expanded {
+                    "e to collapse"
+                } else {
+                    "e to expand"
+                };
+                lines.push(vec![
+                    seg(format!(" {glyph} "), Tone::Muted),
+                    bold(format!("All good ({} areas)", good.len()), Tone::Normal),
+                    seg(format!("   {hint}"), Tone::Muted),
+                ]);
+                if self.expanded {
+                    for area in good {
+                        lines.push(vec![
+                            seg(format!("     {} ", marks.ok), Tone::Success),
+                            seg(format!("{:<20}", area.key.label()), Tone::Normal),
+                            seg(good_note(area), Tone::Muted),
+                        ]);
+                    }
                 }
-                Health::Unknown => (PartState::Ok, "could not check".to_string()),
-                Health::Skipped => (PartState::Ok, "skipped".to_string()),
-                Health::UpToDate => (PartState::Ok, format!("{} up to date", area.total())),
-            };
-            parts.push(PartRow {
-                part: area.key.label().to_string(),
-                state,
-                note,
-            });
+            }
         }
-        let ok = parts.len() - drifted;
-        self.summary = format!(
-            "{ok} of {} areas up to date, {drifted} need changes",
-            parts.len()
-        );
-        self.last_drift = drifted_specs;
-        self.follow_ups = follow_ups(report, self.rerun_text());
-        self.parts = parts;
+        lines
     }
 
-    fn rerun_text(&self) -> Option<String> {
-        if self.last_drift.is_empty() {
-            return None;
+    /// Lines of the details view: every pending change, grouped by area.
+    pub fn details_lines(&self, marks: &Marks, width: usize) -> Vec<Row> {
+        let mut lines = Vec::new();
+        let pending = self.pending_areas();
+        lines.push(heading(&format!(
+            "Pending changes ({})",
+            pending.iter().map(|a| a.changes().len()).sum::<usize>()
+        )));
+        for area in pending {
+            let changes = area.changes();
+            lines.push(Vec::new());
+            lines.push(vec![
+                bold(
+                    format!(" {} {}", marks.warn, area.key.label()),
+                    Tone::Warning,
+                ),
+                seg(
+                    format!("  {} of {}", changes.len(), area.total()),
+                    Tone::Muted,
+                ),
+            ]);
+            let item_w = changes
+                .iter()
+                .map(|c| c.item.chars().count())
+                .max()
+                .unwrap_or(0)
+                .clamp(7, width.saturating_sub(30).max(7));
+            let now_w = changes
+                .iter()
+                .map(|c| c.now.chars().count())
+                .max()
+                .unwrap_or(0)
+                .clamp(3, 18);
+            lines.push(vec![seg(
+                format!("   {:<item_w$}  {:<now_w$}  wanted", "setting", "now"),
+                Tone::Muted,
+            )]);
+            for change in changes {
+                lines.push(vec![
+                    seg("   ", Tone::Normal),
+                    seg(
+                        format!(
+                            "{:<item_w$}",
+                            paint::fit(&change.item, item_w, marks.ellipsis)
+                        ),
+                        Tone::Normal,
+                    ),
+                    seg("  ", Tone::Normal),
+                    seg(
+                        format!("{:<now_w$}", paint::fit(&change.now, now_w, marks.ellipsis)),
+                        Tone::Warning,
+                    ),
+                    seg("  ", Tone::Normal),
+                    seg(change.wanted.clone(), Tone::Success),
+                ]);
+            }
         }
-        let mut specs = self.last_drift.clone();
-        specs.sort();
-        let mut phase = vec![
-            "bootstrap".to_string(),
-            "packages".to_string(),
-            "apply".to_string(),
-        ];
-        phase.extend(specs);
-        Some(rerun_command(
-            self.backend.mise_bin(),
-            self.backend.config_dir(),
-            &self.envs,
-            &phase,
-        ))
+        lines
     }
 }
 
-/// Read-only follow-ups, surfaced and never auto-executed.
-fn follow_ups(report: &StatusReport, rerun: Option<String>) -> Vec<String> {
-    let mut out = Vec::new();
-    if report.notes.contains(&Note::LoginShellNotRecorded) {
-        out.push("open a fresh login shell to verify activation".to_string());
+impl Default for ResultScreen {
+    fn default() -> Self {
+        Self::new()
     }
-    if !report.is_clean() {
-        out.push(match rerun {
-            Some(cmd) => format!("rerun: {cmd}"),
-            None => "apply again to update the remaining areas".to_string(),
-        });
-    }
-    out
 }
 
-const S4_GRID: WidgetId = WidgetId::of("emc.s4.grid");
+fn plural(n: usize, one: &'static str, many: &'static str) -> &'static str {
+    if n == 1 { one } else { many }
+}
 
+fn heading(text: &str) -> Row {
+    vec![bold(format!(" {text}"), Tone::Normal)]
+}
+
+fn bullet(marks: &Marks, text: &str) -> Row {
+    vec![
+        seg(format!("   {} ", marks.bullet), Tone::Muted),
+        seg(text.to_string(), Tone::Normal),
+    ]
+}
+
+fn noun(key: AreaKey) -> (&'static str, &'static str) {
+    match key {
+        AreaKey::MacosDefaults => ("value", "values"),
+        AreaKey::LoginItems => ("item", "items"),
+        AreaKey::Packages => ("package", "packages"),
+        AreaKey::Tools => ("tool", "tools"),
+        AreaKey::Dotfiles => ("file", "files"),
+        AreaKey::Repos => ("repository", "repositories"),
+        _ => ("entry", "entries"),
+    }
+}
+
+fn good_note(area: &AreaStatus) -> String {
+    let (one, many) = noun(area.key);
+    let total = area.total();
+    let mut note = format!("{total} {}", plural(total, one, many));
+    if area.skipped() > 0 {
+        note.push_str(&format!(", {} skipped this time", area.skipped()));
+    }
+    note
+}
+
+fn attention_row(area: &AreaStatus, marks: &Marks, focused: bool, width: usize) -> Row {
+    let changes = area.changes();
+    let (one, many) = noun(area.key);
+    let verb = if changes.len() == 1 {
+        "differs"
+    } else {
+        "differ"
+    };
+    let count = format!(
+        "{} of {} {} {verb}",
+        changes.len(),
+        area.total(),
+        plural(area.total(), one, many)
+    );
+    let more = changes.len().saturating_sub(2);
+    let tail = if more > 0 {
+        format!("; +{more} more (d)")
+    } else {
+        String::new()
+    };
+    let full = changes
+        .iter()
+        .take(2)
+        .map(|c| format!("{} (now {}, wanted {})", c.item, c.now, c.wanted))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let names = changes
+        .iter()
+        .take(2)
+        .map(|c| c.item.clone())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let label = format!("{:<17}", area.key.label());
+    let room = width.saturating_sub(6 + label.chars().count());
+    let candidates = [
+        format!("{count}: {full}{tail}"),
+        format!("{count}: {names}{tail}"),
+        format!("{count} (d for details)"),
+    ];
+    let detail = candidates
+        .iter()
+        .find(|c| c.chars().count() <= room)
+        .unwrap_or(&candidates[2])
+        .clone();
+    vec![
+        seg(
+            format!(" {} ", if focused { marks.focus } else { " " }),
+            Tone::Active,
+        ),
+        bold(format!("{} ", marks.warn), Tone::Warning),
+        bold(label, Tone::Normal),
+        seg(detail, Tone::Normal),
+    ]
+}
+
+const S4_PAGE: WidgetId = WidgetId::of("emc.s4.page");
+
+/// Paints [`ResultScreen`] and maps keys to [`ResultAction`]s.
 pub(crate) struct ResultOwner {
     pub(crate) state: ResultScreen,
-    grid: DataGrid,
 }
 
 impl ResultOwner {
     pub(crate) fn new(state: ResultScreen) -> Self {
-        let mut owner = Self {
-            grid: DataGrid::new(S4_GRID, ResultScreen::grid_columns()).editable(false),
-            state,
-        };
-        owner.sync_rows();
-        owner
+        Self { state }
     }
 
     pub(crate) fn primary_focus(&self) -> WidgetId {
-        S4_GRID
+        S4_PAGE
     }
 
-    fn sync_rows(&mut self) {
-        self.grid.set_rows(GridRows {
-            rows: self.state.grid_rows(),
-            total: RowTotal::Exact(self.state.parts().len()),
-            more: false,
-        });
-    }
-
-    fn grid_response(
-        &mut self,
-        out: Outcome,
-        action: Option<GridAction>,
-        focus: &mut Focus,
-        ring: &FocusRing,
-        clipboard: &Clipboard,
-    ) -> Response<ResultAction> {
+    pub(crate) fn key(&mut self, key: &Key, _clipboard: &Clipboard) -> Response<ResultAction> {
+        let before = self.state.summary_snapshot();
+        let action = self.state.on_key(key);
         match action {
-            Some(GridAction::Copy(text)) => {
-                clipboard.copy(&text);
-                Response::changed()
+            ResultAction::None if before == self.state.summary_snapshot() => {
+                Response::from(Outcome::Ignored)
             }
-            Some(GridAction::Refresh) => {
-                let backend = self.state.backend.clone();
-                self.state.refresh(&*backend);
-                self.sync_rows();
-                Response::changed()
-            }
-            Some(GridAction::LeaveForward) => {
-                focus.next(ring);
-                Response::changed()
-            }
-            Some(GridAction::LeaveBackward) => {
-                focus.prev(ring);
-                Response::changed()
-            }
-            Some(GridAction::ReadOnly { .. }) => Response::consumed(),
-            _ => out.into(),
+            ResultAction::None => Response::changed(),
+            other => Response::emit(other),
         }
-    }
-
-    pub(crate) fn key(
-        &mut self,
-        key: &Key,
-        focus: &mut Focus,
-        ring: &FocusRing,
-        backend: &dyn Backend,
-        clipboard: &Clipboard,
-    ) -> Response<ResultAction> {
-        if let Some(mapped) = self.state.map_key(key) {
-            let action = self.state.apply(mapped, backend, clipboard);
-            if matches!(mapped, ResultKey::Recheck) {
-                self.sync_rows();
-            }
-            return match action {
-                ResultAction::Back | ResultAction::Done => Response::emit(action),
-                ResultAction::None => Response::changed(),
-            };
-        }
-        if focus.current() != Some(S4_GRID) {
-            return Response::ignored();
-        }
-        let (out, action) = self.grid.on_key(key);
-        self.grid_response(out, action, focus, ring, clipboard)
-    }
-
-    pub(crate) fn pointer(
-        &mut self,
-        ev: &PointerEvent,
-        focus: &mut Focus,
-        ring: &FocusRing,
-        clipboard: &Clipboard,
-    ) -> Response<ResultAction> {
-        let Some(response) = self.grid.route(ev) else {
-            return Response::ignored();
-        };
-        if ev.is(Phase::Click) {
-            focus.focus(S4_GRID);
-        }
-        let (out, action) = response.into_parts();
-        self.grid_response(out, action, focus, ring, clipboard)
-    }
-
-    pub(crate) fn blur(&mut self, change: FocusChange, clipboard: &Clipboard) -> Outcome {
-        if change.from != S4_GRID {
-            return Outcome::Ignored;
-        }
-        let (out, action) = self.grid.on_blur();
-        if let Some(GridAction::Copy(text)) = action {
-            clipboard.copy(&text);
-        }
-        out
     }
 
     pub(crate) fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx) {
         let theme: Theme = *ctx.theme;
-        let bg: Color = theme.canvas;
-        render_header(
+        let bg = theme.canvas;
+        let marks = Marks::for_theme(&theme);
+        paint::clear(buf, area, bg);
+        render_step_header(
             4,
-            "Result",
+            self.state.step_name(),
             Rect::new(area.x, area.y, area.width, 1),
             buf,
             &theme,
         );
-        let body = Rect::new(
-            area.x,
-            area.y + 1,
-            area.width,
-            area.height.saturating_sub(3),
-        );
-        let table_h =
-            (self.state.parts().len() as u16 + 3).min(body.height.saturating_sub(4).max(4));
-        let table_area = Rect::new(body.x, body.y, body.width, table_h);
-        self.grid.render(table_area, buf, ctx, bg);
-        let follow_area = Rect::new(
-            body.x,
-            table_area.bottom(),
-            body.width,
-            body.height.saturating_sub(table_area.bottom() - body.y + 1),
-        );
-        props::render(follow_area, buf, &theme, &self.state.follow_up_props(), bg);
-        render_hints(
-            &[
-                ("R", "re-check"),
-                ("c", "copy"),
-                ("B", "back"),
-                ("Enter", "done"),
-            ],
-            Rect::new(area.x, area.bottom().saturating_sub(2), area.width, 1),
-            buf,
-            &theme,
-        );
-        render_status(
-            self.state.summary(),
+        let body_h = area.height.saturating_sub(3) as usize;
+        let width = area.width.saturating_sub(2);
+        let mut lines = vec![self.state.verdict_row(&marks)];
+        if let Some(report) = self.state.report() {
+            let stamp = if self.state.checks() > 1 {
+                format!(
+                    "Checked {} (check #{})",
+                    report.checked_at,
+                    self.state.checks()
+                )
+            } else {
+                format!("Checked {}", report.checked_at)
+            };
+            let used: usize = lines[0].iter().map(|s| s.text.chars().count()).sum();
+            if used + stamp.chars().count() + 3 <= width as usize {
+                let pad = width as usize - used - stamp.chars().count();
+                lines[0].push(seg(" ".repeat(pad), Tone::Normal));
+                lines[0].push(seg(stamp, Tone::Muted));
+            } else {
+                lines.push(vec![seg(format!(" {stamp}"), Tone::Muted)]);
+            }
+        }
+        lines.push(Vec::new());
+        match self.state.view() {
+            View::Summary => lines.extend(self.state.summary_lines(&marks, width as usize)),
+            View::Details => lines.extend(self.state.details_lines(&marks, width as usize)),
+        }
+        let skip = if lines.len() > body_h {
+            self.state.scroll_for(lines.len(), body_h)
+        } else {
+            0
+        };
+        for (i, row) in lines.iter().skip(skip).take(body_h).enumerate() {
+            put(
+                buf,
+                area.x + 1,
+                area.y + 1 + i as u16,
+                width,
+                row,
+                &theme,
+                bg,
+            );
+        }
+        let primary_y = area.bottom().saturating_sub(2);
+        if self.state.confirming_quit() {
+            let n = self.state.pending_areas().len();
+            let question = format!(
+                "Quit with {n} {} still needing changes?  y yes, n no",
+                plural(n, "area", "areas")
+            );
+            put(
+                buf,
+                area.x + 1,
+                primary_y,
+                width,
+                &[bold(question, Tone::Warning)],
+                &theme,
+                bg,
+            );
+        } else if let Some((key, label)) = self.state.primary() {
+            primary_line(
+                Rect::new(area.x, primary_y, area.width, 1),
+                buf,
+                &theme,
+                bg,
+                key,
+                &label,
+            );
+        } else {
+            put(
+                buf,
+                area.x + 1,
+                primary_y,
+                width,
+                &[seg(
+                    format!("{} Checking your Mac...", marks.frame(0)),
+                    Tone::Muted,
+                )],
+                &theme,
+                bg,
+            );
+        }
+        footer(
             Rect::new(area.x, area.bottom().saturating_sub(1), area.width, 1),
             buf,
-            ctx,
+            &theme,
+            &self.state.hints(),
         );
+    }
+}
+
+impl ResultScreen {
+    /// A cheap fingerprint of what the screen shows, so the owner can tell
+    /// whether a key changed anything.
+    fn summary_snapshot(&self) -> (View, bool, usize, bool, u32) {
+        (
+            self.view,
+            self.expanded,
+            self.cursor,
+            self.confirm_quit,
+            self.checks,
+        )
+    }
+
+    /// First visible line for a scrolled view.
+    fn scroll_for(&self, total: usize, height: usize) -> usize {
+        let max = total.saturating_sub(height);
+        match self.view {
+            View::Details => self.cursor.min(max),
+            View::Summary => (self.cursor + 4).saturating_sub(height).min(max),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::MiseBackend;
-    use crate::backend::mock::MockBackend;
-    use junie_tui::core::event::Key;
-    use ratatui::crossterm::event::{KeyCode, KeyModifiers};
+    use crate::status::StatusReport;
+    use ratatui::crossterm::event::KeyModifiers;
 
-    fn test_backend() -> std::sync::Arc<dyn Backend> {
-        std::sync::Arc::new(MiseBackend::new(std::path::PathBuf::from(
-            "/tmp/emc-test-result",
-        )))
+    fn fixture(name: &str) -> StatusReport {
+        let text = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures")
+                .join(name),
+        )
+        .expect("fixture");
+        StatusReport::parse(&text, "12:04:31").expect("parses")
     }
 
-    fn result() -> ResultScreen {
-        ResultScreen::new(
-            test_backend(),
-            vec!["terminal".to_string()],
-            vec!["brew-cask:jetbrains-toolbox".to_string()],
-        )
+    fn screen(name: &str) -> ResultScreen {
+        let mut s = ResultScreen::new();
+        s.finish_check(Ok(fixture(name)));
+        s
     }
 
     fn key(code: KeyCode) -> Key {
@@ -514,104 +771,127 @@ mod tests {
         }
     }
 
-    fn char_key(c: char) -> Key {
-        Key {
-            code: KeyCode::Char(c),
-            mods: KeyModifiers::empty(),
+    fn ch(c: char) -> Key {
+        key(KeyCode::Char(c))
+    }
+
+    fn text(lines: &[Row]) -> String {
+        lines
+            .iter()
+            .map(|r| paint::row_text(r))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn clean_result_is_done_with_finish_and_exit_zero() {
+        let mut s = screen("status-applied.json");
+        assert_eq!(s.step_name(), "Done");
+        assert_eq!(s.primary().unwrap().1, "Finish and exit");
+        assert_eq!(s.exit_code(), EXIT_CLEAN);
+        assert_eq!(s.on_key(&key(KeyCode::Enter)), ResultAction::Quit(0));
+        assert_eq!(s.on_key(&ch('q')), ResultAction::Quit(0));
+        assert_eq!(s.on_key(&key(KeyCode::Esc)), ResultAction::Quit(0));
+    }
+
+    #[test]
+    fn pending_result_names_the_difference_and_exits_three() {
+        let mut s = screen("status-one-differs.json");
+        assert_eq!(s.step_name(), "Needs attention");
+        let lines = text(&s.summary_lines(&Marks::unicode(), 100));
+        assert!(lines.contains("Needs your attention (1)"), "{lines}");
+        assert!(lines.contains("1 of 67 values differs"), "{lines}");
+        assert!(
+            lines.contains("com.apple.dock tilesize (now 48, wanted 36)"),
+            "{lines}"
+        );
+        assert!(lines.find("Needs your attention") < lines.find("All good"));
+        assert_eq!(s.exit_code(), EXIT_PENDING);
+        // q asks first, then y quits with 3; n stays.
+        assert_eq!(s.on_key(&ch('q')), ResultAction::None);
+        assert!(s.confirming_quit());
+        assert_eq!(s.on_key(&ch('n')), ResultAction::None);
+        assert!(!s.confirming_quit());
+        s.on_key(&key(KeyCode::Esc));
+        assert_eq!(s.on_key(&ch('y')), ResultAction::Quit(3));
+    }
+
+    #[test]
+    fn all_good_is_collapsed_and_e_expands_it() {
+        let mut s = screen("status-one-differs.json");
+        let marks = Marks::unicode();
+        assert!(text(&s.summary_lines(&marks, 100)).contains("All good (5 areas)"));
+        assert!(!text(&s.summary_lines(&marks, 100)).contains("Dotfiles"));
+        s.on_key(&ch('e'));
+        assert!(text(&s.summary_lines(&marks, 100)).contains("Dotfiles"));
+    }
+
+    #[test]
+    fn details_view_lists_setting_now_wanted_and_esc_goes_back() {
+        let mut s = screen("status-one-differs.json");
+        s.on_key(&ch('d'));
+        assert_eq!(s.view(), View::Details);
+        let lines = text(&s.details_lines(&Marks::unicode(), 100));
+        assert!(lines.contains("setting"), "{lines}");
+        assert!(lines.contains("com.apple.dock tilesize"), "{lines}");
+        s.on_key(&key(KeyCode::Esc));
+        assert_eq!(s.view(), View::Summary);
+    }
+
+    #[test]
+    fn d_is_ignored_when_nothing_is_pending() {
+        let mut s = screen("status-applied.json");
+        s.on_key(&ch('d'));
+        assert_eq!(s.view(), View::Summary);
+        assert!(s.hints().iter().all(|(k, _)| *k != "d"));
+    }
+
+    #[test]
+    fn failed_check_offers_check_again_and_exits_one() {
+        let mut s = ResultScreen::new();
+        s.finish_check(Err("mise exited 1".to_string()));
+        assert_eq!(s.step_name(), "Needs attention");
+        assert_eq!(s.primary().unwrap().1, "Check again");
+        assert_eq!(s.on_key(&key(KeyCode::Enter)), ResultAction::Recheck);
+        assert_eq!(s.exit_code(), EXIT_FAILED);
+        assert_eq!(s.on_key(&ch('q')), ResultAction::Quit(1));
+    }
+
+    #[test]
+    fn unknown_areas_are_not_pending() {
+        let mut s = ResultScreen::new();
+        let raw = r#"{"mystery":[{"a":1}]}"#;
+        s.finish_check(Ok(StatusReport::parse(raw, "t").unwrap()));
+        assert_eq!(s.exit_code(), EXIT_CLEAN);
+        let lines = text(&s.summary_lines(&Marks::unicode(), 100));
+        assert!(
+            lines.contains("Could not check Other settings automatically"),
+            "{lines}"
+        );
+    }
+
+    #[test]
+    fn every_listed_key_does_something() {
+        for name in ["status-applied.json", "status-one-differs.json"] {
+            let base = screen(name);
+            for (key_label, _) in base.hints() {
+                let mut s = screen(name);
+                let before = s.summary_snapshot();
+                let k = match key_label {
+                    "↑↓" => key(KeyCode::Down),
+                    "d" => ch('d'),
+                    "e" => ch('e'),
+                    "R" => ch('R'),
+                    "q" => ch('q'),
+                    "?" => continue,
+                    other => panic!("unmapped hint {other}"),
+                };
+                let action = s.on_key(&k);
+                assert!(
+                    action != ResultAction::None || before != s.summary_snapshot(),
+                    "{name}: {key_label} did nothing"
+                );
+            }
         }
-    }
-
-    #[test]
-    fn refresh_clean_fixture_enables_done() {
-        let mock = MockBackend::new();
-        let mut screen = result();
-        screen.refresh(&mock);
-        assert_eq!(screen.checks(), 1);
-        assert!(screen.last_error().is_none());
-        assert!(!screen.parts().is_empty());
-        assert!(screen.can_done(), "clean fixture has no drift");
-        assert!(screen.summary().contains("0 need changes"));
-        assert!(screen.rerun().is_none());
-        assert!(
-            screen
-                .follow_ups()
-                .iter()
-                .any(|f| f.contains("fresh login shell")),
-            "unrecorded login shell surfaces a follow-up"
-        );
-        assert_eq!(ResultScreen::grid_columns().len(), 3);
-        assert_eq!(screen.grid_rows().len(), screen.parts().len());
-        assert!(!screen.follow_up_props().is_empty());
-        let copied = screen.copy_summary(&junie_tui::shell::clipboard::Clipboard::new());
-        assert!(
-            matches!(copied, junie_tui::shell::clipboard::Copied::Copied { .. }),
-            "summary copies through the shell clipboard"
-        );
-    }
-
-    #[test]
-    fn drift_blocks_done_with_rerun() {
-        let mut screen = result();
-        let report = StatusReport::parse(
-            r#"{"packages":{"brew":{"available":true,"packages":[
-              {"package":"jq","desired_state":"present","state":"missing"}]}}}"#,
-            "t",
-        )
-        .expect("parses");
-        screen.keep = vec!["brew:jq".to_string()];
-        screen.rebuild(&report.scoped(&screen.keep.clone()));
-        assert_eq!(screen.parts()[0].state, PartState::Drift);
-        assert!(!screen.can_done());
-        assert_eq!(screen.map_key(&key(KeyCode::Enter)), None);
-        let rerun = screen.rerun().expect("drifted rerun");
-        assert!(rerun.contains("packages apply brew:jq"), "{rerun}");
-        assert_eq!(screen.drifted_specs(), vec!["brew:jq".to_string()]);
-    }
-
-    #[test]
-    fn omitted_packages_never_gate_done() {
-        let mut screen = result();
-        let report = StatusReport::parse(
-            r#"{"packages":{"brew":{"available":true,"packages":[
-              {"package":"jq","desired_state":"present","state":"missing"}]}}}"#,
-            "t",
-        )
-        .expect("parses");
-        screen.rebuild(&report.scoped(&[]));
-        assert!(screen.can_done());
-        assert!(screen.rerun().is_none());
-    }
-
-    #[test]
-    fn keys_match_section_3() {
-        let mock = MockBackend::new();
-        let mut screen = result();
-        screen.refresh(&mock);
-        assert_eq!(screen.map_key(&char_key('R')), Some(ResultKey::Recheck));
-        assert_eq!(screen.map_key(&char_key('r')), Some(ResultKey::Recheck));
-        assert_eq!(screen.map_key(&char_key('B')), Some(ResultKey::Back));
-        assert_eq!(screen.map_key(&char_key('c')), Some(ResultKey::Copy));
-        assert_eq!(screen.map_key(&key(KeyCode::Enter)), Some(ResultKey::Done));
-        assert_eq!(screen.map_key(&char_key('D')), Some(ResultKey::Done));
-        assert_eq!(
-            screen.apply(ResultKey::Back, &mock, &Clipboard::new()),
-            ResultAction::Back
-        );
-        assert_eq!(
-            screen.apply(ResultKey::Done, &mock, &Clipboard::new()),
-            ResultAction::Done
-        );
-    }
-
-    #[test]
-    fn recheck_reruns_backend() {
-        let mock = MockBackend::new();
-        let mut screen = result();
-        screen.refresh(&mock);
-        assert_eq!(
-            screen.apply(ResultKey::Recheck, &mock, &Clipboard::new()),
-            ResultAction::None
-        );
-        assert_eq!(screen.checks(), 2);
     }
 }
