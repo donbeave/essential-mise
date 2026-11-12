@@ -242,9 +242,9 @@ fn static_screen_resize_redraws_and_preserves_filtering() {
 #[test]
 fn canned_mock_origins_cover_fixture_envs() {
     use essential_mise_console::cli::mock_backend;
-    use essential_mise_console::manifest::Manifest;
+    use essential_mise_console::metadata::Manifest;
     let envs: Vec<String> = Manifest::load(&fixture_config())
-        .expect("fixture manifest")
+        .expect("fixture headers")
         .modules
         .into_iter()
         .map(|m| m.name)

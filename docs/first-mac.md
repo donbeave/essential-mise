@@ -19,7 +19,7 @@ The word `bootstrap` becomes `$0` of the launcher; everything after it is passed
 3. The official mise installer, then an update to the latest stable mise.
 4. Repository access. For a private GitHub HTTPS URL the console installs `gh`, runs a web login, and retries once. For SSH URLs it prints instructions and stops.
 5. Adoption of the config repository into the config directory.
-6. The manifest's `base_modules`.
+6. The base modules (`#: base = true`).
 
 The module-selection TUI then opens. Select modules with Space, press Enter to review packages, and confirm the apply.
 

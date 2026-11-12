@@ -5,7 +5,7 @@ A module is one file in your config repository named `config.<name>.toml`. It de
 ## Steps
 
 1. Create `config.<name>.toml`. Use native mise resources first: packages (`brew`, `brew-cask`, `mas`), dotfiles, repositories, tools, hooks, and macOS defaults.
-2. Add `[[modules]]` to `essential-mise.toml` with the same `name` and a one-line `description`. A base module goes in `setup.base_modules` instead.
+2. Start the file with a `#:` header: `#: description = "..."` (one line) and, to place it in the TUI list, `#: order = <number>`. Add `#: base = true` instead of `order` for a module that setup applies automatically. The module name is the file name.
 3. Put files that a `[dotfiles]` entry copies under `dotfiles/<module>/`.
 4. Run `essential-mise-console lint --config-dir .`.
 5. Preview, then apply in a disposable VM or a sandbox home: `MISE_CEILING_PATHS=$PWD mise -C . -E <name> bootstrap --dry-run`.
@@ -18,4 +18,4 @@ A module is one file in your config repository named `config.<name>.toml`. It de
 - Keep identity and secrets out of the repository. Use `*.local.toml` files (ignored by git) for machine-local overrides.
 - Prefer native resources over hooks. A hook that wraps Homebrew needs a documented reason, health check, upgrade, and removal path.
 
-The starter's `config.terminal.toml` is a working example.
+The header format is in [the contract](config-repo.md). The starter's `config.terminal.toml` is a working example.

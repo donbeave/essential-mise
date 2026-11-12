@@ -15,7 +15,7 @@ result — without reimplementing any install logic.
 - No new package format. `config.<name>.toml` modules remain the only
   source of truth for packages; the TUI never writes package declarations
   (one-shot installs stay unrecorded). The module catalogue comes from the
-  config repository's `essential-mise.toml` manifest (see `docs/config-repo.md`).
+  config repository's `#:` header comments (see `docs/config-repo.md`).
 - No replacement of VM verification scripts or docs. Stage 0–5 *orchestration*
   lives in `emc setup` (calling official installers); install logic itself is
   never reimplemented. The TUI covers the setup + selection + apply + verify
@@ -84,7 +84,7 @@ library terminal pane; cancellation forwards to the child process.
 
 ## 5. Screens (P1 scope)
 
-1. **Modules** — multi-select list of the modules declared in the manifest, with their
+1. **Modules** — multi-select list of the modules declared in the `#:` headers, with their
    descriptions; search filter; shows already-installed
    state where `plan --json` reports `noop`.
 2. **Packages** — checklist of every package in the selected modules,

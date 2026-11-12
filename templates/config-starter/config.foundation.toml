@@ -1,3 +1,6 @@
+#: description = "Base tools applied to every machine"
+#: base = true
+
 [bootstrap.packages]
 "brew:mas" = "latest"
 

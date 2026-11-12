@@ -2,12 +2,12 @@
 //!
 //! Mirrors the `bootstrap.sh` launcher's platform guards, then: Command Line
 //! Tools, Homebrew, mise, repository access, config adoption, and the
-//! manifest's `base_modules`. The plan is pure data (`setup_plan`) so
+//! config repository's base modules (`base = true`). The plan is pure data (`setup_plan`) so
 //! `--dry-run` prints it with zero subprocesses, and the executor narrates
 //! from the same plan.
 
 use crate::cli::{Cli, EXIT_ERROR, EXIT_OK, resolve_config_dir};
-use crate::manifest::{Manifest, check_min_console};
+use crate::metadata::{Manifest, check_min_console};
 use crate::source::{ConfigSource, SourceKind};
 
 /// Number of setup stages (`stage N/6`).
@@ -38,8 +38,8 @@ pub struct SetupConfig {
     pub home: std::path::PathBuf,
     /// Config repository from `--config` / `ESSENTIAL_MISE_CONFIG`.
     pub source: Option<ConfigSource>,
-    /// Manifest `base_modules` when already known (dry-run preview of an
-    /// existing checkout); the executor re-reads the manifest after stage 5.
+    /// Base modules (`base = true` files) when already known (dry-run preview of an
+    /// existing checkout); the executor re-reads the headers after stage 5.
     pub base_modules: Option<Vec<String>>,
 }
 
@@ -244,7 +244,7 @@ fn base_modules_stage(cfg: &SetupConfig, mise: &str) -> SetupStage {
         number: 6,
         title: "Base modules".to_string(),
         detail: format!(
-            "Applies the manifest's `setup.base_modules` with `mise bootstrap --upgrade \
+            "Applies the modules marked `base = true` with `mise bootstrap --upgrade \
              --update` and MISE_CEILING_PATHS={config_dir}. Also enforces `min_console`."
         ),
         commands,
@@ -319,9 +319,7 @@ pub fn run_setup(
         }
     };
     if dry_run {
-        cfg.base_modules = Manifest::load(&cfg.config_dir)
-            .ok()
-            .map(|m| m.setup.base_modules);
+        cfg.base_modules = Manifest::load(&cfg.config_dir).ok().map(|m| m.base_modules);
     }
     let stages = setup_plan(&cfg);
     if dry_run {
@@ -621,15 +619,15 @@ fn execute_setup_plan(
         }
     }
 
-    // The manifest is readable only now: enforce `min_console`, then read
-    // `base_modules`.
+    // The headers are readable only now: enforce `min_console`, then read
+    // the base modules.
     let manifest = Manifest::load(dir).map_err(|e| (5, e.to_string()))?;
     check_min_console(&manifest, env!("CARGO_PKG_VERSION")).map_err(|m| (5, m))?;
 
     // Stage 6: base modules.
     {
         let _ = writeln!(out, "stage 6/{STAGE_COUNT}: {}", stage_title(stages, 6));
-        let modules = &manifest.setup.base_modules;
+        let modules = &manifest.base_modules;
         if modules.is_empty() {
             let _ = writeln!(out, "no base modules to apply");
         } else {
@@ -955,7 +953,7 @@ mod tests {
     }
 
     #[test]
-    fn base_modules_stage_follows_the_manifest_when_known() {
+    fn base_modules_stage_follows_the_headers_when_known() {
         let mut c = cfg(None);
         assert_eq!(
             commands(&setup_plan(&c)[5]),

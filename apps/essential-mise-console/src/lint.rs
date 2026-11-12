@@ -4,82 +4,58 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use crate::manifest::{MANIFEST_FILE, Manifest};
+use crate::metadata::{
+    ModuleMeta, Problem, REPO_FILE, RepoMeta, module_file, module_names, stray_problems,
+};
 
 /// Check `config_dir`; returns one human-readable line per problem
 /// (empty when the repository is valid). Output order is deterministic.
 pub fn lint(config_dir: &Path) -> Vec<String> {
     let mut problems = Vec::new();
 
-    let manifest = match Manifest::load(config_dir) {
-        Ok(manifest) => Some(manifest),
+    let modules = module_names(config_dir);
+    let mut headers = vec![REPO_FILE.to_string()];
+    headers.extend(modules.iter().map(|name| module_file(name)));
+    for file in &headers {
+        problems.extend(check_header(config_dir, file));
+    }
+    let mut lines: Vec<String> = problems.iter().map(Problem::to_string).collect();
+
+    check_toml_files(config_dir, &mut lines);
+    check_dotfile_sources(config_dir, &modules, &mut lines);
+    check_gitignore(config_dir, &mut lines);
+    lines
+}
+
+/// Header validity and stray `#:` lines of one `config*.toml` file.
+fn check_header(config_dir: &Path, file: &str) -> Vec<Problem> {
+    let text = match std::fs::read_to_string(config_dir.join(file)) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return vec![Problem {
+                path: file.to_string(),
+                line: 0,
+                message: "not found (it carries the repository header: schema and name)"
+                    .to_string(),
+            }];
+        }
         Err(e) => {
-            problems.push(e.to_string());
-            None
+            return vec![Problem {
+                path: file.to_string(),
+                line: 0,
+                message: format!("cannot read: {e}"),
+            }];
         }
     };
-
-    let files = module_files(config_dir);
-    if let Some(manifest) = &manifest {
-        check_modules(manifest, &files, &mut problems);
-    }
-    check_toml_files(config_dir, &mut problems);
-    check_dotfile_sources(config_dir, &files, &mut problems);
-    check_gitignore(config_dir, &mut problems);
+    let header = if file == REPO_FILE {
+        RepoMeta::parse(file, &text).err()
+    } else {
+        ModuleMeta::parse(file, &text).err()
+    };
+    let mut problems: Vec<Problem> = header.into_iter().collect();
+    problems.extend(stray_problems(file, &text));
+    problems.sort_by_key(|p| p.line);
     problems
-}
-
-/// Names of top-level `config.<name>.toml` files that count as modules:
-/// `config.toml` and `*.local.toml` are excluded.
-fn module_files(config_dir: &Path) -> BTreeSet<String> {
-    let mut names = BTreeSet::new();
-    let Ok(entries) = std::fs::read_dir(config_dir) else {
-        return names;
-    };
-    for entry in entries.flatten() {
-        let file = entry.file_name().to_string_lossy().into_owned();
-        if file.ends_with(".local.toml") {
-            continue;
-        }
-        if let Some(name) = file
-            .strip_prefix("config.")
-            .and_then(|rest| rest.strip_suffix(".toml"))
-            && !name.is_empty()
-            && entry.path().is_file()
-        {
-            names.insert(name.to_string());
-        }
-    }
-    names
-}
-
-fn check_modules(manifest: &Manifest, files: &BTreeSet<String>, problems: &mut Vec<String>) {
-    let mut listed: BTreeSet<&str> = BTreeSet::new();
-    for module in &manifest.modules {
-        listed.insert(module.name.as_str());
-        if !files.contains(&module.name) {
-            problems.push(format!(
-                "module \"{0}\" is listed in {MANIFEST_FILE} but config.{0}.toml does not exist",
-                module.name
-            ));
-        }
-    }
-    for base in &manifest.setup.base_modules {
-        listed.insert(base.as_str());
-        if !files.contains(base) {
-            problems.push(format!(
-                "base module \"{0}\" is listed in {MANIFEST_FILE} but config.{0}.toml does not exist",
-                base
-            ));
-        }
-    }
-    for name in files {
-        if !listed.contains(name.as_str()) {
-            problems.push(format!(
-                "config.{name}.toml is not listed in {MANIFEST_FILE} (add a [[modules]] entry or a base module)"
-            ));
-        }
-    }
 }
 
 /// Every `*.toml` under the repository parses. Hidden directories,
@@ -90,10 +66,6 @@ fn check_toml_files(config_dir: &Path, problems: &mut Vec<String>) {
     paths.sort();
     for path in paths {
         let rel = relative(config_dir, &path);
-        // The manifest is reported by the strict check above.
-        if rel == MANIFEST_FILE {
-            continue;
-        }
         match std::fs::read_to_string(&path) {
             Ok(text) => {
                 if let Err(e) = toml::from_str::<toml::Table>(&text) {
@@ -245,46 +217,179 @@ mod tests {
         assert_eq!(lint(&starter()), Vec::<String>::new());
     }
 
-    #[test]
-    fn missing_manifest_fails() {
-        let dir = scratch("no-manifest");
-        std::fs::remove_file(dir.join(MANIFEST_FILE)).expect("rm");
-        let problems = lint(&dir);
-        assert_eq!(problems.len(), 1, "{problems:?}");
-        assert!(problems[0].contains("essential-mise.toml not found"));
+    fn write(dir: &Path, file: &str, text: &str) {
+        std::fs::write(dir.join(file), text).expect("write");
     }
 
     #[test]
-    fn unparsable_manifest_fails() {
-        let dir = scratch("bad-manifest");
-        std::fs::write(dir.join(MANIFEST_FILE), "schema = 1\nbogus = 2\n").expect("write");
-        let problems = lint(&dir);
-        assert_eq!(problems.len(), 1, "{problems:?}");
-        assert!(problems[0].starts_with("essential-mise.toml is invalid"));
-    }
-
-    #[test]
-    fn listed_module_without_file_fails() {
-        let dir = scratch("no-file");
-        std::fs::remove_file(dir.join("config.terminal.toml")).expect("rm");
+    fn missing_config_toml_fails() {
+        let dir = scratch("no-repo");
+        std::fs::remove_file(dir.join("config.toml")).expect("rm");
         assert_eq!(
             lint(&dir),
-            vec![
-                "module \"terminal\" is listed in essential-mise.toml but config.terminal.toml does not exist"
-            ]
+            vec!["config.toml: not found (it carries the repository header: schema and name)"]
         );
     }
 
     #[test]
-    fn unlisted_module_file_fails() {
-        let dir = scratch("unlisted");
-        std::fs::write(dir.join("config.extra.toml"), "").expect("write");
-        assert_eq!(
-            lint(&dir),
-            vec![
-                "config.extra.toml is not listed in essential-mise.toml (add a [[modules]] entry or a base module)"
-            ]
+    fn config_toml_without_header_fails() {
+        let dir = scratch("repo-no-header");
+        write(&dir, "config.toml", "min_version = \"2026.10.23\"\n");
+        let problems = lint(&dir);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].starts_with("config.toml:1: missing metadata header"));
+    }
+
+    #[test]
+    fn repo_header_rules() {
+        let dir = scratch("repo-rules");
+        let body = "min_version = \"2026.10.23\"\n";
+        let cases = [
+            ("#: name = \"x\"\n", "config.toml:1: missing field `schema`"),
+            ("#: schema = 1\n", "config.toml:1: missing field `name`"),
+            (
+                "#: schema = 2\n#: name = \"x\"\n",
+                "config.toml:1: unsupported schema 2 (this console reads schema 1)",
+            ),
+            (
+                "#: schema = 1\n#: name = \"\"\n",
+                "config.toml:2: name must not be empty",
+            ),
+            (
+                "#: schema = 1\n#: name = \"x\"\n#: min_console = \"1.2\"\n",
+                "config.toml:3: min_console \"1.2\" is not a MAJOR.MINOR.PATCH version",
+            ),
+        ];
+        for (header, expected) in cases {
+            write(&dir, "config.toml", &format!("{header}{body}"));
+            assert_eq!(lint(&dir), vec![expected.to_string()], "{header}");
+        }
+    }
+
+    #[test]
+    fn module_without_header_fails() {
+        let dir = scratch("mod-no-header");
+        write(&dir, "config.extra.toml", "[bootstrap.packages]\n");
+        let problems = lint(&dir);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].starts_with("config.extra.toml:1: missing metadata header"));
+    }
+
+    #[test]
+    fn module_header_rules() {
+        let dir = scratch("mod-rules");
+        let cases = [
+            (
+                "#: order = 1\n",
+                "config.extra.toml:1: missing field `description`",
+            ),
+            (
+                "#: description = \" \"\n",
+                "config.extra.toml:1: description must not be empty",
+            ),
+            (
+                "# note\n#: description = \"d\"\n#: icon = \"x\"\n",
+                "config.extra.toml:3: unknown field `icon`",
+            ),
+        ];
+        for (header, expected) in cases {
+            write(&dir, "config.extra.toml", header);
+            let problems = lint(&dir);
+            assert_eq!(problems.len(), 1, "{problems:?}");
+            assert!(problems[0].starts_with(expected), "{problems:?}");
+        }
+    }
+
+    #[test]
+    fn duplicate_header_key_fails_with_its_line() {
+        let dir = scratch("mod-dup");
+        write(
+            &dir,
+            "config.extra.toml",
+            "#: description = \"d\"\n#: order = 1\n#: order = 2\n",
         );
+        let problems = lint(&dir);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].starts_with("config.extra.toml:3: duplicate key"));
+    }
+
+    #[test]
+    fn base_is_valid_for_any_module() {
+        let dir = scratch("mod-base");
+        write(
+            &dir,
+            "config.extra.toml",
+            "#: description = \"d\"\n#: base = true\n",
+        );
+        assert_eq!(lint(&dir), Vec::<String>::new());
+    }
+
+    #[test]
+    fn stray_sigil_below_the_header_fails() {
+        let dir = scratch("stray");
+        write(
+            &dir,
+            "config.extra.toml",
+            "#: description = \"d\"\n\n[bootstrap.packages]\n#: order = 1\n",
+        );
+        let problems = lint(&dir);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].starts_with("config.extra.toml:4: `#:` metadata line outside"));
+    }
+
+    #[test]
+    fn header_after_code_fails_twice() {
+        let dir = scratch("after-code");
+        write(
+            &dir,
+            "config.extra.toml",
+            "[bootstrap.packages]\n#: description = \"d\"\n",
+        );
+        let problems = lint(&dir);
+        assert_eq!(problems.len(), 2, "{problems:?}");
+        assert!(problems[0].starts_with("config.extra.toml:1: missing metadata header"));
+        assert!(problems[1].starts_with("config.extra.toml:2: `#:` metadata line outside"));
+    }
+
+    #[test]
+    fn stray_sigil_in_config_toml_fails() {
+        let dir = scratch("stray-repo");
+        let text = std::fs::read_to_string(dir.join("config.toml")).expect("read");
+        write(&dir, "config.toml", &format!("{text}\n#: order = 1\n"));
+        let problems = lint(&dir);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].starts_with("config.toml:"));
+    }
+
+    #[test]
+    fn sigil_in_a_multiline_string_is_not_stray() {
+        let dir = scratch("ml-string");
+        write(
+            &dir,
+            "config.extra.toml",
+            "#: description = \"d\"\n\n[dotfiles]\n\"~/.x\" = { block = '''\n#: not metadata\n''' }\n",
+        );
+        assert_eq!(lint(&dir), Vec::<String>::new());
+    }
+
+    #[test]
+    fn crlf_and_bom_headers_pass() {
+        let dir = scratch("crlf-bom");
+        write(
+            &dir,
+            "config.extra.toml",
+            "\u{feff}#: description = \"d\"\r\n#: order = 2\r\n\r\n[bootstrap.packages]\r\n",
+        );
+        assert_eq!(lint(&dir), Vec::<String>::new());
+    }
+
+    #[test]
+    fn invalid_toml_body_fails_with_a_valid_header() {
+        let dir = scratch("bad-body");
+        write(&dir, "config.extra.toml", "#: description = \"d\"\n[x\n");
+        let problems = lint(&dir);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].starts_with("config.extra.toml: invalid TOML"));
     }
 
     #[test]
@@ -312,7 +417,7 @@ mod tests {
         let dir = scratch("abs-source");
         std::fs::write(
             dir.join("config.terminal.toml"),
-            "[dotfiles]\n\"~/a\" = { source = \"~/x\" }\n\"~/b\" = { source = \"/etc/x\" }\n",
+            "#: description = \"d\"\n[dotfiles]\n\"~/a\" = { source = \"~/x\" }\n\"~/b\" = { source = \"/etc/x\" }\n",
         )
         .expect("write");
         assert_eq!(lint(&dir), Vec::<String>::new());

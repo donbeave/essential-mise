@@ -9,8 +9,8 @@ pub mod backend;
 pub mod cli;
 /// Config repository lint (`lint` subcommand).
 pub mod lint;
-/// `essential-mise.toml` manifest: the engine/config contract.
-pub mod manifest;
+/// `#:` header comments in config files: the engine/config contract.
+pub mod metadata;
 /// TUI screens (G1-gated); shared modules first, per-screen in T4.2–T4.5.
 pub mod screens;
 /// `setup` stages 1-6: staged plan data and executor.

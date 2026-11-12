@@ -1,6 +1,6 @@
 # essential-mise
 
-An engine that sets up and maintains an Apple Silicon Mac from a **config repository that you own**. The engine is a small bash launcher plus a Rust console (CLI and TUI) over [mise bootstrap](https://mise.jdx.dev/bootstrap.html). It contains no machine configuration: your packages, dotfiles, and module list live in your own repository, described by an `essential-mise.toml` manifest.
+An engine that sets up and maintains an Apple Silicon Mac from a **config repository that you own**. The engine is a small bash launcher plus a Rust console (CLI and TUI) over [mise bootstrap](https://mise.jdx.dev/bootstrap.html). It contains no machine configuration: your packages, dotfiles, and module list live in your own repository, described by `#:` header comments in its own config files.
 
 **Status: PRE-RELEASE.** Review `bootstrap.sh` and the console release it pins before running them.
 
@@ -38,7 +38,7 @@ essential-mise-console lint --config-dir /path/to/your-config
 ## Docs
 
 - [Architecture](docs/architecture.md): engine versus config, data flow, trust model
-- [Config repository contract](docs/config-repo.md): layout and the `essential-mise.toml` manifest
+- [Config repository contract](docs/config-repo.md): layout and the `#:` metadata header format
 - [Create your config](docs/create-your-config.md)
 - [First Mac setup](docs/first-mac.md)
 - [Writing modules](docs/writing-modules.md)

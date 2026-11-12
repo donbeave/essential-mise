@@ -273,6 +273,6 @@ fn lint_passes_on_the_starter_and_fails_on_an_empty_dir() {
         &["emc", "lint", "--config-dir", &empty.display().to_string()],
     );
     assert_eq!(code, EXIT_ERROR, "empty dir fails lint, got:\n{out}");
-    assert!(out.contains("essential-mise.toml not found"), "got:\n{out}");
+    assert!(out.contains("config.toml: not found"), "got:\n{out}");
     std::fs::remove_dir_all(&empty).ok();
 }
