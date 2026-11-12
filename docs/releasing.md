@@ -14,7 +14,9 @@ How a console release (`essential-mise-console vX.Y.Z`) and the launcher pin to 
 
 ## Why the release PR is prepared by hand
 
-The generated `Rust binary release` workflow has a `prepare` operation. It runs `release-plz release-pr`, which expects a Cargo workspace at the repository root. This repository's Cargo project lives in `apps/essential-mise-console/`, so `prepare` fails here (observed: `failed to update packages`, and `release-pr requires a branch` on a detached checkout). Do not use `operation=prepare`. The `release` operation does not need it: it reads the version from `apps/essential-mise-console/Cargo.toml` on `main`.
+The generated `Rust binary release` workflow has a `prepare` operation. It runs `release-plz release-pr` (release-plz in `git_only` mode, as the workflow configures it). release-plz opens the Git repository at the manifest's directory and rebuilds tagged releases from `<worktree>/Cargo.toml`, so it needs the Cargo workspace at the repository root. This repository's Cargo project lives in `apps/essential-mise-console/`, so the run fails with `could not find repository at '.../apps/essential-mise-console'`. This was verified by reproducing it locally with several release-plz versions. Do not use `operation=prepare`. The `release` operation does not need it: it reads the version from `apps/essential-mise-console/Cargo.toml` on `main`.
+
+The alternative is to restructure the repository with a root workspace `Cargo.toml` and a root `Cargo.lock`. Even then the first `prepare` still fails until a tag exists on a commit that contains the root manifest.
 
 ## 1. Prepare the release PR
 
@@ -50,7 +52,7 @@ gh run watch <run-id> --repo donbeave/essential-mise
 Rules while the run is in progress:
 
 - Do not merge anything to `main` until the run finishes. The run releases one source commit and requires green CI on exactly that commit; a merge in the middle makes the released commit ambiguous.
-- The jobs that use the `release` environment (tag, signer, publisher) wait for a maintainer to approve the deployment. Expect to approve twice. Approve in the run page (**Review deployments**).
+- For `operation=release`, three jobs wait on the `release` environment: `stable-tag` ("Authorize the permanent stable tag"), `stable-signer` and `stable-publisher` ("Publish authenticated channel release"). A maintainer must approve each pending deployment as it appears: on the run page (**Review deployments**), or with `gh api repos/OWNER/REPO/actions/runs/<id>/pending_deployments`. The `prepare` and recovery jobs also use the environment, but a normal release does not run them. A past release run (43224579701) recorded three approvals.
 - The `original_run_id` and `original_run_attempt` inputs are for recovery only: use them together, to resume a run that built and signed a release but failed to publish. Leave them empty otherwise.
 
 The run builds `aarch64-apple-darwin` on a macOS runner (`scripts/emc-release-package.sh`, task `release:package`), signs and attests the archive, creates the tag `vX.Y.Z`, and publishes a release with these assets:
