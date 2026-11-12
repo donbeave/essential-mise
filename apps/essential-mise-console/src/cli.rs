@@ -12,18 +12,24 @@ use std::path::{Path, PathBuf};
 
 use super::backend::{Action, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend};
 
-/// Exit 0: ok.
+/// Exit 0: ok. For the console: nothing differs, or you left before any work.
 pub const EXIT_OK: u8 = 0;
-/// Exit 1: a part failed (or usage error).
+/// Exit 1: a part failed (or usage error). For the console: the apply stopped,
+/// the check failed, or you pressed Ctrl+C.
 pub const EXIT_ERROR: u8 = 1;
 /// Exit 3: partial apply (phase 1 ok, phase 2 failed). 2 is taken by plan
-/// would-change, so partial apply must not reuse it.
+/// would-change, so partial apply must not reuse it. For the console: changes
+/// are still pending when you leave.
 pub const EXIT_PARTIAL: u8 = 3;
 
 /// `essential-mise-console`: module multi-select, package checklist,
 /// two-phase apply, and verify over stock `mise bootstrap`.
 #[derive(Debug, Clone, clap::Parser)]
-#[command(name = "essential-mise-console", version)]
+#[command(
+    name = "essential-mise-console",
+    version,
+    after_help = "Exit codes: 0 done (nothing differs, or you left before any work), 3 changes are still pending, 1 error, stopped apply or cancel."
+)]
 pub struct Cli {
     /// Use this `mise` binary instead of `mise` on `PATH`.
     #[arg(long, global = true, value_name = "PATH")]
@@ -307,7 +313,7 @@ pub fn run_tui(
     backend: std::sync::Arc<dyn Backend>,
     cli: &Cli,
     screen: Option<TuiScreen>,
-    _out: &mut dyn std::io::Write,
+    out: &mut dyn std::io::Write,
 ) -> u8 {
     if let Err(e) = backend.authenticate() {
         eprintln!("essential-mise-console: cannot start the console: {e}");
@@ -325,11 +331,26 @@ pub fn run_tui(
         app.jump_to(screen);
     }
     match junie_tui::runtime::run(&mut app) {
-        Ok(()) => app.exit_code().unwrap_or(EXIT_ERROR),
+        Ok(()) => {
+            write_exit_summary(out, &app.exit_summary());
+            app.exit_code().unwrap_or(EXIT_ERROR)
+        }
         Err(e) => {
             eprintln!("essential-mise-console: console loop failed: {e}");
             EXIT_ERROR
         }
+    }
+}
+
+/// Print the closing summary to the normal terminal (the console used the
+/// alternate screen, so nothing of it would otherwise remain).
+pub fn write_exit_summary(out: &mut dyn std::io::Write, lines: &[String]) {
+    if lines.is_empty() {
+        return;
+    }
+    let _ = writeln!(out);
+    for line in lines {
+        let _ = writeln!(out, "{line}");
     }
 }
 

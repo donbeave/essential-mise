@@ -128,6 +128,11 @@ fn step4_needs_attention_names_the_change_and_quit_exits_three() {
     app.key("q");
     app.wait_text("Quit with 1 area");
     assert_eq!(app.finish_with_key("y"), Some(3));
+    // The summary and the command survive in the normal terminal.
+    let after = super::support::text(&app.screen());
+    assert!(after.contains("Needs changes: macOS settings"), "{after}");
+    assert!(after.contains("$ mise -C"), "{after}");
+    assert!(after.contains("bootstrap --only macos-defaults"), "{after}");
 }
 
 #[test]

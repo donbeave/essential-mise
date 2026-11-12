@@ -152,6 +152,33 @@ impl App {
         }
     }
 
+    /// Lines for the normal terminal after the console closes: what happened
+    /// and the commands to run next. Empty when nothing has run.
+    pub fn exit_summary(&self) -> Vec<String> {
+        match &self.screen {
+            Screen::Result(owner) => owner.state.exit_lines(),
+            Screen::Apply(owner) => {
+                let mut lines: Vec<String> = owner.state.banner().into_iter().collect();
+                if let Some(command) = owner.state.rerun() {
+                    lines.push("To try again:".to_string());
+                    lines.push(format!("  $ {command}"));
+                }
+                lines
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// The exit code that matches the current screen when the person leaves
+    /// without choosing one: nothing has run on steps 1 and 2.
+    fn leave_code(&self) -> u8 {
+        match &self.screen {
+            Screen::Modules(_) | Screen::Packages(_) => 0,
+            Screen::Apply(_) => 1,
+            Screen::Result(owner) => owner.state.exit_code(),
+        }
+    }
+
     /// Whether the app requested quit.
     pub fn quit(&self) -> bool {
         self.shell.quit
@@ -176,6 +203,7 @@ impl App {
         self.shell.pointer.suppress_hover();
         if self.shell.too_small {
             if key.is_char('q') || key.ctrl_char('q') {
+                self.exit_code = Some(self.leave_code());
                 self.shell.quit = true;
                 return Outcome::Changed;
             }

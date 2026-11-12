@@ -486,6 +486,54 @@ impl ResultScreen {
         }
     }
 
+    /// What to print to the normal terminal after the console closes, so the
+    /// outcome and the commands survive the alternate screen. Plain text,
+    /// one line each; empty until a check has finished.
+    pub fn exit_lines(&self) -> Vec<String> {
+        let marks = Marks::unicode();
+        let mut lines = Vec::new();
+        if let Some(reason) = &self.error {
+            lines.push(format!("Could not check this Mac: {reason}"));
+            return lines;
+        }
+        let Some(report) = &self.report else {
+            return lines;
+        };
+        let verdict = paint::row_text(&self.verdict_row(&marks));
+        lines.push(verdict.split_whitespace().collect::<Vec<_>>().join(" "));
+        for area in self.pending_areas() {
+            lines.push(format!("Needs changes: {}", area.key.label()));
+            for change in area.changes() {
+                lines.push(format!(
+                    "  {} (now {}, wanted {})",
+                    change.item, change.now, change.wanted
+                ));
+            }
+        }
+        if let Some(items) = &self.still_different {
+            lines.push(format!("Still different after applying: {items}"));
+        }
+        for item in self.follow_ups() {
+            lines.push(item.text());
+            if let Some(command) = item.command() {
+                lines.push(format!("  $ {command}"));
+            }
+        }
+        for area in report.unknown() {
+            lines.push(format!(
+                "Could not check {} automatically",
+                area.key.label()
+            ));
+        }
+        if !self.pending_areas().is_empty() && !self.reapply_commands.is_empty() {
+            lines.push("To apply the remaining changes:".to_string());
+            for command in &self.reapply_commands {
+                lines.push(format!("  $ {command}"));
+            }
+        }
+        lines
+    }
+
     /// The title shown in the header: Done, Needs attention, or Checking.
     pub fn step_name(&self) -> &'static str {
         if self.checking {

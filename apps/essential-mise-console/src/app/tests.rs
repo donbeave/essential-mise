@@ -778,6 +778,87 @@ fn follow_ups_from_the_apply_log_are_typed_and_copyable() {
     assert!(render(&mut app, 100, 30).contains("Copied to the clipboard"));
 }
 
+// ---- exit -----------------------------------------------------------------
+
+#[test]
+fn exit_summary_for_pending_changes_prints_the_change_and_the_exact_command() {
+    let mut app = app_with_status("status-one-differs.json");
+    to_result(&mut app);
+    let lines = app.exit_summary();
+    let text = lines.join("\n");
+    assert!(text.contains("5 of 6 areas up to date"), "{text}");
+    assert!(text.contains("Needs changes: macOS settings"), "{text}");
+    assert!(
+        text.contains("com.apple.dock tilesize (now 48, wanted 36)"),
+        "{text}"
+    );
+    let shown = crate::reapply::commands(
+        &*app.backend,
+        &crate::reapply::plan(&fixture_report("status-one-differs.json"), &app.selected)
+            .expect("pending")
+            .request,
+    );
+    assert!(
+        text.contains(&format!("  $ {}", shown[0])),
+        "the printed command is the shown and executed one: {text}"
+    );
+    let mut out = Vec::new();
+    crate::cli::write_exit_summary(&mut out, &lines);
+    let printed = String::from_utf8(out).expect("utf8");
+    assert!(
+        printed.starts_with('\n') && printed.contains("Needs changes"),
+        "{printed}"
+    );
+}
+
+#[test]
+fn exit_summary_for_a_clean_machine_lists_follow_up_commands() {
+    let mut app = mock_app_with(
+        MockBackend::new()
+            .with_origin("brew", "jq", &["alpha"])
+            .with_follow_up_log(),
+    );
+    to_result(&mut app);
+    let text = app.exit_summary().join("\n");
+    assert!(text.contains("Your Mac is set up."), "{text}");
+    assert!(
+        text.contains("  $ killall Dock Finder SystemUIServer"),
+        "{text}"
+    );
+    assert!(!text.contains("To apply the remaining changes"), "{text}");
+}
+
+#[test]
+fn exit_summary_after_a_stopped_apply_names_where_and_how_to_try_again() {
+    let mut app = mock_app_with(
+        MockBackend::new()
+            .with_origin("brew", "jq", &["alpha"])
+            .with_failure(crate::backend::ApplyPhase::Packages),
+    );
+    start_apply(&mut app);
+    finish_apply(&mut app);
+    let text = app.exit_summary().join("\n");
+    assert!(
+        text.contains("Stopped at: Packages (exit code 1)"),
+        "{text}"
+    );
+    assert!(text.contains("To try again:"), "{text}");
+    assert!(
+        text.contains("  $ mise -C /tmp/emc-mock-config -E alpha bootstrap"),
+        "{text}"
+    );
+}
+
+#[test]
+fn leaving_before_any_work_prints_nothing_and_a_tiny_window_still_quits_cleanly() {
+    let mut app = mock_app();
+    assert!(app.exit_summary().is_empty());
+    app.shell.too_small = true;
+    app.handle_key(&char_key('q'));
+    assert!(app.quit());
+    assert_eq!(app.exit_code(), Some(0));
+}
+
 // ---- keys, help, theme ---------------------------------------------------
 
 #[test]
