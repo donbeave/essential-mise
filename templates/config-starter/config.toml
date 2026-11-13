@@ -1,7 +1,10 @@
 #: schema = 1
 #: name = "my-workstation"
 
-min_version = "2026.10.23"
+min_version = "2026.11.7"
+
+[bootstrap.brew]
+homebrew_metadata = true
 
 [settings]
 self_update.auto = true
