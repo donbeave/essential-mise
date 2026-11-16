@@ -2,9 +2,12 @@
 //!
 //! Command construction follows locked input L6: `mise -C <config-dir> -E
 //! <envs> bootstrap …` with `MISE_CEILING_PATHS=<config-dir>`. Phase 1 runs
-//! `bootstrap --skip packages --upgrade --update`; phase 2 runs
-//! `bootstrap packages apply <kept…>` and is skipped when the keep-list is
-//! empty (a bare `packages apply` means *every* package).
+//! `bootstrap --skip packages --upgrade --update --yes`; phase 2 runs
+//! `bootstrap packages apply <kept…> --yes` and is skipped when the keep-list
+//! is empty (a bare `packages apply` means *every* package). The worker pipes
+//! stderr, so mise will not ask before it replaces a copy-mode file that
+//! history does not keep. `--yes` answers that prompt. The console confirms
+//! the apply before the worker starts.
 
 use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader};
@@ -115,9 +118,9 @@ pub enum ApplyOutcome {
 /// Which apply phase a line or outcome belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApplyPhase {
-    /// Phase 1: base parts (`bootstrap --skip packages …`).
+    /// Phase 1: base parts (`bootstrap --skip packages … --yes`).
     Base,
-    /// Phase 2: `bootstrap packages apply <kept…>`.
+    /// Phase 2: `bootstrap packages apply <kept…> --yes`.
     Packages,
 }
 
@@ -553,6 +556,7 @@ impl Backend for MiseBackend {
         if req.dry_run {
             argv.push("--dry-run".to_string());
         }
+        argv.push("--yes".to_string());
         argv
     }
 
@@ -573,6 +577,7 @@ impl Backend for MiseBackend {
             argv.push("--dry-run".to_string());
         }
         argv.extend(req.keep.iter().cloned());
+        argv.push("--yes".to_string());
         Some(argv)
     }
 }
