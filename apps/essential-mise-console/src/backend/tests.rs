@@ -270,6 +270,86 @@ fn spawn_apply_dry_run_spawns_nothing() {
 }
 
 #[test]
+fn apply_argv_answers_yes_because_stderr_is_piped() {
+    let dir = test_dir("yes-argv");
+    let backend = MiseBackend::new(dir.clone());
+    let mut req = ApplyRequest {
+        envs: vec!["ai-cli".to_string()],
+        keep: vec!["brew:jq".to_string()],
+        manager: None,
+        skip_parts: Vec::new(),
+        only_parts: Vec::new(),
+        run_base: true,
+        update: true,
+        upgrade: true,
+        dry_run: false,
+    };
+    let phase1 = backend.phase1_argv(&req);
+    assert_eq!(
+        phase1.last().map(String::as_str),
+        Some("--yes"),
+        "phase 1 must pass --yes so mise can overwrite copy-mode dotfiles: {phase1:?}"
+    );
+    assert!(
+        phase1
+            .windows(3)
+            .any(|w| w == ["--skip", "packages", "--update"]),
+        "package skip stays ahead of --yes: {phase1:?}"
+    );
+    let phase2 = backend.phase2_argv(&req).expect("keep-list runs phase 2");
+    assert_eq!(
+        phase2.last().map(String::as_str),
+        Some("--yes"),
+        "phase 2 must pass --yes too: {phase2:?}"
+    );
+    assert!(
+        phase2
+            .windows(4)
+            .any(|w| w == ["packages", "apply", "brew:jq", "--yes"]),
+        "kept package stays a positional before --yes: {phase2:?}"
+    );
+
+    req.only_parts = vec!["dotfiles".to_string()];
+    let only = backend.phase1_argv(&req);
+    assert!(
+        only.windows(2).any(|w| w == ["--only", "dotfiles"]),
+        "--only stays a single flag: {only:?}"
+    );
+    assert!(
+        !only.iter().any(|arg| arg == "--skip"),
+        "--only is not combined with --skip: {only:?}"
+    );
+    assert_eq!(only.last().map(String::as_str), Some("--yes"));
+
+    req.only_parts.clear();
+    req.manager = Some("brew".to_string());
+    let managed = backend.phase2_argv(&req).expect("manager runs phase 2");
+    assert!(
+        managed
+            .windows(5)
+            .any(|w| { w == ["packages", "apply", "--manager", "brew", "brew:jq"] }),
+        "manager flag stays before the keep-list: {managed:?}"
+    );
+    assert_eq!(managed.last().map(String::as_str), Some("--yes"));
+
+    req.keep.clear();
+    req.manager = None;
+    assert!(
+        backend.phase2_argv(&req).is_none(),
+        "an empty keep-list still skips phase 2"
+    );
+
+    req.dry_run = true;
+    req.keep = vec!["brew:jq".to_string()];
+    let preview = backend.phase1_argv(&req);
+    assert!(
+        preview.windows(2).any(|w| w == ["--dry-run", "--yes"]),
+        "preview keeps --dry-run and still shows --yes: {preview:?}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn mock_loads_plan_fixture() {
     let backend = super::mock::MockBackend::new();
     let entries = backend

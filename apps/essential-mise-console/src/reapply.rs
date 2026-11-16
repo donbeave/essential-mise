@@ -176,8 +176,8 @@ mod tests {
         assert_eq!(
             shown,
             vec![
-                "mise -C /Users/test/.config/mise -E alpha bootstrap --only dotfiles,macos-defaults",
-                "mise -C /Users/test/.config/mise -E alpha bootstrap packages apply brew:a brew:b",
+                "mise -C /Users/test/.config/mise -E alpha bootstrap --only dotfiles,macos-defaults --yes",
+                "mise -C /Users/test/.config/mise -E alpha bootstrap packages apply brew:a brew:b --yes",
             ]
         );
         // The dry-run preview prints the argv the worker executes; it must
