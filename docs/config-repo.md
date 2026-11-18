@@ -74,7 +74,7 @@ below.
 ```toml
 #: schema = 1
 #: name = "my-workstation"
-#: min_console = "0.2.0"
+#: min_console = "0.3.1"
 ```
 
 | Key | Type | Required | Meaning |
@@ -137,9 +137,9 @@ dotfiles/terminal/starship.toml
 ```toml
 #: schema = 1
 #: name = "my-workstation"
-#: min_console = "0.2.0"
+#: min_console = "0.3.1"
 
-min_version = "2026.10.23"
+min_version = "2026.11.7"
 ```
 
 `config.foundation.toml` is applied by `setup`, never shown in the TUI:
@@ -284,7 +284,7 @@ for example a new header key. Use the exact released version:
 1. Find the version in the engine's
    [releases](https://github.com/donbeave/essential-mise/releases) and in
    `EMC_VERSION` of `bootstrap.sh`.
-2. Edit the header: `#: min_console = "0.2.0"`.
+2. Edit the header: `#: min_console = "0.3.1"`.
 3. Run `essential-mise-console lint --config-dir .`.
 4. Commit and push. A Mac with an older console stops at stage 5 and is told to
    rerun the latest `bootstrap.sh`.
