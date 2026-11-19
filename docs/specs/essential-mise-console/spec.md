@@ -28,7 +28,7 @@ result — without reimplementing any install logic.
 - Depends on the Termrock component library (`junie-tui`) at a pinned git
   revision, never a branch. Upstream gaps go
   back as PRs with full review rounds.
-- Upstream mise capabilities used (all verified against mise 2026.10.x):
+- Upstream mise capabilities used (all verified against mise 2026.11.x):
   `bootstrap plan --json` → per-resource `{id, current, desired,
   action}`; `bootstrap status --json` → per-part state;
   `bootstrap --skip packages` + `bootstrap packages apply [PKG]…`
