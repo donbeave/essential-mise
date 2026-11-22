@@ -182,16 +182,14 @@ mod tests {
         );
         // The dry-run preview prints the argv the worker executes; it must
         // match what is shown, line for line (the preview only adds --dry-run).
-        let (tx, rx) = junie_tui::runtime::external_channel();
+        let (tx, rx) = termrock::runtime::external_channel();
         let mut dry = plan.request.clone();
         dry.dry_run = true;
         backend
             .spawn_apply(&dry, tx)
             .expect("dry run starts")
             .join();
-        let executed: Vec<String> = rx
-            .drain()
-            .into_iter()
+        let executed: Vec<String> = std::iter::from_fn(|| rx.try_recv())
             .filter_map(|m| {
                 m.downcast_ref::<crate::backend::ApplyLine>()
                     .map(|l| l.text.clone())

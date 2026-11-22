@@ -5,34 +5,32 @@
 //! use inventoried components only via the shared filter and chrome helpers.
 //!
 //! Environment names/descriptions come from the config repository's
-//! `#:` headers of the config files (`crate::metadata`). Pre-ticks come from
-//! the `env` key of `miserc.local.toml` (read-only).
+//! `#:` headers of the config files (`crate::metadata`).
 //! There is deliberately no per-module status marker: `mise bootstrap status`
 //! is not per module, so any marker would be a guess. The detail pane shows
 //! only facts read from the config files.
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
 
-use junie_tui::core::edit::EditEntry;
-use junie_tui::core::event::{Key, Outcome};
-use junie_tui::core::focus::{BlurAction, Focus, FocusChange, FocusRing};
-use junie_tui::core::id::WidgetId;
-use junie_tui::core::intent::Phase;
-use junie_tui::core::pointer::{MouseTarget, PointerEvent};
-use junie_tui::core::response::Response;
-use junie_tui::theme::{ButtonKind, Theme, Tone};
-use junie_tui::ui::ctx::RenderCtx;
-use junie_tui::ui::layout::Split;
-use junie_tui::widgets::input::{InputAction, TextInput};
-use junie_tui::widgets::list_detail::{
-    Action as DetailAction, Frame as DetailFrame, Line as DetailLine, ListDetail, ListRow,
-};
-use junie_tui::widgets::props::Prop;
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::KeyCode;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
+use termrock::core::edit::EditEntry;
+use termrock::core::event::{Key, Outcome};
+use termrock::core::focus::{BlurAction, Focus, FocusChange, FocusRing};
+use termrock::core::id::WidgetId;
+use termrock::core::intent::Phase;
+use termrock::core::pointer::{MouseTarget, PointerEvent};
+use termrock::core::response::Response;
+use termrock::theme::{ButtonKind, Theme, Tone};
+use termrock::ui::ctx::RenderCtx;
+use termrock::ui::layout::Split;
+use termrock::widgets::input::{InputAction, TextInput};
+use termrock::widgets::list_detail::{
+    Action as DetailAction, Frame as DetailFrame, Line as DetailLine, ListDetail, ListRow,
+};
+use termrock::widgets::props::Prop;
 
 use super::chrome::render_step_header;
 use super::filter::FilterState;
@@ -46,23 +44,6 @@ pub struct ModuleInfo {
     pub name: String,
     /// One-line description.
     pub description: String,
-}
-
-/// Read pre-ticked envs from the `env` key of `miserc.local.toml`
-/// (read-only). Missing file or invalid TOML yields no pre-ticks.
-pub fn read_preticks(path: &Path) -> Vec<String> {
-    let text = match std::fs::read_to_string(path) {
-        Ok(text) => text,
-        Err(_) => return Vec::new(),
-    };
-    #[derive(Default, serde::Deserialize)]
-    struct Local {
-        #[serde(default)]
-        env: Vec<String>,
-    }
-    toml::from_str::<Local>(&text)
-        .map(|l| l.env)
-        .unwrap_or_default()
 }
 
 /// Key intent on the modules screen (Enter reviews, Esc and q quit).
@@ -535,12 +516,9 @@ impl ModulesOwner {
         if let Some(out) = self.list.on_pointer(ev) {
             return out.into();
         }
-        if ev.is(Phase::Drag) {
-            return self.list.drag(ev.id, ev.pos()).into();
-        }
         if ev.is(Phase::Click) {
             let rows = self.state.master_rows();
-            let (out, event) = self.list.click(ev.id, ev.pos(), focus, rows.len());
+            let (out, event) = self.list.click(ev.id, focus, rows.len());
             let out = out.or(self.sync_cursor_from_list());
             return Self::detail_response(out, event);
         }
@@ -676,7 +654,7 @@ impl ModulesOwner {
         primary_line(
             Rect::new(area.x, bottom.saturating_sub(2), area.width, 1),
             buf,
-            &theme,
+            ctx,
             bg,
             if self.state.can_continue() {
                 "Enter"
@@ -694,7 +672,7 @@ impl ModulesOwner {
     }
 }
 
-use junie_tui::widgets::list_detail::Event as DetailEvent;
+use termrock::widgets::list_detail::Event as DetailEvent;
 
 #[cfg(test)]
 mod tests {
@@ -723,22 +701,6 @@ mod tests {
                 description: description.to_string(),
             })
             .collect()
-    }
-
-    #[test]
-    fn preticks_read_env_key_and_ignore_unknown() {
-        let dir = std::env::temp_dir().join(format!("emc-test-pretick-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("temp dir");
-        let path = dir.join("miserc.local.toml");
-        std::fs::write(&path, "env = [\"alpha\", \"no-such-env\"]\n").expect("write toml");
-        assert_eq!(
-            read_preticks(&path),
-            vec!["alpha".to_string(), "no-such-env".to_string()]
-        );
-        let state = ModulesState::new(two_envs(), &read_preticks(&path));
-        assert_eq!(state.selected_envs(), vec!["alpha".to_string()]);
-        assert!(read_preticks(&dir.join("missing.toml")).is_empty());
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

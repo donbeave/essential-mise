@@ -151,7 +151,7 @@ fn live_backend_dry_run_spawns_nothing() {
     let dir = std::env::temp_dir().join(format!("emc-test-cli-dry-run-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create temp dir");
     let backend = MiseBackend::new(dir.clone()).with_mise_bin("/nonexistent/emc-test-mise");
-    let (tx, _rx) = junie_tui::runtime::external_channel();
+    let (tx, _rx) = termrock::runtime::external_channel();
     let req = ApplyRequest {
         envs: vec!["terminal".to_string()],
         keep: vec!["brew:jq".to_string()],

@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use junie_tui::runtime::ExternalSender;
+use termrock::runtime::ExternalSender;
 
 use crate::status::StatusReport;
 
@@ -48,6 +48,7 @@ pub struct MockBackend {
     origins: HashMap<ResId, Vec<String>>,
     fail: Option<ApplyPhase>,
     apply_delay: std::time::Duration,
+    authentication_required: bool,
     calls: Arc<Mutex<Vec<MockCall>>>,
     requests: Arc<Mutex<Vec<ApplyRequest>>>,
     argv: MiseBackend,
@@ -84,6 +85,7 @@ impl MockBackend {
             origins: HashMap::new(),
             fail: None,
             apply_delay: std::time::Duration::from_millis(25),
+            authentication_required: false,
             calls: Arc::new(Mutex::new(Vec::new())),
             requests: Arc::new(Mutex::new(Vec::new())),
             argv: MiseBackend::new("/tmp/emc-mock-config").with_mise_bin("mise"),
@@ -121,6 +123,12 @@ impl MockBackend {
     /// Keep the successful mock worker active long enough to exercise live UI.
     pub fn with_apply_delay(mut self, delay: std::time::Duration) -> Self {
         self.apply_delay = delay;
+        self
+    }
+
+    /// Exercise the terminal authentication transition without running sudo.
+    pub fn with_authentication_required(mut self) -> Self {
+        self.authentication_required = true;
         self
     }
 
@@ -197,6 +205,10 @@ impl Default for MockBackend {
 }
 
 impl Backend for MockBackend {
+    fn requires_authentication(&self) -> bool {
+        self.authentication_required
+    }
+
     fn authenticate(&self) -> Result<(), BackendError> {
         Ok(())
     }
@@ -242,13 +254,35 @@ impl Backend for MockBackend {
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::File::create(&log_path).map_err(BackendError::Spawn)?;
-        let fail = self.fail;
-        if let Some(phase) = fail {
+        let mut sequence = 0;
+        let mut emit = |stream, text| {
+            sequence += 1;
             tx.send(ApplyLine {
-                seq: 1,
-                stream: Stream::System,
-                text: format!("mock: failing in {phase:?} (scripted)"),
+                seq: sequence,
+                stream,
+                text,
             });
+        };
+        emit(Stream::System, "checking administrator access".into());
+        emit(Stream::System, "administrator access confirmed".into());
+        let fail = self.fail;
+        if req.run_base {
+            emit(
+                Stream::System,
+                "phase 1: base: mock: apply preview (no subprocesses spawned)".into(),
+            );
+        }
+        if fail != Some(ApplyPhase::Base) && (!req.keep.is_empty() || req.manager.is_some()) {
+            emit(
+                Stream::System,
+                "phase 2: packages: mock: apply preview (no subprocesses spawned)".into(),
+            );
+        }
+        if let Some(phase) = fail {
+            emit(
+                Stream::System,
+                format!("mock: failing in {phase:?} (scripted)"),
+            );
             let worker = std::thread::Builder::new()
                 .name("emc-mock-apply".to_string())
                 .spawn(move || ApplyOutcome::Failed {
@@ -264,17 +298,8 @@ impl Backend for MockBackend {
                 log_path,
             });
         }
-        tx.send(ApplyLine {
-            seq: 1,
-            stream: Stream::System,
-            text: "phase 1: base: mock: apply preview (no subprocesses spawned)".to_string(),
-        });
-        for (offset, text) in self.log_lines.iter().enumerate() {
-            tx.send(ApplyLine {
-                seq: 2 + offset as u64,
-                stream: Stream::Stdout,
-                text: text.clone(),
-            });
+        for text in &self.log_lines {
+            emit(Stream::Stdout, text.clone());
         }
         let delay = self.apply_delay;
         let cancel_flag = Arc::new(AtomicBool::new(false));

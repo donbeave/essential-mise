@@ -2,9 +2,9 @@
 
 use super::*;
 use crate::backend::mock::MockBackend;
-use junie_tui::core::event::Key;
-use junie_tui::runtime::Application;
 use ratatui::crossterm::event::{KeyCode, KeyModifiers};
+use termrock::core::event::Key;
+use termrock::runtime::Application;
 
 fn key(code: KeyCode) -> Key {
     Key {
@@ -105,12 +105,12 @@ fn click_id(app: &mut App, id: WidgetId) {
         .map(|region| region.area)
         .unwrap_or_else(|| panic!("missing hit region for {id:?}"));
     let pos = ratatui::layout::Position::new(area.x + area.width / 2, area.y + area.height / 2);
-    app.handle(Input::Mouse(junie_tui::core::event::Mouse::new(
-        junie_tui::core::event::MouseKind::Down,
+    app.handle(Input::Mouse(termrock::core::event::Mouse::new(
+        termrock::core::event::MouseKind::Down,
         pos,
     )));
-    app.handle(Input::Mouse(junie_tui::core::event::Mouse::new(
-        junie_tui::core::event::MouseKind::Up,
+    app.handle(Input::Mouse(termrock::core::event::Mouse::new(
+        termrock::core::event::MouseKind::Up,
         pos,
     )));
 }
@@ -241,8 +241,8 @@ fn step1_reads_as_choose_modules_with_one_primary_line() {
         screen.contains("Nothing changes until you confirm"),
         "{screen}"
     );
-    assert!(screen.contains("Enter  Review 1 module"), "{screen}");
-    assert!(screen.contains("1 of 2 selected"), "{screen}");
+    assert!(screen.contains("Enter  Review 2 modules"), "{screen}");
+    assert!(screen.contains("2 of 2 selected"), "{screen}");
     assert!(screen.contains("Search"), "{screen}");
 }
 
@@ -302,10 +302,8 @@ fn step1_quit_before_any_work_exits_zero() {
 }
 
 #[test]
-fn step1_enter_opens_review_with_the_preticked_module() {
+fn step1_review_uses_only_modules_left_selected() {
     let mut app = mock_app();
-    app.handle_key(&char_key(' '));
-    app.handle_key(&key(KeyCode::Down));
     app.handle_key(&char_key(' '));
     to_review(&mut app);
     assert_eq!(app.selected, vec!["beta".to_string()]);
@@ -319,6 +317,20 @@ fn step1_the_review_button_in_the_detail_pane_still_works_with_the_pointer() {
     draw(&mut app, &mut terminal);
     click_id(&mut app, WidgetId::of("emc.s1.detail").sub("continue"));
     assert_eq!(app.screen_name(), "packages");
+}
+
+#[test]
+fn module_review_button_works_while_search_has_focus() {
+    let mut app = mock_app();
+    let mut terminal =
+        ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 30)).expect("terminal");
+    draw(&mut app, &mut terminal);
+    app.handle_key(&char_key('/'));
+    app.handle_key(&char_key('b'));
+    draw(&mut app, &mut terminal);
+    click_id(&mut app, crate::screens::paint::PRIMARY);
+    assert_eq!(app.screen_name(), "packages");
+    assert_eq!(app.selected, ["alpha", "beta"]);
 }
 
 #[test]
@@ -338,8 +350,8 @@ fn step1_wheel_reveals_later_modules() {
         .expect("module master hit region");
     let pos = ratatui::layout::Position::new(area.x + 2, area.y + 1);
     for _ in 0..5 {
-        app.handle(Input::Mouse(junie_tui::core::event::Mouse::new(
-            junie_tui::core::event::MouseKind::WheelDown,
+        app.handle(Input::Mouse(termrock::core::event::Mouse::new(
+            termrock::core::event::MouseKind::WheelDown,
             pos,
         )));
         draw(&mut app, &mut terminal);
@@ -435,6 +447,41 @@ fn step2_esc_goes_back_keeping_the_selection_and_q_exits_zero() {
 }
 
 // ---- step 3 --------------------------------------------------------------
+
+#[test]
+fn step3_authenticates_before_apply_and_retries_a_failed_prompt() {
+    let backend = MockBackend::new().with_authentication_required();
+    let probe = backend.clone();
+    let mut app = mock_app_with(backend);
+    to_review(&mut app);
+    assert!(!app.authentication_pending());
+    app.handle_key(&key(KeyCode::Enter));
+    assert!(app.authentication_pending());
+    assert!(app.quit(), "restore the terminal before prompting");
+    assert!(probe.requests().is_empty());
+
+    app.finish_authentication(Err(BackendError::Authentication(
+        "sudo: authentication cancelled".to_string(),
+    )));
+    assert!(!app.authentication_pending());
+    assert!(!app.quit());
+    assert!(probe.requests().is_empty());
+    let screen = render(&mut app, 100, 30);
+    assert!(
+        screen.contains("Stopped at: Administrator access"),
+        "{screen}"
+    );
+    assert!(screen.contains("Try again"), "{screen}");
+
+    app.handle_key(&key(KeyCode::Enter));
+    assert!(app.authentication_pending());
+    assert!(app.quit());
+    app.finish_authentication(Ok(()));
+    assert!(!app.authentication_pending());
+    assert!(!app.quit());
+    assert_eq!(probe.requests().len(), 1);
+    finish_apply(&mut app);
+}
 
 #[test]
 fn step3_success_moves_on_to_the_result_without_another_enter() {
@@ -844,7 +891,7 @@ fn exit_summary_after_a_stopped_apply_names_where_and_how_to_try_again() {
     );
     assert!(text.contains("To try again:"), "{text}");
     assert!(
-        text.contains("  $ mise -C /tmp/emc-mock-config -E alpha bootstrap"),
+        text.contains("  $ mise -C /tmp/emc-mock-config -E alpha -E beta bootstrap"),
         "{text}"
     );
 }
@@ -869,14 +916,19 @@ fn question_mark_opens_help_on_every_screen_and_esc_closes_it() {
     assert!(screen.contains("Keys on this screen"), "{screen}");
     assert!(screen.contains("Words used here"), "{screen}");
     assert!(
-        screen.contains("module: a bundle of apps and settings"),
+        screen.contains("module") && screen.contains("a bundle of apps and"),
         "{screen}"
     );
     app.handle_key(&key(KeyCode::Esc));
     assert!(!render(&mut app, 100, 30).contains("Keys on this screen"));
     to_result(&mut app);
     app.handle_key(&char_key('?'));
-    assert!(render(&mut app, 100, 30).contains("Up to date: already matches"));
+    app.handle_key(&key(KeyCode::End));
+    let screen = render(&mut app, 100, 30);
+    assert!(
+        screen.contains("Up to date") && screen.contains("already matches"),
+        "{screen}"
+    );
     app.handle_key(&char_key('?'));
     assert!(!app.quit(), "help swallows q instead of quitting");
 }
@@ -906,7 +958,7 @@ fn removed_keys_do_nothing() {
 
 #[test]
 fn theme_honours_no_color_and_dumb_terminals() {
-    use junie_tui::theme::{ColorLevel, Glyphs};
+    use termrock::theme::{ColorLevel, Glyphs};
     let env = |pairs: &'static [(&'static str, &'static str)]| {
         move |k: &str| {
             pairs

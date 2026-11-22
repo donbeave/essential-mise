@@ -315,12 +315,8 @@ pub fn run_tui(
     screen: Option<TuiScreen>,
     out: &mut dyn std::io::Write,
 ) -> u8 {
-    if let Err(e) = backend.authenticate() {
-        eprintln!("essential-mise-console: cannot start the console: {e}");
-        return EXIT_ERROR;
-    }
     let config_dir = resolve_config_dir(cli.config_dir.as_deref());
-    let mut app = match crate::app::App::new(backend, &config_dir) {
+    let mut app = match crate::app::App::new(backend.clone(), &config_dir) {
         Ok(app) => app,
         Err(e) => {
             eprintln!("essential-mise-console: cannot start the console: {e}");
@@ -330,14 +326,17 @@ pub fn run_tui(
     if let Some(screen) = screen {
         app.jump_to(screen);
     }
-    match junie_tui::runtime::run(&mut app) {
-        Ok(()) => {
-            write_exit_summary(out, &app.exit_summary());
-            app.exit_code().unwrap_or(EXIT_ERROR)
+    loop {
+        if app.authentication_pending() {
+            app.finish_authentication(backend.authenticate());
         }
-        Err(e) => {
+        if let Err(e) = termrock::runtime::run(&mut app) {
             eprintln!("essential-mise-console: console loop failed: {e}");
-            EXIT_ERROR
+            return EXIT_ERROR;
+        }
+        if !app.authentication_pending() {
+            write_exit_summary(out, &app.exit_summary());
+            return app.exit_code().unwrap_or(EXIT_ERROR);
         }
     }
 }
@@ -481,7 +480,7 @@ fn run_apply(
         upgrade,
         dry_run,
     };
-    let (tx, rx) = junie_tui::runtime::external_channel();
+    let (tx, rx) = termrock::runtime::external_channel();
     let handle = match backend.spawn_apply(&req, tx) {
         Ok(handle) => handle,
         Err(e) => {
@@ -490,7 +489,7 @@ fn run_apply(
         }
     };
     let outcome = handle.join();
-    for m in rx.drain() {
+    while let Some(m) = rx.try_recv() {
         if let Some(line) = m.downcast_ref::<ApplyLine>() {
             let _ = writeln!(out, "{}", line.text);
         }
