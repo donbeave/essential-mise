@@ -304,6 +304,12 @@ fn step1_quit_before_any_work_exits_zero() {
 #[test]
 fn step1_review_uses_only_modules_left_selected() {
     let mut app = mock_app();
+    app.handle_key(&Key {
+        code: KeyCode::Char('a'),
+        mods: KeyModifiers::CONTROL,
+    });
+    assert!(render(&mut app, 80, 24).contains("0 of 2 selected"));
+    app.handle_key(&key(KeyCode::Down));
     app.handle_key(&char_key(' '));
     to_review(&mut app);
     assert_eq!(app.selected, vec!["beta".to_string()]);
@@ -317,6 +323,23 @@ fn step1_the_review_button_in_the_detail_pane_still_works_with_the_pointer() {
     draw(&mut app, &mut terminal);
     click_id(&mut app, WidgetId::of("emc.s1.detail").sub("continue"));
     assert_eq!(app.screen_name(), "packages");
+}
+
+#[test]
+fn step1_bulk_toggle_is_focusable_and_includes_hidden_modules() {
+    let mut app = mock_app();
+    app.handle_key(&char_key('/'));
+    app.handle_key(&char_key('b'));
+    app.handle_key(&key(KeyCode::Enter));
+    let bulk = WidgetId::of("emc.s1.bulk");
+    let screen = render(&mut app, 80, 24);
+    assert!(screen.contains("Ctrl+A  Unselect all"), "{screen}");
+    assert!(app.shell.ring.contains(bulk));
+    app.shell.focus.focus(bulk);
+    app.handle_key(&key(KeyCode::Enter));
+    let screen = render(&mut app, 80, 24);
+    assert!(screen.contains("0 of 2 selected"), "{screen}");
+    assert!(screen.contains("Ctrl+A  Select all"), "{screen}");
 }
 
 #[test]
@@ -559,7 +582,7 @@ fn step3_stop_confirm_cancels_and_offers_try_again_copy_and_quit() {
 }
 
 #[test]
-fn step3_failure_names_where_it_stopped_and_try_again_runs_the_request_again() {
+fn step3_package_failure_names_the_error_and_retries_only_packages() {
     let backend = MockBackend::new()
         .with_origin("brew", "jq", &["alpha"])
         .with_failure(crate::backend::ApplyPhase::Packages);
@@ -573,10 +596,71 @@ fn step3_failure_names_where_it_stopped_and_try_again_runs_the_request_again() {
         "{screen}"
     );
     assert!(screen.contains("Enter  Try again"), "{screen}");
+    assert!(
+        screen.contains("! mock: Packages failed (scripted)"),
+        "{screen}"
+    );
+    assert!(screen.contains("Esc  Review packages"), "{screen}");
     app.handle_key(&key(KeyCode::Enter));
     assert_eq!(app.screen_name(), "apply");
+    let requests = probe.requests();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(
+        requests[1],
+        ApplyRequest {
+            run_base: false,
+            ..requests[0].clone()
+        }
+    );
+}
+
+#[test]
+fn step3_review_keeps_package_choices_and_does_not_replay_the_base() {
+    let backend = MockBackend::new()
+        .with_origin("brew", "jq", &["alpha"])
+        .with_origin("brew", "rg", &["beta"])
+        .with_follow_up_log()
+        .with_failure(crate::backend::ApplyPhase::Packages);
+    let probe = backend.clone();
+    let mut app = mock_app_with(backend);
+    to_review(&mut app);
+    app.handle_key(&char_key(' '));
+    app.handle_key(&key(KeyCode::Enter));
+    finish_apply(&mut app);
+
+    app.handle_key(&key(KeyCode::Esc));
+    assert_eq!(app.screen_name(), "packages");
+    wait_review(&mut app);
+    let Screen::Packages(owner) = &app.screen else {
+        panic!("expected package review");
+    };
+    assert_eq!(owner.state.skipped_specs(), ["brew:jq"]);
+    assert_eq!(owner.state.install_specs(), ["brew:rg"]);
+    app.handle_key(&char_key(' '));
+    app.handle_key(&key(KeyCode::Down));
+    app.handle_key(&char_key(' '));
+    app.handle_key(&key(KeyCode::Enter));
+    let requests = probe.requests();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].keep, ["brew:jq"]);
+    assert_eq!(requests[1].envs, requests[0].envs);
+    assert!(!requests[1].run_base);
+    finish_apply(&mut app);
+
+    app.handle_key(&key(KeyCode::Esc));
+    wait_review(&mut app);
+    app.handle_key(&char_key('n'));
+    app.handle_key(&key(KeyCode::Enter));
+    assert_eq!(app.screen_name(), "result");
     assert_eq!(probe.requests().len(), 2);
-    assert_eq!(probe.requests()[0], probe.requests()[1], "the same request");
+    assert_eq!(app.skipped, ["brew:jq", "brew:rg"]);
+    wait_check(&mut app);
+    assert!(
+        app.exit_summary()
+            .iter()
+            .any(|line| line.contains("killall Dock Finder SystemUIServer")),
+        "the completed base phase's follow-ups survive two package failures"
+    );
 }
 
 #[test]
@@ -891,9 +975,15 @@ fn exit_summary_after_a_stopped_apply_names_where_and_how_to_try_again() {
     );
     assert!(text.contains("To try again:"), "{text}");
     assert!(
-        text.contains("  $ mise -C /tmp/emc-mock-config -E alpha -E beta bootstrap"),
+        text.contains("  $ mise -C /tmp/emc-mock-config -E alpha -E beta bootstrap packages apply"),
         "{text}"
     );
+    assert!(!text.contains("--skip packages"), "{text}");
+    assert!(text.contains("Full apply log:"), "{text}");
+    app.handle_key(&key(KeyCode::Esc));
+    app.handle_key(&char_key('q'));
+    assert_eq!(app.exit_code(), Some(1));
+    assert_eq!(app.exit_summary().join("\n"), text);
 }
 
 #[test]

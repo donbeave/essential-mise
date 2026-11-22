@@ -265,29 +265,39 @@ impl Backend for MockBackend {
         };
         emit(Stream::System, "checking administrator access".into());
         emit(Stream::System, "administrator access confirmed".into());
-        let fail = self.fail;
+        let packages = !req.keep.is_empty() || req.manager.is_some();
+        let fail = self.fail.filter(|phase| match phase {
+            ApplyPhase::Base => req.run_base,
+            ApplyPhase::Packages => packages,
+        });
         if req.run_base {
             emit(
                 Stream::System,
                 "phase 1: base: mock: apply preview (no subprocesses spawned)".into(),
             );
+            for text in &self.log_lines {
+                emit(Stream::Stdout, text.clone());
+            }
         }
-        if fail != Some(ApplyPhase::Base) && (!req.keep.is_empty() || req.manager.is_some()) {
+        if fail != Some(ApplyPhase::Base) && packages {
             emit(
                 Stream::System,
                 "phase 2: packages: mock: apply preview (no subprocesses spawned)".into(),
             );
         }
         if let Some(phase) = fail {
+            let detail = format!("mock: {phase:?} failed (scripted)");
+            emit(Stream::Stderr, format!("mise ERROR {detail}"));
+            emit(Stream::Stderr, "mise ERROR Version: mock".into());
             emit(
-                Stream::System,
-                format!("mock: failing in {phase:?} (scripted)"),
+                Stream::Stderr,
+                "mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information".into(),
             );
             let worker = std::thread::Builder::new()
                 .name("emc-mock-apply".to_string())
                 .spawn(move || ApplyOutcome::Failed {
                     code: Some(1),
-                    tail: format!("mock: {phase:?} failed (scripted)"),
+                    detail,
                     phase,
                 })
                 .map_err(BackendError::Spawn)?;
@@ -297,9 +307,6 @@ impl Backend for MockBackend {
                 current: Arc::new(Mutex::new(None)),
                 log_path,
             });
-        }
-        for text in &self.log_lines {
-            emit(Stream::Stdout, text.clone());
         }
         let delay = self.apply_delay;
         let cancel_flag = Arc::new(AtomicBool::new(false));

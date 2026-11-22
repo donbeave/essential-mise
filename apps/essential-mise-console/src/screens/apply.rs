@@ -21,6 +21,7 @@ use ratatui::style::Color;
 use termrock::core::event::{External, Key, Outcome};
 use termrock::core::focus::{Focus, FocusRing};
 use termrock::core::id::WidgetId;
+use termrock::core::intent::Phase;
 use termrock::core::pointer::{MouseTarget, PointerEvent};
 use termrock::core::response::Response;
 use termrock::runtime::{ExternalReceiver, external_channel};
@@ -28,7 +29,9 @@ use termrock::shell::clipboard::Clipboard;
 use termrock::theme::{Theme, Tone};
 use termrock::ui::ctx::RenderCtx;
 use termrock::ui::modal::ModalStack;
+use termrock::widgets::button::Button;
 use termrock::widgets::dialog::{Dialog, DialogResult};
+use termrock::widgets::notice::Notice;
 use termrock::widgets::steps::{Step, StepRail, StepState};
 use termrock::widgets::viewport::{Span as ViewportSpan, TextViewport, ViewportAction};
 
@@ -37,9 +40,11 @@ use super::paint::{self, Marks, bold, footer, primary_line, put, seg};
 use crate::backend::{
     ApplyHandle, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend, Stream,
 };
+use crate::followup::{self, FollowUp};
 
 /// Sender-side log bound, mirroring the viewport `.max_lines(5_000)` cap.
 pub const APPLY_LOG_CAP: usize = 5_000;
+const APPLY_DRAIN_LIMIT: usize = 256;
 
 /// Backend phase-header prefixes the screen watches to track the current
 /// phase (same crate, co-evolving protocol).
@@ -66,8 +71,10 @@ pub enum ApplyKey {
 pub enum ApplyAction {
     /// State changed; stay on screen.
     None,
-    /// Run the same request again.
+    /// Retry the apply from the failed phase.
     Retry,
+    /// Review the remaining packages.
+    ReviewPackages,
     /// Leave the console.
     Quit,
 }
@@ -87,6 +94,7 @@ pub struct ApplyScreen {
     receiver: Option<ExternalReceiver>,
     lines: VecDeque<ApplyLine>,
     dropped: u64,
+    follow_ups: Vec<FollowUp>,
     administrator: AdministratorAccess,
     current_phase: ApplyPhase,
     phases_done: usize,
@@ -94,6 +102,7 @@ pub struct ApplyScreen {
     started_at: Option<std::time::Instant>,
     outcome: Option<ApplyOutcome>,
     rerun: Option<String>,
+    log_path: Option<std::path::PathBuf>,
     cancel_armed: bool,
     cancel_requested: bool,
 }
@@ -112,6 +121,7 @@ impl ApplyScreen {
             receiver: None,
             lines: VecDeque::new(),
             dropped: 0,
+            follow_ups: Vec::new(),
             administrator: AdministratorAccess::Pending,
             current_phase: if run_base {
                 ApplyPhase::Base
@@ -123,6 +133,7 @@ impl ApplyScreen {
             started_at: None,
             outcome: None,
             rerun: None,
+            log_path: None,
             cancel_armed: false,
             cancel_requested: false,
         }
@@ -139,13 +150,14 @@ impl ApplyScreen {
         let (tx, rx) = external_channel();
         match self.backend.spawn_apply(&self.req, tx) {
             Ok(handle) => {
+                self.log_path = Some(handle.log_path().to_path_buf());
                 self.handle = Some(handle);
                 self.receiver = Some(rx);
             }
             Err(e) => {
                 self.on_outcome(ApplyOutcome::Failed {
                     code: None,
-                    tail: format!("apply failed to start: {e}"),
+                    detail: format!("apply failed to start: {e}"),
                     phase: ApplyPhase::Base,
                 });
             }
@@ -168,7 +180,7 @@ impl ApplyScreen {
         });
         self.on_outcome(ApplyOutcome::Failed {
             code: None,
-            tail: text,
+            detail: text,
             phase: ApplyPhase::Base,
         });
     }
@@ -177,7 +189,11 @@ impl ApplyScreen {
     pub fn drain(&self) -> Vec<termrock::core::event::External> {
         self.receiver
             .as_ref()
-            .map(|rx| std::iter::from_fn(|| rx.try_recv()).take(256).collect())
+            .map(|rx| {
+                std::iter::from_fn(|| rx.try_recv())
+                    .take(APPLY_DRAIN_LIMIT)
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -236,17 +252,12 @@ impl ApplyScreen {
         }
     }
 
-    /// Non-blocking completion check: joins a finished worker once, records
-    /// the outcome, and builds the exact rerun command.
-    pub fn try_join(&mut self) -> Option<ApplyOutcome> {
-        if self.outcome.is_some() {
-            return None;
-        }
+    fn worker_finished(&self) -> bool {
+        self.handle.as_ref().is_some_and(ApplyHandle::is_finished)
+    }
+
+    fn join_finished_worker(&mut self) -> Option<ApplyOutcome> {
         let handle = self.handle.take()?;
-        if !handle.is_finished() {
-            self.handle = Some(handle);
-            return None;
-        }
         let mut outcome = handle.join();
         if self.cancel_requested {
             outcome = ApplyOutcome::Cancelled;
@@ -266,9 +277,60 @@ impl ApplyScreen {
         self.cancel_requested && self.outcome.is_none()
     }
 
-    /// The request this screen runs (Try again runs it again).
+    /// The request this screen runs.
     pub fn request(&self) -> &ApplyRequest {
         &self.req
+    }
+
+    pub(crate) fn retry_request(&self) -> ApplyRequest {
+        let mut request = self.request().clone();
+        if self.packages_failed() {
+            request.run_base = false;
+        }
+        request
+    }
+
+    pub(crate) fn can_review_packages(&self) -> bool {
+        self.packages_failed() && self.req.manager.is_none()
+    }
+
+    fn packages_failed(&self) -> bool {
+        matches!(
+            self.outcome,
+            Some(ApplyOutcome::Failed {
+                phase: ApplyPhase::Packages,
+                ..
+            })
+        )
+    }
+
+    pub(crate) fn failure_detail(&self) -> Option<&str> {
+        match &self.outcome {
+            Some(ApplyOutcome::Failed { detail, .. }) if !detail.is_empty() => Some(detail),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn exit_summary(&self) -> Vec<String> {
+        let Some(banner) = self.banner() else {
+            return Vec::new();
+        };
+        let mut lines = vec![banner];
+        if let Some(detail) = self.failure_detail() {
+            lines.push(detail.to_owned());
+        }
+        if let Some(command) = self.rerun() {
+            lines.push("To try again:".to_string());
+            lines.push(format!("  $ {command}"));
+        }
+        if let Some(path) = &self.log_path {
+            lines.push(format!("Full apply log: {}", path.display()));
+        }
+        lines
+    }
+
+    pub(crate) fn take_follow_ups(&mut self) -> Vec<FollowUp> {
+        std::mem::take(&mut self.follow_ups)
     }
 
     /// Current outcome, if the worker finished.
@@ -425,6 +487,7 @@ impl ApplyScreen {
     }
 
     fn push_line(&mut self, line: ApplyLine) {
+        followup::record_log_line(&mut self.follow_ups, &line.text);
         if line.stream == Stream::System {
             if line.text == "administrator access confirmed"
                 || line.text.starts_with(PHASE1_PREFIX)
@@ -478,28 +541,32 @@ impl ApplyScreen {
                     ApplyPhase::Packages => usize::from(self.req.run_base),
                     ApplyPhase::Base => 0,
                 };
-                self.rerun = Some(self.rerun_command());
             }
             ApplyOutcome::Cancelled => {
                 self.phases_done = match self.current_phase {
                     ApplyPhase::Packages => usize::from(self.req.run_base),
                     ApplyPhase::Base => 0,
                 };
-                self.rerun = Some(self.rerun_command());
             }
         }
         self.outcome = Some(outcome);
+        if self.outcome != Some(ApplyOutcome::Success) {
+            self.rerun = Some(self.rerun_command());
+        }
     }
 
-    /// The command Try again runs: every phase of this request, formatted
-    /// from the same argv the backend executes.
+    /// Format the same request as Try again.
     fn rerun_command(&self) -> String {
-        crate::reapply::command_line(&crate::reapply::commands(&*self.backend, &self.req))
+        crate::reapply::command_line(&crate::reapply::commands(
+            &*self.backend,
+            &self.retry_request(),
+        ))
     }
 }
 
 const S3_LOG: WidgetId = WidgetId::of("emc.s3.log");
 const S3_CANCEL_CONFIRM: WidgetId = WidgetId::of("emc.s3.cancel_confirm");
+const S3_REVIEW: WidgetId = WidgetId::of("emc.s3.review");
 
 pub(crate) struct ApplyOwner {
     pub(crate) state: ApplyScreen,
@@ -552,6 +619,20 @@ impl ApplyOwner {
         }
         self.viewport.push(view_line(line));
         true
+    }
+
+    pub(crate) fn poll_worker(&mut self) -> (Outcome, Option<ApplyOutcome>) {
+        if !self.state.worker_finished() {
+            return (Outcome::Ignored, None);
+        }
+        let pending = self.state.drain();
+        for event in &pending {
+            self.on_external(event);
+        }
+        if pending.len() == APPLY_DRAIN_LIMIT {
+            return (Outcome::Changed, None);
+        }
+        (Outcome::Changed, self.state.join_finished_worker())
     }
 
     /// Open the "Stop applying?" question when the screen asked for it.
@@ -639,6 +720,9 @@ impl ApplyOwner {
             if key.is(KeyCode::Enter) {
                 return Response::emit(ApplyAction::Retry);
             }
+            if key.is(KeyCode::Esc) && self.state.can_review_packages() {
+                return Response::emit(ApplyAction::ReviewPackages);
+            }
             if key.is_char('q') || key.is(KeyCode::Esc) {
                 return Response::emit(ApplyAction::Quit);
             }
@@ -666,6 +750,9 @@ impl ApplyOwner {
             let response = dialog.pointer_in(ev, focus);
             let result = self.take_modal_result(focus, clipboard);
             return result.merge(response.outcome().into());
+        }
+        if self.state.can_review_packages() && ev.is(Phase::Click) && ev.on(S3_REVIEW) {
+            return Response::emit(ApplyAction::ReviewPackages);
         }
         if let Some(response) = self.viewport.route(ev) {
             return response.lift();
@@ -731,37 +818,47 @@ impl ApplyOwner {
         }
         self.rail
             .render(Rect::new(area.x + 1, area.y + 2, width, 4), buf, ctx, bg);
-        // Line 3: the current item.
-        let current = match (&stopped, self.state.latest_output()) {
-            (None, Some(text)) => {
-                format!("{} {}: {text}", marks.frame(tick), self.state.activity())
+        let diagnostic_y = area.y + 6;
+        let log_y = if let Some(detail) = self.state.failure_detail() {
+            let notice = Notice::error(detail);
+            let height = notice.height(width);
+            notice.render(
+                Rect::new(area.x + 1, diagnostic_y, width, height),
+                buf,
+                ctx,
+                bg,
+            );
+            diagnostic_y + height
+        } else if stopped.is_none() {
+            let mut current = format!("{} {}", marks.frame(tick), self.state.activity());
+            if let Some(text) = self.state.latest_output() {
+                current.push_str(": ");
+                current.push_str(text);
             }
-            (None, None) => format!("{} {}", marks.frame(tick), self.state.activity()),
-            (Some(_), Some(text)) => format!("Last output: {text}"),
-            (Some(_), None) => String::new(),
+            put(
+                buf,
+                area.x + 1,
+                diagnostic_y,
+                width,
+                &[seg(
+                    paint::fit(&current, width as usize, marks.ellipsis),
+                    Tone::Secondary,
+                )],
+                &theme,
+                bg,
+            );
+            diagnostic_y + 1
+        } else {
+            diagnostic_y
         };
-        put(
-            buf,
-            area.x + 1,
-            area.y + 6,
-            width,
-            &[seg(
-                paint::fit(&current, width as usize, marks.ellipsis),
-                Tone::Secondary,
-            )],
-            &theme,
-            bg,
-        );
-        let box_h = area.height.saturating_sub(10);
-        let details = Rect::new(area.x, area.y + 7, area.width, box_h);
-        let title = "Details  f follow, arrows scroll";
-        let inner = paint::framed(details, buf, &theme, bg, title);
-        self.viewport.render(inner, buf, ctx, bg);
         let primary_y = area.bottom().saturating_sub(2);
+        let details = Rect::new(area.x, log_y, area.width, primary_y.saturating_sub(log_y));
+        let inner = paint::framed(details, buf, &theme, bg, "Details");
+        self.viewport.render(inner, buf, ctx, bg);
         let primary = Rect::new(area.x, primary_y, area.width, 1);
         if self.state.outcome().is_some() {
             if self.state.outcome() != Some(&ApplyOutcome::Success) {
-                primary_line(primary, buf, ctx, bg, "Enter", "Try again");
+                self.draw_recovery_actions(primary, buf, ctx, bg);
             }
         } else {
             primary_line(primary, buf, ctx, bg, "Esc", "Stop (asks first)");
@@ -775,6 +872,18 @@ impl ApplyOwner {
             &theme,
             &self.hints(),
         );
+    }
+
+    fn draw_recovery_actions(&self, area: Rect, buf: &mut Buffer, ctx: &mut RenderCtx, bg: Color) {
+        let mut retry = Button::primary(paint::PRIMARY, "Enter  Try again").focusable(false);
+        let retry_width = retry.width().min(area.width);
+        retry.render(Rect::new(area.x, area.y, retry_width, 1), buf, ctx, bg);
+        if self.state.can_review_packages() {
+            let x = (area.x + retry_width + 1).min(area.right());
+            Button::secondary(S3_REVIEW, "Esc  Review packages")
+                .focusable(false)
+                .render(Rect::new(x, area.y, area.right() - x, 1), buf, ctx, bg);
+        }
     }
 }
 
@@ -987,7 +1096,7 @@ mod tests {
         }
         screen.on_outcome(ApplyOutcome::Failed {
             code: Some(1),
-            tail: "package failed to run sudo".into(),
+            detail: "package failed to run sudo".into(),
             phase: ApplyPhase::Packages,
         });
         let rail = screen.rail();
