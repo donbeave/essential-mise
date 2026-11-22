@@ -2,8 +2,8 @@
 set -euo pipefail
 
 REPO='donbeave/essential-mise'
-EMC_VERSION='v0.3.1'
-EMC_SHA256='f501b9782d0cced275cc5ad19c9c85a86e154f892120dc8278a5fb21376ca825'
+EMC_VERSION='v0.4.0'
+EMC_SHA256='4f04b4b94986fdbb1f9c0ce64ba9f64f2f6c96cd5a817dc84f71cd9ea33e881d'
 EMC_URL="https://github.com/${REPO}/releases/download/${EMC_VERSION}/essential-mise-console-aarch64-apple-darwin.tar.gz"
 
 tmp_archive=''
