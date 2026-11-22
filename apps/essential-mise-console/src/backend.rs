@@ -9,7 +9,7 @@
 //! history does not keep. `--yes` answers that prompt. The console confirms
 //! the apply before the worker starts.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Seek};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -102,12 +102,12 @@ pub struct ApplyLine {
 pub enum ApplyOutcome {
     /// Both phases finished with exit 0.
     Success,
-    /// A phase failed; `tail` holds the last log lines for the modal.
+    /// A phase failed.
     Failed {
         /// Failing exit code, when known.
         code: Option<i32>,
-        /// Last log lines for the failure modal.
-        tail: String,
+        /// The diagnostic to display above the worker log.
+        detail: String,
         /// Which phase failed (drives the CLI 1/3 exit mapping).
         phase: ApplyPhase,
     },
@@ -594,9 +594,6 @@ impl Backend for MiseBackend {
     }
 }
 
-/// Number of log tail lines kept for the failure modal.
-const FAILURE_TAIL_LINES: usize = 20;
-
 /// Worker body: noninteractive sudo validation, phase 1, phase 2, streaming + tee.
 #[allow(clippy::too_many_arguments)]
 fn run_apply_worker(
@@ -681,7 +678,11 @@ fn run_apply_worker(
             );
             return ApplyOutcome::Failed {
                 code: output.status.code(),
-                tail: "sudo -n -v failed; choose Try again to authenticate".to_string(),
+                detail: if detail.is_empty() {
+                    "Administrator access expired. Choose Try again to authenticate.".to_string()
+                } else {
+                    detail
+                },
                 phase: ApplyPhase::Base,
             };
         }
@@ -693,7 +694,7 @@ fn run_apply_worker(
             );
             return ApplyOutcome::Failed {
                 code: None,
-                tail: format!("failed to run sudo -n -v: {e}"),
+                detail: format!("cannot check administrator access: {e}"),
                 phase: ApplyPhase::Base,
             };
         }
@@ -713,7 +714,7 @@ fn run_apply_worker(
             );
             return ApplyOutcome::Failed {
                 code: None,
-                tail: format!("cannot keep administrator access active: {e}"),
+                detail: format!("cannot keep administrator access active: {e}"),
                 phase: ApplyPhase::Base,
             };
         }
@@ -794,9 +795,34 @@ impl Drop for SudoKeepalive {
     }
 }
 
-/// Run phase 1 then phase 2, streaming lines and teeing to the log.
-///
-/// `Failed.tail` carries the last [`FAILURE_TAIL_LINES`] lines for the modal.
+/// Keep a diagnostic from this phase even if its stderr ends with progress
+/// output or with mise's version and verbosity notices.
+#[derive(Default)]
+struct PhaseDiagnostic {
+    error: Option<String>,
+    stderr: Option<String>,
+}
+
+impl PhaseDiagnostic {
+    fn observe(&mut self, stream: Stream, text: &str) {
+        let text = text.trim();
+        if let Some(message) = text.strip_prefix("mise ERROR ") {
+            if !message.starts_with("Version:") && !message.starts_with("Run with --verbose") {
+                self.error = Some(message.to_string());
+            }
+        } else if text.starts_with("error:") || text.starts_with("fatal:") {
+            self.error = Some(text.to_string());
+        } else if stream == Stream::Stderr && self.error.is_none() && !text.is_empty() {
+            self.stderr = Some(text.to_string());
+        }
+    }
+
+    fn into_detail(self) -> String {
+        self.error.or(self.stderr).unwrap_or_default()
+    }
+}
+
+/// Run phase 1 then phase 2, streaming all lines to the UI and the log.
 fn run_phases(
     mise_bin: &Path,
     config_dir: &Path,
@@ -806,44 +832,31 @@ fn run_phases(
     cancelled: &impl Fn() -> bool,
     current: &Arc<Mutex<Option<Child>>>,
 ) -> ApplyOutcome {
-    let tail: std::cell::RefCell<VecDeque<String>> =
-        std::cell::RefCell::new(VecDeque::with_capacity(FAILURE_TAIL_LINES));
-    let mut send = |stream: Stream, text: String, log: &mut std::io::BufWriter<std::fs::File>| {
-        {
-            let mut tail = tail.borrow_mut();
-            if tail.len() == FAILURE_TAIL_LINES {
-                tail.pop_front();
-            }
-            tail.push_back(text.clone());
-        }
-        emit(stream, text, log);
-    };
-    let last_lines = || {
-        tail.borrow()
-            .iter()
-            .map(String::as_str)
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
     for (phase, label, argv) in phases {
-        send(Stream::System, format!("{label}: {}", argv.join(" ")), log);
+        emit(Stream::System, format!("{label}: {}", argv.join(" ")), log);
         if cancelled() {
             return ApplyOutcome::Cancelled;
         }
+        let mut diagnostic = PhaseDiagnostic::default();
+        let mut send =
+            |stream: Stream, text: String, log: &mut std::io::BufWriter<std::fs::File>| {
+                diagnostic.observe(stream, &text);
+                emit(stream, text, log);
+            };
         match stream_child(mise_bin, &argv, config_dir, &mut send, log, current) {
             Ok(Some(code)) => {
                 return ApplyOutcome::Failed {
                     code: Some(code),
-                    tail: format!("{label} exited {code}\n{}", last_lines()),
+                    detail: diagnostic.into_detail(),
                     phase,
                 };
             }
             Ok(None) => {}
-            Err(tail) => {
-                send(Stream::Stderr, tail.clone(), log);
+            Err(detail) => {
+                emit(Stream::Stderr, detail.clone(), log);
                 return ApplyOutcome::Failed {
                     code: None,
-                    tail,
+                    detail,
                     phase,
                 };
             }
@@ -979,7 +992,7 @@ impl ApplyHandle {
         match self.worker.take() {
             Some(worker) => worker.join().unwrap_or(ApplyOutcome::Failed {
                 code: None,
-                tail: "apply worker panicked".to_string(),
+                detail: "apply worker panicked".to_string(),
                 phase: ApplyPhase::Base,
             }),
             None => ApplyOutcome::Cancelled,

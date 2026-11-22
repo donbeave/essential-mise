@@ -39,6 +39,11 @@ pub(crate) enum Screen {
     Result(Box<ResultOwner>),
 }
 
+struct PackageRecovery {
+    request: ApplyRequest,
+    exit_summary: Vec<String>,
+}
+
 impl Screen {
     /// Whether a text box has the keyboard.
     fn typing(&self) -> bool {
@@ -82,6 +87,8 @@ pub struct App {
     envs: Vec<ModuleInfo>,
     selected: Vec<String>,
     skipped: Vec<String>,
+    package_recovery: Option<PackageRecovery>,
+    apply_follow_ups: Vec<crate::followup::FollowUp>,
     check: Option<CheckHandle>,
     reapplying: bool,
     authentication_pending: bool,
@@ -122,6 +129,8 @@ impl App {
             envs,
             selected,
             skipped: Vec::new(),
+            package_recovery: None,
+            apply_follow_ups: Vec::new(),
             check: None,
             reapplying: false,
             authentication_pending: false,
@@ -159,14 +168,12 @@ impl App {
     pub fn exit_summary(&self) -> Vec<String> {
         match &self.screen {
             Screen::Result(owner) => owner.state.exit_lines(),
-            Screen::Apply(owner) => {
-                let mut lines: Vec<String> = owner.state.banner().into_iter().collect();
-                if let Some(command) = owner.state.rerun() {
-                    lines.push("To try again:".to_string());
-                    lines.push(format!("  $ {command}"));
-                }
-                lines
-            }
+            Screen::Apply(owner) => owner.state.exit_summary(),
+            Screen::Packages(_) => self
+                .package_recovery
+                .as_ref()
+                .map(|recovery| recovery.exit_summary.clone())
+                .unwrap_or_default(),
             _ => Vec::new(),
         }
     }
@@ -175,6 +182,7 @@ impl App {
     /// without choosing one: nothing has run on steps 1 and 2.
     fn leave_code(&self) -> u8 {
         match &self.screen {
+            Screen::Packages(_) if self.package_recovery.is_some() => 1,
             Screen::Modules(_) | Screen::Packages(_) => 0,
             Screen::Apply(_) => 1,
             Screen::Result(owner) => owner.state.exit_code(),
@@ -301,8 +309,7 @@ impl App {
                 Outcome::Changed
             }
             PackageAction::Quit => {
-                // Nothing has run yet: leaving here is not a failure.
-                self.exit_code = Some(0);
+                self.exit_code = Some(self.leave_code());
                 self.shell.quit = true;
                 Outcome::Changed
             }
@@ -315,6 +322,10 @@ impl App {
         actions.into_iter().fold(out, |out, action| match action {
             ApplyAction::Retry => {
                 self.retry_apply();
+                Outcome::Changed
+            }
+            ApplyAction::ReviewPackages => {
+                self.review_failed_packages();
                 Outcome::Changed
             }
             ApplyAction::Quit => {
@@ -360,40 +371,49 @@ impl App {
     }
 
     fn feed_external(&mut self, external: &External) -> bool {
-        let consumed = match &mut self.screen {
+        match &mut self.screen {
             Screen::Apply(owner) => owner.on_external(external),
             _ => false,
-        };
-        if consumed {
-            let _ = self.poll_apply();
         }
-        consumed
     }
 
     /// Success moves on to the Result screen by itself; a failure or a stop
     /// stays on the Applying screen with its banner.
     fn poll_apply(&mut self) -> Outcome {
-        let outcome = match &mut self.screen {
-            Screen::Apply(owner) => owner.state.try_join(),
-            _ => None,
+        let Screen::Apply(owner) = &mut self.screen else {
+            return Outcome::Ignored;
         };
-        match outcome {
-            Some(crate::backend::ApplyOutcome::Success) => {
-                self.enter_result();
-                Outcome::Changed
+        let (update, outcome) = owner.poll_worker();
+        if let Some(outcome) = outcome {
+            for item in owner.state.take_follow_ups() {
+                if !self.apply_follow_ups.contains(&item) {
+                    self.apply_follow_ups.push(item);
+                }
             }
-            Some(_) => Outcome::Changed,
-            None => Outcome::Ignored,
+            if outcome == crate::backend::ApplyOutcome::Success {
+                self.enter_result();
+            }
         }
+        update
     }
 
-    /// Run the same request again (Try again after a failure or a stop).
     fn retry_apply(&mut self) {
         let Screen::Apply(owner) = &self.screen else {
             return;
         };
-        let request = owner.state.request().clone();
+        let request = owner.state.retry_request();
         self.prepare_apply(request);
+    }
+
+    fn review_failed_packages(&mut self) {
+        if let Screen::Apply(owner) = &self.screen
+            && owner.state.can_review_packages()
+        {
+            self.open_package_review(Some(PackageRecovery {
+                request: owner.state.retry_request(),
+                exit_summary: owner.state.exit_summary(),
+            }));
+        }
     }
 
     fn prepare_apply(&mut self, request: ApplyRequest) {
@@ -441,11 +461,28 @@ impl App {
             Screen::Modules(owner) => owner.state.selected_envs(),
             _ => return,
         };
-        self.selected = selected.clone();
+        self.selected = selected;
+        self.open_package_review(None);
+    }
+
+    fn open_package_review(&mut self, recovery: Option<PackageRecovery>) {
+        let selected = &self.selected;
         match self.backend.origin_map(&self.config_dir) {
             Ok(origins) => {
-                let rows = package_rows(&selected, &Self::filter_origins(&origins, &selected));
-                let state = PackagesState::new(rows, selected.len()).with_arm_delay(self.arm_delay);
+                let mut rows = package_rows(selected, &Self::filter_origins(&origins, selected));
+                if let Some(recovery) = &recovery {
+                    rows.retain(|row| {
+                        let spec = row.spec();
+                        recovery.request.keep.contains(&spec)
+                            || (!self.reapplying && self.skipped.contains(&spec))
+                    });
+                }
+                let mut state =
+                    PackagesState::new(rows, selected.len()).with_arm_delay(self.arm_delay);
+                if recovery.is_some() {
+                    state.resume_packages(&self.skipped);
+                }
+                self.package_recovery = recovery;
                 self.set_screen(Screen::Packages(PackagesOwner::new(state)));
                 self.start_check(Vec::new());
             }
@@ -482,8 +519,23 @@ impl App {
             Screen::Packages(owner) => (owner.state.install_specs(), owner.state.skipped_specs()),
             _ => return,
         };
-        self.skipped = skipped;
+        if self.package_recovery.is_some() && self.reapplying {
+            self.skipped.extend(skipped);
+        } else {
+            self.skipped = skipped;
+        }
         self.check = None;
+        if let Some(recovery) = self.package_recovery.take() {
+            if keep.is_empty() {
+                self.enter_result();
+                return;
+            }
+            self.prepare_apply(ApplyRequest {
+                keep,
+                ..recovery.request
+            });
+            return;
+        }
         let req = ApplyRequest {
             envs: self.selected.clone(),
             keep,
@@ -515,6 +567,9 @@ impl App {
     }
 
     fn back_to_modules(&mut self) {
+        self.package_recovery = None;
+        self.apply_follow_ups.clear();
+        self.reapplying = false;
         self.check = None;
         self.set_screen(Screen::Modules(Box::new(ModulesOwner::new(
             ModulesState::new(self.envs.clone(), &self.selected),
@@ -527,11 +582,7 @@ impl App {
         if std::mem::take(&mut self.reapplying) {
             screen.mark_reapplied();
         }
-        if let Screen::Apply(owner) = &self.screen {
-            screen.set_log_follow_ups(crate::followup::from_log(
-                owner.state.lines().map(|line| line.text.as_str()),
-            ));
-        }
+        screen.set_log_follow_ups(self.apply_follow_ups.clone());
         self.set_screen(Screen::Result(Box::new(ResultOwner::new(screen))));
         self.start_check(self.skipped.clone());
     }

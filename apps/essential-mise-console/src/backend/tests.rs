@@ -83,6 +83,54 @@ fn failed_spawn_is_streamed_to_the_apply_log() {
 }
 
 #[test]
+fn package_failure_reports_the_error_before_mise_footer_lines() {
+    let dir = tempfile::tempdir().expect("test working directory");
+    let mut log = std::io::BufWriter::new(tempfile::tempfile().expect("test log"));
+    let current = Arc::new(Mutex::new(None));
+    let mut emitted = Vec::new();
+    let outcome = run_phases(
+        Path::new("/bin/sh"),
+        dir.path(),
+        vec![
+            (
+                ApplyPhase::Base,
+                "base",
+                vec!["-c".into(), "echo 'mise ERROR earlier warning' >&2".into()],
+            ),
+            (
+                ApplyPhase::Packages,
+                "packages",
+                vec![
+                    "-c".into(),
+                    "echo 'mise ERROR store declined the requested download' >&2
+                     echo 'mise ERROR Version: mock' >&2
+                     echo 'mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information' >&2
+                     exit 1"
+                        .into(),
+                ],
+            ),
+        ],
+        &mut |_, text, _| emitted.push(text),
+        &mut log,
+        &|| false,
+        &current,
+    );
+    assert_eq!(
+        outcome,
+        ApplyOutcome::Failed {
+            code: Some(1),
+            detail: "store declined the requested download".into(),
+            phase: ApplyPhase::Packages,
+        }
+    );
+    assert!(
+        emitted
+            .iter()
+            .any(|line| line.starts_with("mise ERROR Run with --verbose"))
+    );
+}
+
+#[test]
 fn origin_map_reads_declaring_module() {
     let dir = test_dir("origin");
     write_env(

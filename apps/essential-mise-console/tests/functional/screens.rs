@@ -163,12 +163,30 @@ fn step3_failure_shows_the_stopped_banner_and_matches_baseline() {
     app.wait_text("starship");
     app.key("enter");
     app.wait_text("Stopped at: Packages");
+    app.wait_text("! mock: Packages failed (scripted)");
     app.visual("emc/s3-failed");
     assert_eq!(
         app.finish_with_key("q"),
         Some(1),
         "a stopped apply is an error exit"
     );
+}
+
+#[test]
+fn step3_package_failure_can_review_and_skip_without_retrying() {
+    let app = app("s3-failed-review", &[("EMC_MOCK_FAIL", "packages")]);
+    app.wait_text("terminal");
+    app.key("enter");
+    app.wait_text("starship");
+    app.key("enter");
+    app.wait_text("! mock: Packages failed (scripted)");
+    app.click_text("Review packages");
+    app.wait_text("Modules and settings are complete");
+    app.key("n");
+    app.wait_text("Check result");
+    app.key("enter");
+    app.wait_text("Step 4 of 4");
+    assert_eq!(app.finish_with_key("enter"), Some(0));
 }
 
 #[test]
@@ -200,7 +218,7 @@ fn step3_failure_copy_reaches_terminal_clipboard() {
     app.key("enter");
     app.wait_text("Stopped at: Packages");
     app.key("c");
-    app.wait_clipboard("mise");
+    app.wait_clipboard("bootstrap packages apply");
     assert_eq!(app.finish_with_key("q"), Some(1));
 }
 

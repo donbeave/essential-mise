@@ -52,6 +52,13 @@ The footer is generated from the keys that work on the current screen.
 
 `B`, `D` and Backspace no longer do anything.
 
+## Recover from a package failure
+
+When a package fails, the console shows the error above the scrollable log.
+Press **Enter** to retry the packages. Press **Esc** to return to the package
+review, check what is still missing, and use **Space** to skip a package for
+this run. Both paths preserve the completed modules and settings step.
+
 ## Step 4
 
 - A verdict line and exactly one primary action: **Finish and exit** when nothing

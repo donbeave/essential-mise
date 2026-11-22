@@ -62,16 +62,20 @@ pub fn from_report(report: &StatusReport) -> Vec<FollowUp> {
 
 /// Follow-ups found in the apply log. Unrecognised lines are ignored.
 pub fn from_log<'a>(lines: impl IntoIterator<Item = &'a str>) -> Vec<FollowUp> {
-    let mut out: Vec<FollowUp> = Vec::new();
+    let mut out = Vec::new();
     for line in lines {
-        let found = relaunch(line).or_else(|| hook_skipped(line));
-        if let Some(item) = found
-            && !out.contains(&item)
-        {
-            out.push(item);
-        }
+        record_log_line(&mut out, line);
     }
     out
+}
+
+pub(crate) fn record_log_line(items: &mut Vec<FollowUp>, line: &str) {
+    let found = relaunch(line).or_else(|| hook_skipped(line));
+    if let Some(item) = found
+        && !items.contains(&item)
+    {
+        items.push(item);
+    }
 }
 
 /// `... relaunch apps that read changed macOS defaults (killall Dock / Finder)`.

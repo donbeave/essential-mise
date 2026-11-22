@@ -116,6 +116,7 @@ pub struct PackagesState {
     error: Option<String>,
     settings_groups: usize,
     show_installed: bool,
+    recovering: bool,
     cursor: usize,
     created: Instant,
     arm_delay: Duration,
@@ -135,6 +136,7 @@ impl PackagesState {
             error: None,
             settings_groups: 0,
             show_installed: false,
+            recovering: false,
             cursor: 0,
             created: Instant::now(),
             arm_delay: DEFAULT_ARM_DELAY,
@@ -146,6 +148,13 @@ impl PackagesState {
     pub fn with_arm_delay(mut self, delay: Duration) -> Self {
         self.arm_delay = delay;
         self
+    }
+
+    pub(crate) fn resume_packages(&mut self, skipped: &[String]) {
+        self.recovering = true;
+        for (row, install) in self.rows.iter().zip(&mut self.install) {
+            *install = !skipped.contains(&row.spec());
+        }
     }
 
     /// Take the result of the status check.
@@ -260,7 +269,11 @@ impl PackagesState {
                 "Asks for your administrator password once, at the start.".to_string(),
             ];
         }
-        let to_install = self.changing().len();
+        let to_install = if self.recovering {
+            self.install_specs().len()
+        } else {
+            self.changing().len()
+        };
         let mut line = format!(
             "{modules} · {to_install} {} to install",
             if to_install == 1 {
@@ -271,15 +284,17 @@ impl PackagesState {
         );
         if self.error.is_none() {
             line.push_str(&format!(" ({} already installed)", self.installed_count()));
-            line.push_str(&format!(
-                " · {} {} of settings to update",
-                self.settings_groups,
-                if self.settings_groups == 1 {
-                    "group"
-                } else {
-                    "groups"
-                }
-            ));
+            if !self.recovering {
+                line.push_str(&format!(
+                    " · {} {} of settings to update",
+                    self.settings_groups,
+                    if self.settings_groups == 1 {
+                        "group"
+                    } else {
+                        "groups"
+                    }
+                ));
+            }
         }
         let mut lines = vec![line];
         if let Some(reason) = &self.error {
@@ -287,10 +302,12 @@ impl PackagesState {
                 "Could not check this Mac ({reason}); every package is listed."
             ));
         }
-        lines.push(
-            "Asks for your administrator password once, at the start. Usually 5-15 minutes."
-                .to_string(),
-        );
+        if !self.recovering {
+            lines.push(
+                "Asks for your administrator password once, at the start. Usually 5-15 minutes."
+                    .to_string(),
+            );
+        }
         lines
     }
 
@@ -471,6 +488,8 @@ impl PackagesOwner {
         let width = area.width.saturating_sub(2);
         let headline = if self.state.is_checking() {
             "Checking what this Mac already has...".to_string()
+        } else if self.state.recovering {
+            "Modules and settings are complete. Choose which packages to retry.".to_string()
         } else if self.state.changing().is_empty() && self.state.settings_groups == 0 {
             "This Mac already matches. Applying again is safe: it only changes what differs."
                 .to_string()
@@ -576,7 +595,11 @@ impl PackagesOwner {
                 ctx,
                 bg,
                 "Enter",
-                "Apply now",
+                if self.state.recovering && self.state.install_specs().is_empty() {
+                    "Check result"
+                } else {
+                    "Apply now"
+                },
             );
         }
         footer(
