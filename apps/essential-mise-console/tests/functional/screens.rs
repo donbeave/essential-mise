@@ -207,7 +207,7 @@ fn step3_package_failure_can_review_and_skip_without_retrying() {
     app.key("n");
     app.wait_text("Check result");
     app.key("enter");
-    app.wait_text("Step 4 of 4");
+    app.wait_text("Finish and exit");
     assert_eq!(app.finish_with_key("enter"), Some(0));
 }
 
