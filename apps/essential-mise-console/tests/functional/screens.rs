@@ -77,15 +77,15 @@ fn step2_space_skips_a_package_this_time() {
     let app = app("s2-skip", &[]);
     app.wait_text("terminal");
     app.key("enter");
-    app.wait_text("starship");
+    app.wait_text("ripgrep");
     app.key("down");
     app.key("space");
     let screen = app.stable_screen();
-    let point = super::support::find(&screen, "starship");
+    let point = super::support::find(&screen, "ripgrep");
     let row = super::support::row_text(&screen, point.y.into());
     assert!(
         row.contains("skipped this time"),
-        "Down then Space must skip starship, not the first row: {row}"
+        "Down then Space must skip ripgrep, not the first row: {row}"
     );
     app.key("q");
     app.finish_wait();

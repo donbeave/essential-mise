@@ -18,19 +18,19 @@ use crate::screens::packages::{
     DEFAULT_ARM_DELAY, PackageAction, PackagesOwner, PackagesState, package_rows,
 };
 use crate::screens::result::{ResultAction, ResultOwner, ResultScreen};
-use junie_tui::clock::{Moment, WallClock};
-use junie_tui::core::event::{External, Input, Key, Outcome};
-use junie_tui::core::focus::FocusChange;
-use junie_tui::core::id::WidgetId;
-use junie_tui::core::pointer::{PointerEvent, PointerHost, PointerParts, PointerRouter};
-use junie_tui::core::response::Response;
-use junie_tui::runtime::ExternalReceiver;
-use junie_tui::shell::{App as ShellApp, PageKey, Shell};
-use junie_tui::theme::{Charset, ColorLevel, Theme};
-use junie_tui::ui::ctx::RenderCtx;
-use junie_tui::widgets::too_small::TooSmall;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Position, Rect};
+use termrock::clock::{Moment, WallClock};
+use termrock::core::event::{External, Input, Key, Outcome};
+use termrock::core::focus::FocusChange;
+use termrock::core::id::WidgetId;
+use termrock::core::pointer::{PointerEvent, PointerHost, PointerParts, PointerRouter};
+use termrock::core::response::Response;
+use termrock::runtime::ExternalReceiver;
+use termrock::shell::{App as ShellApp, PageKey, Shell};
+use termrock::theme::{Charset, ColorLevel, Theme};
+use termrock::ui::ctx::RenderCtx;
+use termrock::widgets::too_small::TooSmall;
 
 pub(crate) enum Screen {
     Modules(Box<ModulesOwner>),
@@ -84,9 +84,11 @@ pub struct App {
     skipped: Vec<String>,
     check: Option<CheckHandle>,
     reapplying: bool,
-    help_open: bool,
+    authentication_pending: bool,
+    help: termrock::ui::modal::ModalStack<termrock::widgets::help::HelpOverlay>,
     arm_delay: Duration,
     shell: Shell<()>,
+    _clipboard_hook: termrock::shell::ClipboardHook,
     clock: WallClock,
     tick: u64,
     exit_code: Option<u8>,
@@ -95,8 +97,7 @@ pub struct App {
 }
 
 impl App {
-    /// Build from a backend and config dir. Reads the module catalogue (`#:` headers
-    /// of the config files) and `miserc.local.toml` pre-ticks (both read-only).
+    /// Start a new run with every module in the config catalogue selected.
     pub fn new(backend: Arc<dyn Backend>, config_dir: &Path) -> Result<Self, BackendError> {
         let manifest = crate::metadata::Manifest::load(config_dir)
             .map_err(|e| BackendError::Parse(e.to_string()))?;
@@ -108,28 +109,29 @@ impl App {
                 description: m.description,
             })
             .collect();
-        let preticks =
-            crate::screens::modules::read_preticks(&config_dir.join("miserc.local.toml"));
+        let selected: Vec<_> = envs.iter().map(|module| module.name.clone()).collect();
         let shell = Shell::new();
-        shell.clipboard.install();
+        let clipboard_hook = shell.clipboard().install();
         let mut app = Self {
             backend,
             config_dir: config_dir.to_path_buf(),
             screen: Screen::Modules(Box::new(ModulesOwner::new(ModulesState::new(
                 envs.clone(),
-                &preticks,
+                &selected,
             )))),
             envs,
-            selected: preticks,
+            selected,
             skipped: Vec::new(),
             check: None,
             reapplying: false,
-            help_open: false,
+            authentication_pending: false,
+            help: termrock::ui::modal::ModalStack::new(),
             arm_delay: std::env::var("EMC_REVIEW_ARM_MS")
                 .ok()
                 .and_then(|ms| ms.parse().ok())
                 .map_or(DEFAULT_ARM_DELAY, Duration::from_millis),
             shell,
+            _clipboard_hook: clipboard_hook,
             clock: WallClock::new(),
             tick: 0,
             exit_code: None,
@@ -209,21 +211,20 @@ impl App {
             }
             return Outcome::Consumed;
         }
-        if self.help_open {
-            if key.is(ratatui::crossterm::event::KeyCode::Esc)
-                || key.is(ratatui::crossterm::event::KeyCode::Enter)
-                || key.is_char('?')
-                || key.is_char('q')
-            {
-                self.help_open = false;
+        if let Some(help) = self.help.top_mut() {
+            let out = help.on_key(key);
+            if help.closed {
+                self.help.pop(&mut self.shell.focus);
             }
-            return Outcome::Changed;
+            return out;
         }
         if key.is_char('?') && !self.screen.typing() && !ShellApp::layer_open(self) {
-            self.help_open = true;
+            let help = crate::screens::help::overlay(&self.screen.help_keys());
+            let initial = help.done.id;
+            self.help.push(help, &mut self.shell.focus, Some(initial));
             return Outcome::Changed;
         }
-        let clipboard = self.shell.clipboard.clone();
+        let clipboard = self.shell.clipboard().clone();
         let out = match &mut self.screen {
             Screen::Modules(owner) => {
                 let response = owner.key(key, &mut self.shell.focus, &self.shell.ring);
@@ -234,7 +235,7 @@ impl App {
                 self.packages_response(response)
             }
             Screen::Apply(owner) => {
-                let response = owner.key(key, &mut self.shell.focus, &self.shell.ring, &clipboard);
+                let response = owner.key(key, &mut self.shell.focus, &clipboard);
                 self.apply_response(response)
             }
             Screen::Result(owner) => {
@@ -272,77 +273,77 @@ impl App {
     }
 
     fn modules_response(&mut self, response: Response<ModuleAction>) -> Outcome {
-        let (out, action) = response.into_parts();
-        match action {
-            Some(ModuleAction::Confirm) => {
+        let (out, actions) = response.into_parts();
+        actions.into_iter().fold(out, |out, action| match action {
+            ModuleAction::Confirm => {
                 self.enter_packages();
                 Outcome::Changed
             }
-            Some(ModuleAction::Quit) => {
+            ModuleAction::Quit => {
                 // Nothing has run yet: leaving here is not a failure.
                 self.exit_code = Some(0);
                 self.shell.quit = true;
                 Outcome::Changed
             }
-            Some(ModuleAction::None) | None => out,
-        }
+            ModuleAction::None => out,
+        })
     }
 
     fn packages_response(&mut self, response: Response<PackageAction>) -> Outcome {
-        let (out, action) = response.into_parts();
-        match action {
-            Some(PackageAction::Apply) => {
+        let (out, actions) = response.into_parts();
+        actions.into_iter().fold(out, |out, action| match action {
+            PackageAction::Apply => {
                 self.enter_apply();
                 Outcome::Changed
             }
-            Some(PackageAction::Back) => {
+            PackageAction::Back => {
                 self.back_to_modules();
                 Outcome::Changed
             }
-            Some(PackageAction::Quit) => {
+            PackageAction::Quit => {
                 // Nothing has run yet: leaving here is not a failure.
                 self.exit_code = Some(0);
                 self.shell.quit = true;
                 Outcome::Changed
             }
-            Some(PackageAction::None) | None => out,
-        }
+            PackageAction::None => out,
+        })
     }
 
     fn apply_response(&mut self, response: Response<ApplyAction>) -> Outcome {
-        let (out, action) = response.into_parts();
-        match action {
-            Some(ApplyAction::Retry) => {
+        let (out, actions) = response.into_parts();
+        actions.into_iter().fold(out, |out, action| match action {
+            ApplyAction::Retry => {
                 self.retry_apply();
                 Outcome::Changed
             }
-            Some(ApplyAction::Quit) => {
+            ApplyAction::Quit => {
                 self.exit_code = Some(1);
                 self.shell.quit = true;
                 Outcome::Changed
             }
-            Some(ApplyAction::None) | None => out,
-        }
+            ApplyAction::None => out,
+        })
     }
 
     fn result_response(&mut self, response: Response<ResultAction>) -> Outcome {
-        let (out, action) = response.into_parts();
-        match action {
-            Some(ResultAction::Quit(code)) => {
+        let (out, actions) = response.into_parts();
+        actions.into_iter().fold(out, |out, action| match action {
+            ResultAction::Quit(code) => {
                 self.exit_code = Some(code);
                 self.shell.quit = true;
                 Outcome::Changed
             }
-            Some(ResultAction::Recheck) => {
+            ResultAction::Recheck => {
                 self.recheck();
                 Outcome::Changed
             }
-            Some(ResultAction::Reapply) => {
+            ResultAction::Reapply => {
                 self.start_reapply();
                 Outcome::Changed
             }
-            Some(ResultAction::Copy(_) | ResultAction::None) | None => out,
-        }
+            ResultAction::Copy(_) | ResultAction::None => out,
+        })
     }
 
     /// Drain the S3 worker channel into the screen (no-op elsewhere).
@@ -392,9 +393,35 @@ impl App {
             return;
         };
         let request = owner.state.request().clone();
+        self.prepare_apply(request);
+    }
+
+    fn prepare_apply(&mut self, request: ApplyRequest) {
         let mut state = ApplyScreen::new(self.backend.clone(), request);
-        state.start();
+        self.authentication_pending = self.backend.requires_authentication();
+        if self.authentication_pending {
+            self.shell.quit = true;
+        } else {
+            state.start();
+        }
         self.set_screen(Screen::Apply(Box::new(ApplyOwner::new(state))));
+    }
+
+    /// The runtime must restore the terminal before asking sudo to authenticate.
+    pub fn authentication_pending(&self) -> bool {
+        self.authentication_pending
+    }
+
+    /// Resume the existing selection after the terminal-owned sudo prompt.
+    pub fn finish_authentication(&mut self, result: Result<(), BackendError>) {
+        self.authentication_pending = false;
+        self.shell.quit = false;
+        if let Screen::Apply(owner) = &mut self.screen {
+            match result {
+                Ok(()) => owner.state.start(),
+                Err(error) => owner.state.authentication_failed(error.to_string()),
+            }
+        }
     }
 
     /// Read how many packages each module declares into the S1 detail pane.
@@ -468,9 +495,7 @@ impl App {
             upgrade: true,
             dry_run: false,
         };
-        let mut state = ApplyScreen::new(self.backend.clone(), req);
-        state.start();
-        self.set_screen(Screen::Apply(Box::new(ApplyOwner::new(state))));
+        self.prepare_apply(req);
     }
 
     /// Jump directly to a screen (`tui [screen]`; S3 starts immediately).
@@ -526,9 +551,7 @@ impl App {
             return;
         };
         self.reapplying = true;
-        let mut state = ApplyScreen::new(self.backend.clone(), plan.request);
-        state.start();
-        self.set_screen(Screen::Apply(Box::new(ApplyOwner::new(state))));
+        self.prepare_apply(plan.request);
     }
 
     fn recheck(&mut self) {
@@ -612,7 +635,7 @@ impl App {
 }
 
 /// Theme from the environment: `NO_COLOR` and `TERM=dumb` select the mono
-/// level, and `TERM=dumb` (or `JUNIE_TUI_GLYPHS=ascii`) the ASCII glyph set,
+/// level, and `TERM=dumb` (or `TERMROCK_GLYPHS=ascii`) the ASCII glyph set,
 /// so every state is still told apart by glyph and word.
 fn theme_for_env() -> Theme {
     theme_from(|key| std::env::var(key).ok())
@@ -628,7 +651,14 @@ pub(crate) fn theme_from(get: impl Fn(&str) -> Option<String>) -> Theme {
     } else {
         ColorLevel::Ansi256
     };
-    Charset::from_env(&get, cfg!(windows)).apply(Theme::for_level(level))
+    let charset_env = |key: &str| {
+        get(key).or_else(|| {
+            (key == Charset::OVERRIDE_ENV)
+                .then(|| get("JUNIE_TUI_GLYPHS"))
+                .flatten()
+        })
+    };
+    Charset::from_env(charset_env, cfg!(windows)).apply(Theme::for_level(level))
 }
 
 impl ShellApp for App {
@@ -669,9 +699,8 @@ impl ShellApp for App {
             Screen::Apply(owner) => owner.draw(area, buf, ctx),
             Screen::Result(owner) => owner.draw(area, buf, ctx),
         }
-        if self.help_open {
-            let theme = *ctx.theme;
-            crate::screens::help::render(area, buf, &theme, theme.canvas, &self.screen.help_keys());
+        if let Some(help) = self.help.top_mut() {
+            help.render(area, buf, ctx);
         }
     }
 
@@ -697,7 +726,7 @@ impl ShellApp for App {
     }
 
     fn layer_open(&self) -> bool {
-        matches!(&self.screen, Screen::Apply(owner) if owner.layer_open())
+        !self.help.is_empty() || matches!(&self.screen, Screen::Apply(owner) if owner.layer_open())
     }
 
     fn page_under_layer(&self) -> bool {
@@ -734,7 +763,35 @@ impl PointerHost for App {
     }
 
     fn deliver(&mut self, ev: &PointerEvent) -> Response<()> {
-        let clipboard = self.shell.clipboard.clone();
+        if let Some(help) = self.help.top_mut() {
+            use termrock::core::pointer::MouseTarget;
+            let response = help.route(ev).unwrap_or_else(Response::consumed);
+            if help.closed {
+                self.help.pop(&mut self.shell.focus);
+            }
+            return response;
+        }
+        if ev.on(crate::screens::paint::PRIMARY) && ev.is(termrock::core::intent::Phase::Click) {
+            if let Screen::Modules(owner) = &mut self.screen {
+                let action = owner
+                    .state
+                    .apply(crate::screens::modules::ModuleKey::Confirm);
+                return self.modules_response(Response::emit(action)).into();
+            }
+            let code = if matches!(self.screen, Screen::Apply(ref owner) if owner.state.outcome().is_none())
+            {
+                ratatui::crossterm::event::KeyCode::Esc
+            } else {
+                ratatui::crossterm::event::KeyCode::Enter
+            };
+            return self
+                .route_key(&Key {
+                    code,
+                    mods: ratatui::crossterm::event::KeyModifiers::NONE,
+                })
+                .into();
+        }
+        let clipboard = self.shell.clipboard().clone();
         match &mut self.screen {
             Screen::Modules(owner) => {
                 let response = owner.pointer(ev, &mut self.shell.focus);
@@ -753,7 +810,11 @@ impl PointerHost for App {
     }
 
     fn outside(&mut self, _pos: Position) -> Response<()> {
-        let clipboard = self.shell.clipboard.clone();
+        if !self.help.is_empty() {
+            self.help.pop(&mut self.shell.focus);
+            return Response::changed();
+        }
+        let clipboard = self.shell.clipboard().clone();
         match &mut self.screen {
             Screen::Apply(owner) if owner.layer_open() => {
                 let response = owner.outside(&mut self.shell.focus, &clipboard);

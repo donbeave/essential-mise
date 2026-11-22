@@ -25,6 +25,19 @@ fn write_env(dir: &Path, env: &str, body: &str) {
 }
 
 #[test]
+fn query_captures_large_outputs_before_its_deadline() {
+    let mut command = Command::new("/bin/sh");
+    command.args([
+        "-c",
+        "head -c 1048576 /dev/zero; head -c 1048576 /dev/zero >&2",
+    ]);
+    let output = run_with_timeout(&mut command, Duration::from_secs(5)).expect("query completes");
+    assert!(output.status.success());
+    assert_eq!(output.stdout.len(), 1_048_576);
+    assert_eq!(output.stderr.len(), 1_048_576);
+}
+
+#[test]
 fn default_mise_bin_uses_the_setup_install_when_present() {
     let home = test_dir("mise-home");
     let local_bin = home.join(".local/bin");
@@ -232,7 +245,7 @@ fn status_fixtures_parse_into_typed_reports() {
 fn spawn_apply_dry_run_spawns_nothing() {
     let dir = test_dir("dry-run");
     let backend = MiseBackend::new(dir.clone());
-    let (tx, rx) = junie_tui::runtime::external_channel();
+    let (tx, rx) = termrock::runtime::external_channel();
     let req = ApplyRequest {
         envs: vec!["terminal".to_string()],
         keep: vec!["brew:jq".to_string()],
@@ -253,9 +266,7 @@ fn spawn_apply_dry_run_spawns_nothing() {
         "dry-run succeeds without spawning"
     );
     assert!(log_path.exists(), "full log is teed even for dry-run");
-    let lines: Vec<ApplyLine> = rx
-        .drain()
-        .iter()
+    let lines: Vec<ApplyLine> = std::iter::from_fn(|| rx.try_recv())
         .filter_map(|m| m.downcast_ref::<ApplyLine>().cloned())
         .collect();
     assert!(

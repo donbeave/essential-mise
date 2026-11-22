@@ -10,12 +10,13 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+tempfile = "3"
 clap = { version = "4.6", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.9"
 ratatui = { version = "0.30", default-features = false, features = ["crossterm_0_29"] }
-junie-tui = { git = "https://github.com/tailrocks/terminal-components-baseline", rev = "2e9e60f53988837c6e1728c71565543edc797d3a", default-features = false }
+termrock = { git = "https://github.com/tailrocks/termrock", rev = "bdd88cf1aa2075c9ac0e0dcfe3a1126217eecf89", default-features = false }
 
 [dev-dependencies]
 tui-test = { package = "tuiscotti-tui-test", version = "=0.2.1" }

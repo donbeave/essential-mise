@@ -14,23 +14,23 @@
 
 use std::collections::VecDeque;
 
-use junie_tui::core::event::{External, Key, Outcome};
-use junie_tui::core::focus::{Focus, FocusRing};
-use junie_tui::core::id::WidgetId;
-use junie_tui::core::pointer::{MouseTarget, PointerEvent};
-use junie_tui::core::response::Response;
-use junie_tui::runtime::{ExternalReceiver, external_channel};
-use junie_tui::shell::clipboard::Clipboard;
-use junie_tui::theme::{Theme, Tone};
-use junie_tui::ui::ctx::RenderCtx;
-use junie_tui::ui::modal::ModalStack;
-use junie_tui::widgets::dialog::{Dialog, DialogResult};
-use junie_tui::widgets::steps::StepState;
-use junie_tui::widgets::viewport::{Span as ViewportSpan, TextViewport, ViewportAction};
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::KeyCode;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
+use termrock::core::event::{External, Key, Outcome};
+use termrock::core::focus::{Focus, FocusRing};
+use termrock::core::id::WidgetId;
+use termrock::core::pointer::{MouseTarget, PointerEvent};
+use termrock::core::response::Response;
+use termrock::runtime::{ExternalReceiver, external_channel};
+use termrock::shell::clipboard::Clipboard;
+use termrock::theme::{Theme, Tone};
+use termrock::ui::ctx::RenderCtx;
+use termrock::ui::modal::ModalStack;
+use termrock::widgets::dialog::{Dialog, DialogResult};
+use termrock::widgets::steps::{Step, StepRail, StepState};
+use termrock::widgets::viewport::{Span as ViewportSpan, TextViewport, ViewportAction};
 
 use super::chrome::render_step_header;
 use super::paint::{self, Marks, bold, footer, primary_line, put, seg};
@@ -72,6 +72,13 @@ pub enum ApplyAction {
     Quit,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AdministratorAccess {
+    Pending,
+    Confirmed,
+    Failed,
+}
+
 /// S3 apply state machine.
 pub struct ApplyScreen {
     backend: std::sync::Arc<dyn Backend>,
@@ -80,6 +87,7 @@ pub struct ApplyScreen {
     receiver: Option<ExternalReceiver>,
     lines: VecDeque<ApplyLine>,
     dropped: u64,
+    administrator: AdministratorAccess,
     current_phase: ApplyPhase,
     phases_done: usize,
     phases_total: usize,
@@ -104,6 +112,7 @@ impl ApplyScreen {
             receiver: None,
             lines: VecDeque::new(),
             dropped: 0,
+            administrator: AdministratorAccess::Pending,
             current_phase: if run_base {
                 ApplyPhase::Base
             } else {
@@ -148,11 +157,27 @@ impl ApplyScreen {
         self.started_at.is_some()
     }
 
+    /// Preserve the request so a cancelled sudo prompt can be retried.
+    pub fn authentication_failed(&mut self, detail: String) {
+        self.administrator = AdministratorAccess::Failed;
+        let text = format!("administrator access failed: {detail}");
+        self.lines.push_back(ApplyLine {
+            seq: 1,
+            stream: Stream::System,
+            text: text.clone(),
+        });
+        self.on_outcome(ApplyOutcome::Failed {
+            code: None,
+            tail: text,
+            phase: ApplyPhase::Base,
+        });
+    }
+
     /// Drain pending lines from the worker channel (no-op before start).
-    pub fn drain(&self) -> Vec<junie_tui::core::event::External> {
+    pub fn drain(&self) -> Vec<termrock::core::event::External> {
         self.receiver
             .as_ref()
-            .map(|rx| rx.drain())
+            .map(|rx| std::iter::from_fn(|| rx.try_recv()).take(256).collect())
             .unwrap_or_default()
     }
 
@@ -163,7 +188,7 @@ impl ApplyScreen {
 
     /// Consume one drained event; true when it was an apply line.
     /// Mirrors `app.rs::on_external`: downcast, dispatch, ignore the rest.
-    pub fn on_external(&mut self, external: &junie_tui::core::event::External) -> bool {
+    pub fn on_external(&mut self, external: &termrock::core::event::External) -> bool {
         match external.downcast_ref::<ApplyLine>() {
             Some(line) => {
                 self.push_line(line.clone());
@@ -175,7 +200,7 @@ impl ApplyScreen {
 
     /// Map a key to an intent. While the apply runs, Esc, q and Ctrl+C ask
     /// before stopping; once it has stopped, `c` copies the command.
-    pub fn map_key(&self, key: &junie_tui::core::event::Key) -> Option<ApplyKey> {
+    pub fn map_key(&self, key: &termrock::core::event::Key) -> Option<ApplyKey> {
         use ratatui::crossterm::event::KeyCode;
         if (key.is(KeyCode::Esc) || key.is_char('q') || key.ctrl_char('c'))
             && self.outcome.is_none()
@@ -296,8 +321,8 @@ impl ApplyScreen {
     /// The banner shown once the apply has stopped early.
     pub fn banner(&self) -> Option<String> {
         match &self.outcome {
-            Some(ApplyOutcome::Failed { code, tail, phase }) => {
-                let admin = tail.contains("sudo") || self.admin_failed();
+            Some(ApplyOutcome::Failed { code, phase, .. }) => {
+                let admin = self.administrator == AdministratorAccess::Failed;
                 let place = if admin {
                     "Administrator access"
                 } else {
@@ -315,19 +340,6 @@ impl ApplyScreen {
         }
     }
 
-    fn admin_failed(&self) -> bool {
-        self.lines.iter().any(|l| {
-            l.text.contains("administrator access expired")
-                || l.text.contains("cannot check administrator")
-        })
-    }
-
-    fn admin_confirmed(&self) -> bool {
-        self.lines.iter().any(|l| {
-            l.text.contains("administrator access confirmed") || l.text.starts_with("phase ")
-        })
-    }
-
     /// The step rail in plain words: administrator access, modules and
     /// settings, packages, then the check of the result.
     pub fn rail(&self) -> Vec<(&'static str, StepState)> {
@@ -337,9 +349,9 @@ impl ApplyScreen {
         );
         let failed = matches!(self.outcome, Some(ApplyOutcome::Failed { .. }));
         let success = matches!(self.outcome, Some(ApplyOutcome::Success));
-        let admin = if self.admin_failed() {
+        let admin = if self.administrator == AdministratorAccess::Failed {
             StepState::Failed
-        } else if self.admin_confirmed() || success {
+        } else if self.administrator == AdministratorAccess::Confirmed || success {
             StepState::Done
         } else if stopped {
             StepState::Blocked
@@ -408,12 +420,26 @@ impl ApplyScreen {
     }
 
     /// Copy the rerun command through the shell clipboard (OSC52).
-    pub fn copy_rerun(&self, clipboard: &Clipboard) -> Option<junie_tui::shell::clipboard::Copied> {
+    pub fn copy_rerun(&self, clipboard: &Clipboard) -> Option<termrock::shell::clipboard::Copied> {
         self.rerun.as_deref().map(|r| clipboard.copy(r))
     }
 
     fn push_line(&mut self, line: ApplyLine) {
         if line.stream == Stream::System {
+            if line.text == "administrator access confirmed"
+                || line.text.starts_with(PHASE1_PREFIX)
+                || line.text.starts_with(PHASE2_PREFIX)
+            {
+                self.administrator = AdministratorAccess::Confirmed;
+            } else if line.text.starts_with("administrator access expired;")
+                || line.text.starts_with("administrator access failed:")
+                || line.text.starts_with("cannot check administrator access:")
+                || line
+                    .text
+                    .starts_with("cannot keep administrator access active:")
+            {
+                self.administrator = AdministratorAccess::Failed;
+            }
             if line.text.starts_with(PHASE2_PREFIX) {
                 self.current_phase = ApplyPhase::Packages;
                 self.phases_done = self.phases_done.max(usize::from(self.req.run_base));
@@ -479,11 +505,25 @@ pub(crate) struct ApplyOwner {
     pub(crate) state: ApplyScreen,
     pub(crate) viewport: TextViewport,
     modals: ModalStack<Box<Dialog>>,
+    rail: StepRail,
 }
 
 impl ApplyOwner {
     pub(crate) fn new(state: ApplyScreen) -> Self {
         Self {
+            rail: StepRail::new(
+                WidgetId::of("emc.s3.steps"),
+                state
+                    .rail()
+                    .into_iter()
+                    .map(|(label, status)| {
+                        let mut step = Step::new(label);
+                        step.state = status;
+                        step
+                    })
+                    .collect(),
+            )
+            .selectable(false),
             state,
             viewport: TextViewport::new(S3_LOG)
                 .wrap(true)
@@ -584,14 +624,16 @@ impl ApplyOwner {
         &mut self,
         key: &Key,
         focus: &mut Focus,
-        ring: &FocusRing,
         clipboard: &Clipboard,
     ) -> Response<ApplyAction> {
         if let Some(dialog) = self.modals.top_mut() {
-            let out = dialog.on_key(key, focus, ring);
+            let mut modal_ring = FocusRing::default();
+            for action in dialog.actions.iter().filter(|action| action.can_activate()) {
+                modal_ring.register(action.id);
+            }
+            let out = dialog.on_key(key, focus, &modal_ring);
             let response = self.take_modal_result(focus, clipboard);
-            let (result_out, action) = response.into_parts();
-            return (out.or(result_out), action).into();
+            return response.merge(out.into());
         }
         if self.state.outcome().is_some() {
             if key.is(KeyCode::Enter) {
@@ -623,8 +665,7 @@ impl ApplyOwner {
         if let Some(dialog) = self.modals.top_mut() {
             let response = dialog.pointer_in(ev, focus);
             let result = self.take_modal_result(focus, clipboard);
-            let (result_out, action) = result.into_parts();
-            return (response.outcome().or(result_out), action).into();
+            return result.merge(response.outcome().into());
         }
         if let Some(response) = self.viewport.route(ev) {
             return response.lift();
@@ -685,32 +726,11 @@ impl ApplyOwner {
             row.push(seg(elapsed, Tone::Muted));
         }
         put(buf, area.x + 1, area.y + 1, width, &row, &theme, bg);
-        // Line 2: the step rail, each state a glyph and a word.
-        let mut rail: Vec<paint::Seg> = Vec::new();
-        for (label, state) in self.state.rail() {
-            let (glyph, tone) = match state {
-                StepState::Done => (marks.ok.to_string(), Tone::Success),
-                StepState::Running => (marks.frame(tick).to_string(), Tone::Active),
-                StepState::Failed => (marks.fail.to_string(), Tone::Error),
-                StepState::Skipped => (marks.skip.to_string(), Tone::Muted),
-                StepState::Blocked | StepState::Queued => ("○".to_string(), Tone::Muted),
-            };
-            let glyph = if theme.glyphs == junie_tui::theme::Glyphs::ASCII && glyph == "○" {
-                "o".to_string()
-            } else {
-                glyph
-            };
-            rail.push(seg(format!("{glyph} "), tone));
-            rail.push(seg(
-                format!("{label}  "),
-                if state == StepState::Skipped {
-                    Tone::Muted
-                } else {
-                    Tone::Normal
-                },
-            ));
+        for (index, (_, status)) in self.state.rail().into_iter().enumerate() {
+            self.rail.set_state(index, status);
         }
-        put(buf, area.x + 1, area.y + 2, width, &rail, &theme, bg);
+        self.rail
+            .render(Rect::new(area.x + 1, area.y + 2, width, 4), buf, ctx, bg);
         // Line 3: the current item.
         let current = match (&stopped, self.state.latest_output()) {
             (None, Some(text)) => {
@@ -723,7 +743,7 @@ impl ApplyOwner {
         put(
             buf,
             area.x + 1,
-            area.y + 3,
+            area.y + 6,
             width,
             &[seg(
                 paint::fit(&current, width as usize, marks.ellipsis),
@@ -732,8 +752,8 @@ impl ApplyOwner {
             &theme,
             bg,
         );
-        let box_h = area.height.saturating_sub(7);
-        let details = Rect::new(area.x, area.y + 4, area.width, box_h);
+        let box_h = area.height.saturating_sub(10);
+        let details = Rect::new(area.x, area.y + 7, area.width, box_h);
         let title = "Details  f follow, arrows scroll";
         let inner = paint::framed(details, buf, &theme, bg, title);
         self.viewport.render(inner, buf, ctx, bg);
@@ -741,10 +761,10 @@ impl ApplyOwner {
         let primary = Rect::new(area.x, primary_y, area.width, 1);
         if self.state.outcome().is_some() {
             if self.state.outcome() != Some(&ApplyOutcome::Success) {
-                primary_line(primary, buf, &theme, bg, "Enter", "Try again");
+                primary_line(primary, buf, ctx, bg, "Enter", "Try again");
             }
         } else {
-            primary_line(primary, buf, &theme, bg, "Esc", "Stop (asks first)");
+            primary_line(primary, buf, ctx, bg, "Esc", "Stop (asks first)");
         }
         if let Some(dialog) = self.modals.top_mut() {
             dialog.render(area, buf, ctx);
@@ -800,8 +820,8 @@ mod tests {
         );
     }
     use crate::backend::MiseBackend;
-    use junie_tui::core::event::Key;
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
+    use termrock::core::event::Key;
 
     fn screen() -> ApplyScreen {
         let backend =
@@ -838,7 +858,7 @@ mod tests {
     fn cancel_posts_cancelled_with_rerun() {
         let mut screen = screen();
         // A phase-1 header line sets the current phase without spawning.
-        screen.on_external(&junie_tui::core::event::External::new(ApplyLine {
+        screen.on_external(&termrock::core::event::External::new(ApplyLine {
             seq: 1,
             stream: Stream::System,
             text: "phase 1: base: mise -C /tmp -E terminal bootstrap --skip packages".to_string(),
@@ -880,7 +900,7 @@ mod tests {
     #[test]
     fn rerun_format_matches_backend_argv() {
         let mut screen = screen();
-        screen.on_external(&junie_tui::core::event::External::new(ApplyLine {
+        screen.on_external(&termrock::core::event::External::new(ApplyLine {
             seq: 2,
             stream: Stream::System,
             text: "phase 2: packages: mise ...".to_string(),
@@ -915,7 +935,7 @@ mod tests {
         let handle = failing.spawn_apply(&req, tx).expect("mock spawn");
         let outcome = handle.join();
         let mut screen = ApplyScreen::new(backend, req);
-        for m in rx.drain() {
+        while let Some(m) = rx.try_recv() {
             screen.on_external(&m);
         }
         screen.on_outcome(outcome.clone());
@@ -943,6 +963,59 @@ mod tests {
         assert_eq!(screen.map_key(&char_key('q')), Some(ApplyKey::Cancel));
         assert_eq!(screen.map_key(&char_key('c')), None, "nothing to copy yet");
         assert_eq!(screen.map_key(&key(KeyCode::Enter)), None);
+    }
+
+    #[test]
+    fn administrator_progress_survives_log_eviction_and_package_sudo_errors() {
+        let mut screen = screen();
+        screen.push_line(ApplyLine {
+            seq: 1,
+            stream: Stream::System,
+            text: "administrator access confirmed".into(),
+        });
+        screen.push_line(ApplyLine {
+            seq: 2,
+            stream: Stream::System,
+            text: "phase 2: packages".into(),
+        });
+        for index in 0..=APPLY_LOG_CAP {
+            screen.push_line(ApplyLine {
+                seq: index as u64 + 3,
+                stream: Stream::Stdout,
+                text: "package output mentions sudo".into(),
+            });
+        }
+        screen.on_outcome(ApplyOutcome::Failed {
+            code: Some(1),
+            tail: "package failed to run sudo".into(),
+            phase: ApplyPhase::Packages,
+        });
+        let rail = screen.rail();
+        assert_eq!(rail[0].1, StepState::Done);
+        assert_eq!(rail[1].1, StepState::Done);
+        assert_eq!(rail[2].1, StepState::Failed);
+        assert_eq!(
+            screen.banner().as_deref(),
+            Some("Stopped at: Packages (exit code 1)")
+        );
+    }
+
+    #[test]
+    fn administrator_failure_is_retained_after_log_eviction() {
+        let mut screen = screen();
+        screen.authentication_failed("sudo: authentication cancelled".into());
+        for index in 0..=APPLY_LOG_CAP {
+            screen.push_line(ApplyLine {
+                seq: index as u64 + 2,
+                stream: Stream::Stdout,
+                text: "additional output".into(),
+            });
+        }
+        assert_eq!(screen.rail()[0].1, StepState::Failed);
+        assert_eq!(
+            screen.banner().as_deref(),
+            Some("Stopped at: Administrator access")
+        );
     }
 
     #[test]

@@ -1,18 +1,18 @@
 //! Screen chrome wiring shared by S1–S4 (Termrock rule).
 //!
-//! Every screen maps ONLY to inventoried `junie-tui` components at the pinned
-//! rev: [`PageHeader`](junie_tui::widgets::page_header::PageHeader),
-//! [`StatusBar`](junie_tui::widgets::statusbar::StatusBar) with
-//! [`StatusItem`](junie_tui::widgets::statusbar::StatusItem), and the
-//! [`HintLayer`](junie_tui::widgets::hintbar::HintLayer) built from
-//! [`hint`](junie_tui::widgets::keyhint::hint) rows. Screens must not build
+//! Every screen maps ONLY to inventoried `termrock` components at the pinned
+//! rev: [`PageHeader`](termrock::widgets::page_header::PageHeader),
+//! [`StatusBar`](termrock::widgets::statusbar::StatusBar) with
+//! [`StatusItem`](termrock::widgets::statusbar::StatusItem), and the
+//! [`HintLayer`](termrock::widgets::hintbar::HintLayer) built from
+//! [`hint`](termrock::widgets::keyhint::hint) rows. Screens must not build
 //! these widgets any other way.
 
-use junie_tui::theme::Tone;
-use junie_tui::widgets::hintbar::HintLayer;
-use junie_tui::widgets::keyhint::hint;
-use junie_tui::widgets::page_header::PageHeader;
-use junie_tui::widgets::statusbar::{StatusBar, StatusItem};
+use termrock::theme::Tone;
+use termrock::widgets::hintbar::HintLayer;
+use termrock::widgets::keyhint::hint;
+use termrock::widgets::page_header::PageHeader;
+use termrock::widgets::statusbar::{StatusBar, StatusItem};
 
 /// Console title shown on every screen.
 pub const TITLE: &str = "essential-mise-console";
@@ -41,11 +41,11 @@ pub fn hint_layer(hints: &[(&'static str, &'static str)]) -> HintLayer {
     HintLayer::new(hints.iter().map(|(k, a)| hint(k, a)).collect())
 }
 
-use junie_tui::theme::Theme;
-use junie_tui::ui::ctx::RenderCtx;
-use junie_tui::widgets::hintbar::HintBar;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use termrock::theme::Theme;
+use termrock::ui::ctx::RenderCtx;
+use termrock::widgets::hintbar::HintBar;
 
 /// Paint the step header: `essential-mise ... Step n of 4 · <name>`.
 pub fn render_step_header(step: u8, name: &str, area: Rect, buf: &mut Buffer, theme: &Theme) {

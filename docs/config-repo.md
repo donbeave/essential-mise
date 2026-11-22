@@ -32,8 +32,7 @@ repository live in special comments at the top of the config files themselves.
 A module is a file named `config.<name>.toml`. The module name is the part
 between `config.` and `.toml`; it is never declared anywhere else. The engine
 selects modules with mise environments (`-E <name>`). The user's persistent
-selection is stored in the untracked file `miserc.local.toml`; the TUI pre-ticks
-modules from it. `config.toml` and any `*.local.toml` file are never modules.
+selection is stored in the untracked file `miserc.local.toml`; the console starts with all modules selected for each interactive run. `config.toml` and any `*.local.toml` file are never modules.
 
 ## Metadata comments (`#:`)
 

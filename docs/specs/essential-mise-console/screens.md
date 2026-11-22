@@ -10,9 +10,9 @@ Four steps, named by verbs. The header reads `Step n of 4 · <name>`.
 
 | Step | Name | What it does |
 | --- | --- | --- |
-| 1 | Choose modules | Pick the modules to set up. Nothing changes yet. |
+| 1 | Choose modules | All modules start selected. Deselect any to leave out of this run. |
 | 2 | Review and confirm | See what will change, choose Install or Skip this time per package, then apply. |
-| 3 | Applying | Runs the apply. Success moves on by itself. |
+| 3 | Applying | Prompts for administrator access in the terminal, then runs the apply. Try again prompts if access has expired. |
 | 4 | Done, or Needs attention | Says whether the Mac matches, and what to do next. |
 
 There are no `S1` to `S4` codes in the interface.
@@ -91,7 +91,7 @@ terminal, so they outlive the alternate screen.
   the list. The floor stays 72x20, with a message below it.
 - Text is truncated only where a key shows the full text (`d`, `e`, wrapped
   command lines); long follow-up text and commands wrap.
-- `NO_COLOR` selects the mono level; `TERM=dumb` (or `JUNIE_TUI_GLYPHS=ascii`)
+- `NO_COLOR` selects the mono level; `TERM=dumb` (or `TERMROCK_GLYPHS=ascii`)
   selects ASCII glyphs (`[ok]`, `[!]`).
 
 ## Test hooks
@@ -110,8 +110,6 @@ pinned `tuiscotti accept` command, never by hand.
   can show an honest per-module marker.
 - Changing the apply phase order to match the documented `mise bootstrap` order
   (packages before files, repositories, dotfiles, defaults and tools).
-- Handling an expired sudo ticket during a long session (a re-apply after the
-  ticket expired stops at "Administrator access"; today it needs a restart).
 - Confirm the exact per-entry state names `mise bootstrap status --json` uses for
   a value that differs. The console recognises `differs`, `unset`, `missing` and
   similar; any other state is shown as "Could not check" until it is added to the

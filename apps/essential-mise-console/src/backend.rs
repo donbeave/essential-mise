@@ -10,14 +10,14 @@
 //! the apply before the worker starts.
 
 use std::collections::{HashMap, VecDeque};
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read, Seek};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use junie_tui::runtime::ExternalSender;
+use termrock::runtime::ExternalSender;
 
 use crate::status::StatusReport;
 
@@ -198,6 +198,10 @@ impl From<std::io::Error> for BackendError {
 
 /// Stock-`mise bootstrap` backend over a config dir.
 pub trait Backend: Send + Sync + 'static {
+    /// Whether an apply needs terminal-owned administrator authentication.
+    fn requires_authentication(&self) -> bool {
+        true
+    }
     /// Authenticate with the user's terminal before starting an apply.
     fn authenticate(&self) -> Result<(), BackendError>;
     /// Run `bootstrap plan --json` for the requested envs.
@@ -315,7 +319,6 @@ struct EnvBootstrap {
     packages: HashMap<String, toml::Value>,
 }
 
-/// Deadline for read-only queries.
 /// Local wall-clock time as `HH:MM:SS` (from `date`, so the local time zone
 /// applies without a time-zone dependency); UTC when `date` is unavailable.
 fn wall_clock_hms() -> String {
@@ -346,27 +349,36 @@ fn run_with_timeout(
     cmd: &mut Command,
     timeout: Duration,
 ) -> Result<std::process::Output, BackendError> {
+    // A status report can exceed the OS pipe capacity. Anonymous files let
+    // mise finish writing both streams while the parent enforces its deadline.
+    let mut stdout = tempfile::tempfile()?;
+    let mut stderr = tempfile::tempfile()?;
     let mut child = cmd
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(BackendError::Spawn)?;
+        .stdout(stdout.try_clone()?)
+        .stderr(stderr.try_clone()?)
+        .spawn()?;
     let start = std::time::Instant::now();
-    loop {
-        match child.try_wait().map_err(BackendError::Spawn)? {
-            Some(_) => {
-                return child.wait_with_output().map_err(BackendError::Spawn);
-            }
-            None => {
-                if start.elapsed() >= timeout {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return Err(BackendError::Timeout);
-                }
-                std::thread::sleep(Duration::from_millis(50));
-            }
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
         }
-    }
+        if start.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(BackendError::Timeout);
+        }
+        std::thread::sleep(Duration::from_millis(20).min(timeout.saturating_sub(start.elapsed())));
+    };
+    stdout.rewind()?;
+    stderr.rewind()?;
+    let mut output = std::process::Output {
+        status,
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    };
+    stdout.read_to_end(&mut output.stdout)?;
+    stderr.read_to_end(&mut output.stderr)?;
+    Ok(output)
 }
 
 impl Backend for MiseBackend {
@@ -380,7 +392,7 @@ impl Backend for MiseBackend {
             Ok(())
         } else {
             Err(BackendError::Authentication(format!(
-                "sudo -v exited {status}; rerun the command and approve the terminal prompt"
+                "sudo -v exited {status}"
             )))
         }
     }
@@ -586,9 +598,6 @@ impl Backend for MiseBackend {
 const FAILURE_TAIL_LINES: usize = 20;
 
 /// Worker body: noninteractive sudo validation, phase 1, phase 2, streaming + tee.
-/// Interactive authentication belongs to [`Backend::authenticate`] before the
-/// TUI starts. The `while /usr/bin/sudo -n -v; do /bin/sleep 60; done`
-/// keepalive is killed on every exit path (done or cancelled).
 #[allow(clippy::too_many_arguments)]
 fn run_apply_worker(
     mise_bin: PathBuf,
@@ -650,7 +659,7 @@ fn run_apply_worker(
     );
     let sudo_check = Command::new("/usr/bin/sudo")
         .args(["-n", "-v"])
-        .stdin(Stdio::null())
+        .stdin(Stdio::inherit())
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .output();
@@ -661,7 +670,7 @@ fn run_apply_worker(
             emit(
                 Stream::System,
                 format!(
-                    "administrator access expired; rerun the console and approve the terminal prompt{}",
+                    "administrator access expired; choose Try again to approve the terminal prompt{}",
                     if detail.is_empty() {
                         String::new()
                     } else {
@@ -672,8 +681,7 @@ fn run_apply_worker(
             );
             return ApplyOutcome::Failed {
                 code: output.status.code(),
-                tail: "sudo -n -v failed; interactive authentication must happen before the TUI starts"
-                    .to_string(),
+                tail: "sudo -n -v failed; choose Try again to authenticate".to_string(),
                 phase: ApplyPhase::Base,
             };
         }
@@ -695,21 +703,21 @@ fn run_apply_worker(
         "administrator access confirmed".to_string(),
         &mut log,
     );
-    let mut keepalive = Command::new("/bin/sh")
-        .arg("-c")
-        .arg("while /usr/bin/sudo -n -v; do /bin/sleep 60; done")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok();
-    let finish = |keepalive: &mut Option<Child>| {
-        if let Some(mut k) = keepalive.take() {
-            let _ = k.kill();
-            let _ = k.wait();
+    let _keepalive = match SudoKeepalive::start() {
+        Ok(keepalive) => keepalive,
+        Err(e) => {
+            emit(
+                Stream::System,
+                format!("cannot keep administrator access active: {e}"),
+                &mut log,
+            );
+            return ApplyOutcome::Failed {
+                code: None,
+                tail: format!("cannot keep administrator access active: {e}"),
+                phase: ApplyPhase::Base,
+            };
         }
     };
-
-    let mut keepalive_guard = keepalive.take();
     if phase2.is_none() {
         emit(
             Stream::System,
@@ -732,7 +740,7 @@ fn run_apply_worker(
             full_argv(&config_dir, &req, p2),
         ));
     }
-    let outcome = run_phases(
+    run_phases(
         &mise_bin,
         &config_dir,
         phases,
@@ -740,9 +748,50 @@ fn run_apply_worker(
         &mut log,
         &cancelled,
         &current,
-    );
-    finish(&mut keepalive_guard);
-    outcome
+    )
+}
+
+struct SudoKeepalive {
+    stop: std::sync::mpsc::Sender<()>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
+
+impl SudoKeepalive {
+    fn start() -> std::io::Result<Self> {
+        let (stop, receiver) = std::sync::mpsc::channel();
+        let worker = std::thread::Builder::new()
+            .name("emc-sudo-keepalive".to_string())
+            .spawn(move || {
+                while receiver.recv_timeout(Duration::from_secs(30))
+                    == Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+                {
+                    // Keep sudo's parent and terminal identical to the initial validation.
+                    let valid = Command::new("/usr/bin/sudo")
+                        .args(["-n", "-v"])
+                        .stdin(Stdio::inherit())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .status()
+                        .is_ok_and(|status| status.success());
+                    if !valid {
+                        break;
+                    }
+                }
+            })?;
+        Ok(Self {
+            stop,
+            worker: Some(worker),
+        })
+    }
+}
+
+impl Drop for SudoKeepalive {
+    fn drop(&mut self) {
+        let _ = self.stop.send(());
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
 }
 
 /// Run phase 1 then phase 2, streaming lines and teeing to the log.

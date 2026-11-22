@@ -19,7 +19,7 @@ The config repository is checked out as the mise global config directory (`~/.co
 2. `setup` runs six stages: Command Line Tools, Homebrew, mise, repository access, adoption of the config repository, and the base modules (`#: base = true`).
 3. The console reads the `#:` headers of the config files for the module catalogue and descriptions, never a hardcoded list.
 4. You pick modules in the TUI. The console runs stock `mise bootstrap` with `-E <module>` selections as `MISE_CEILING_PATHS=<config_dir> mise -C <config_dir> ...`, so projects outside the config directory cannot contribute resources.
-5. A persistent selection is one you write yourself in the untracked `miserc.local.toml` of the config checkout; the TUI pre-ticks it and does not write it.
+5. Use the untracked `miserc.local.toml` in the config checkout to select modules for future shells. The console starts each interactive run with every module selected. Deselect modules to exclude them from this run.
 
 The console never reimplements install logic: packages, dotfiles, repositories, hooks, status, and unapply stay in mise.
 

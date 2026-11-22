@@ -9,15 +9,15 @@
 //! Exit semantics: 0 when nothing differs, 3 when changes are pending, 1 when
 //! the check itself failed.
 
-use junie_tui::core::event::{Key, Outcome};
-use junie_tui::core::id::WidgetId;
-use junie_tui::core::response::Response;
-use junie_tui::shell::clipboard::Clipboard;
-use junie_tui::theme::{Theme, Tone};
-use junie_tui::ui::ctx::RenderCtx;
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::KeyCode;
 use ratatui::layout::Rect;
+use termrock::core::event::{Key, Outcome};
+use termrock::core::id::WidgetId;
+use termrock::core::response::Response;
+use termrock::shell::clipboard::Clipboard;
+use termrock::theme::{Theme, Tone};
+use termrock::ui::ctx::RenderCtx;
 
 use super::chrome::render_step_header;
 use super::paint::{self, Marks, Row, bold, footer, primary_line, put, seg};
@@ -962,7 +962,7 @@ impl ResultOwner {
             primary_line(
                 Rect::new(area.x, primary_y, area.width, 1),
                 buf,
-                &theme,
+                ctx,
                 bg,
                 key,
                 &label,
