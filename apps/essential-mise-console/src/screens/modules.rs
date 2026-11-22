@@ -26,6 +26,7 @@ use termrock::core::response::Response;
 use termrock::theme::{ButtonKind, Theme, Tone};
 use termrock::ui::ctx::RenderCtx;
 use termrock::ui::layout::Split;
+use termrock::widgets::button::Button;
 use termrock::widgets::input::{InputAction, TextInput};
 use termrock::widgets::list_detail::{
     Action as DetailAction, Frame as DetailFrame, Line as DetailLine, ListDetail, ListRow,
@@ -235,6 +236,19 @@ impl ModulesState {
         !self.selected.is_empty()
     }
 
+    fn all_selected(&self) -> bool {
+        self.selected.len() == self.envs.len()
+    }
+
+    fn toggle_all(&mut self) {
+        if self.all_selected() {
+            self.selected.clear();
+        } else {
+            self.selected
+                .extend(self.envs.iter().map(|env| env.name.clone()));
+        }
+    }
+
     /// Selected env names in script order.
     pub fn selected_envs(&self) -> Vec<String> {
         self.envs
@@ -371,11 +385,13 @@ impl ModulesState {
 const S1_FILTER: WidgetId = WidgetId::of("emc.s1.filter");
 const S1_MASTER: WidgetId = WidgetId::of("emc.s1.master");
 const S1_DETAIL: WidgetId = WidgetId::of("emc.s1.detail");
+const S1_BULK: WidgetId = WidgetId::of("emc.s1.bulk");
 
 pub(crate) struct ModulesOwner {
     pub(crate) state: ModulesState,
     filter: TextInput,
     list: ListDetail,
+    bulk: Button,
 }
 
 impl ModulesOwner {
@@ -385,10 +401,12 @@ impl ModulesOwner {
             .edit_entry(EditEntry::Immediate)
             .blur_action(BlurAction::Commit);
         let list = ListDetail::new(S1_MASTER, S1_DETAIL, Split::new(45, 20, 20));
+        let bulk = Button::secondary(S1_BULK, "").disabled(state.envs.is_empty());
         Self {
             state,
             filter,
             list,
+            bulk,
         }
     }
 
@@ -453,6 +471,19 @@ impl ModulesOwner {
             return Outcome::Changed.into();
         }
 
+        if key.ctrl_char('a') && self.bulk.activate().1 {
+            return self.toggle_all(focus);
+        }
+        if focus.current() == Some(S1_BULK) {
+            let (outcome, activated) = self.bulk.on_key(key);
+            if activated {
+                return self.toggle_all(focus);
+            }
+            if outcome != Outcome::Ignored {
+                return outcome.into();
+            }
+        }
+
         let detail_escape = key.is(KeyCode::Esc) && self.list.on_detail(focus.current());
         if !detail_escape
             && let Some(mapped) = self.state.map_key(key)
@@ -503,6 +534,9 @@ impl ModulesOwner {
         ev: &PointerEvent,
         focus: &mut Focus,
     ) -> Response<ModuleAction> {
+        if ev.is(Phase::Click) && ev.on(S1_BULK) && self.bulk.on_click() {
+            return self.toggle_all(focus);
+        }
         if let Some(response) = self.filter.route(ev) {
             if ev.is(Phase::Click) {
                 self.state.filtering = true;
@@ -523,6 +557,16 @@ impl ModulesOwner {
             return Self::detail_response(out, event);
         }
         Response::ignored()
+    }
+
+    fn toggle_all(&mut self, focus: &mut Focus) -> Response<ModuleAction> {
+        self.state.toggle_all();
+        if self.state.filtering() {
+            self.leave_filter(focus);
+        } else {
+            focus.focus(S1_MASTER);
+        }
+        Response::changed()
     }
 
     /// Whether the search box has the keyboard (the app must not treat `?`
@@ -651,8 +695,31 @@ impl ModulesOwner {
             &theme,
             bg,
         );
+        let action_y = bottom.saturating_sub(2);
+        let bulk_width = if self.state.envs.is_empty() {
+            0
+        } else {
+            let label = if self.state.all_selected() {
+                "Unselect all"
+            } else {
+                "Select all"
+            };
+            self.bulk.label = if self.state.filtering() {
+                label.to_owned()
+            } else {
+                format!("Ctrl+A  {label}")
+            };
+            let width = self.bulk.width().min(area.width);
+            self.bulk.render(
+                Rect::new(area.right() - width, action_y, width, 1),
+                buf,
+                ctx,
+                bg,
+            );
+            width + 1
+        };
         primary_line(
-            Rect::new(area.x, bottom.saturating_sub(2), area.width, 1),
+            Rect::new(area.x, action_y, area.width.saturating_sub(bulk_width), 1),
             buf,
             ctx,
             bg,

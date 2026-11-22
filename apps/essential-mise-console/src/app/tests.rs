@@ -304,6 +304,12 @@ fn step1_quit_before_any_work_exits_zero() {
 #[test]
 fn step1_review_uses_only_modules_left_selected() {
     let mut app = mock_app();
+    app.handle_key(&Key {
+        code: KeyCode::Char('a'),
+        mods: KeyModifiers::CONTROL,
+    });
+    assert!(render(&mut app, 80, 24).contains("0 of 2 selected"));
+    app.handle_key(&key(KeyCode::Down));
     app.handle_key(&char_key(' '));
     to_review(&mut app);
     assert_eq!(app.selected, vec!["beta".to_string()]);
@@ -317,6 +323,23 @@ fn step1_the_review_button_in_the_detail_pane_still_works_with_the_pointer() {
     draw(&mut app, &mut terminal);
     click_id(&mut app, WidgetId::of("emc.s1.detail").sub("continue"));
     assert_eq!(app.screen_name(), "packages");
+}
+
+#[test]
+fn step1_bulk_toggle_is_focusable_and_includes_hidden_modules() {
+    let mut app = mock_app();
+    app.handle_key(&char_key('/'));
+    app.handle_key(&char_key('b'));
+    app.handle_key(&key(KeyCode::Enter));
+    let bulk = WidgetId::of("emc.s1.bulk");
+    let screen = render(&mut app, 80, 24);
+    assert!(screen.contains("Ctrl+A  Unselect all"), "{screen}");
+    assert!(app.shell.ring.contains(bulk));
+    app.shell.focus.focus(bulk);
+    app.handle_key(&key(KeyCode::Enter));
+    let screen = render(&mut app, 80, 24);
+    assert!(screen.contains("0 of 2 selected"), "{screen}");
+    assert!(screen.contains("Ctrl+A  Select all"), "{screen}");
 }
 
 #[test]

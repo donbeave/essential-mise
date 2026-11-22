@@ -43,6 +43,7 @@ The footer is generated from the keys that work on the current screen.
 | Space | Toggle (select a module, Install or Skip this time) |
 | / | Search (step 1) |
 | a, n | All, none (step 1 modules; step 2 packages) |
+| Ctrl+A | Select or unselect all optional modules, including hidden search results (step 1, outside search editing) |
 | h | Show or hide already-installed packages (step 2) |
 | d | Details: every pending change as setting, now, wanted (step 4) |
 | e | Expand or collapse "All good" (step 4) |
@@ -51,6 +52,11 @@ The footer is generated from the keys that work on the current screen.
 | f, arrows | Follow or scroll the live details (step 3) |
 
 `B`, `D` and Backspace no longer do anything.
+
+Use **Unselect all** to start with an empty selection, then use **Space** to
+choose individual modules. Click the button or focus it with **Tab** and
+press **Enter**. The button becomes **Select all** when any module is
+unselected. Setup applies base modules before the picker opens.
 
 ## Recover from a package failure
 

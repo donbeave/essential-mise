@@ -43,6 +43,28 @@ fn step1_choose_modules_matches_baseline() {
 }
 
 #[test]
+fn step1_bulk_selection_can_clear_all_and_review_one_module() {
+    let app = app("s1-bulk", &[]);
+    app.wait_text("3 of 3 selected");
+    app.resize(80, 24);
+    app.click_text("Unselect all");
+    app.wait_text("0 of 3 selected");
+    app.wait_text("Ctrl+A  Select all");
+    app.key("Ctrl+A");
+    app.wait_text("3 of 3 selected");
+    app.key("Ctrl+A");
+    app.wait_text("0 of 3 selected");
+    app.key("down");
+    app.key("space");
+    app.wait_text("1 of 3 selected");
+    app.key("enter");
+    app.wait_text("1 module · 2 packages to install");
+    app.wait_text("starship");
+    app.wait_absent("ripgrep");
+    assert_eq!(app.finish_with_key("q"), Some(0));
+}
+
+#[test]
 fn step2_review_matches_baseline_and_esc_goes_back() {
     let app = app("s2-review", &[]);
     app.wait_text("terminal");
