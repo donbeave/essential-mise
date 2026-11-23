@@ -424,6 +424,7 @@ fn execute_setup_plan(
                 &mut emit,
                 &mut log,
                 &current,
+                false,
             ) {
                 Ok(None) => Ok(()),
                 Ok(code) => Err(format!("{program} exited {}", code.unwrap_or(-1))),
@@ -905,6 +906,25 @@ mod tests {
         assert_eq!(numbers, [1, 2, 3, 4, 5, 6]);
         assert_eq!(plan[3].title, "Repository access");
         assert_eq!(usize::from(STAGE_COUNT), plan.len());
+    }
+
+    #[test]
+    fn stage_6_does_not_set_emc_apply() {
+        let src = include_str!("setup.rs");
+        let start = src
+            .find("no base modules to apply")
+            .expect("stage 6 marker");
+        let rest = &src[start..];
+        let end = rest.find("base modules failed").expect("stage 6 command");
+        let stage6 = &rest[..end];
+        assert!(
+            !stage6.contains(".env(\"EMC_APPLY\""),
+            "stage 6 must not set EMC_APPLY"
+        );
+        assert!(
+            !stage6.contains("stream_child"),
+            "stage 6 must not go through stream_child"
+        );
     }
 
     #[test]

@@ -7,6 +7,8 @@ pub mod app;
 pub mod backend;
 /// Status checks off the UI thread.
 pub mod check;
+/// Config checkpoint sentinel recorded from an apply log. Nothing is spawned.
+pub mod checkpoint;
 /// Clap command tree (spec §2 verbatim) plus exit-code contract.
 pub mod cli;
 /// Typed follow-ups after an apply: relaunch hints, skipped hooks, new shell.

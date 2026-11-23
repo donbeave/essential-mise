@@ -19,4 +19,16 @@ A module is one file in your config repository named `config.<name>.toml`. It de
 - Keep identity and secrets out of the repository. Use `*.local.toml` files (ignored by git) for machine-local overrides.
 - Prefer native resources over hooks. A hook that wraps Homebrew needs a documented reason, health check, upgrade, and removal path.
 
+## Console checkpoint
+
+A hook that must finish before the console treats the apply as done, without failing the apply, prints one stdout line and exits 0:
+
+```text
+essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}
+```
+
+The object has exactly the keys `check` and `accounts`. `check` is the string `google-accounts`. `accounts` is one to sixteen email addresses. The console keeps that list. It does not pass the line to a shell. A line with the same prefix that is not this object still stops the console from moving on.
+
+The console apply sets `EMC_APPLY=1` on the mise child. A hook can print the line and exit 0 when that variable is set, instead of reading the terminal. Setup does not set it.
+
 The header format is in [the contract](config-repo.md). The starter's `config.terminal.toml` is a working example.

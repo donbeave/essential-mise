@@ -40,6 +40,7 @@ use super::paint::{self, Marks, bold, footer, primary_line, put, seg};
 use crate::backend::{
     ApplyHandle, ApplyLine, ApplyOutcome, ApplyPhase, ApplyRequest, Backend, Stream,
 };
+use crate::checkpoint::{self, Record as CheckpointRecord};
 use crate::followup::{self, FollowUp};
 
 /// Sender-side log bound, mirroring the viewport `.max_lines(5_000)` cap.
@@ -95,6 +96,9 @@ pub struct ApplyScreen {
     lines: VecDeque<ApplyLine>,
     dropped: u64,
     follow_ups: Vec<FollowUp>,
+    // Read after a successful apply. This commit only records it.
+    #[allow(dead_code)]
+    checkpoint: CheckpointRecord,
     administrator: AdministratorAccess,
     current_phase: ApplyPhase,
     phases_done: usize,
@@ -122,6 +126,7 @@ impl ApplyScreen {
             lines: VecDeque::new(),
             dropped: 0,
             follow_ups: Vec::new(),
+            checkpoint: CheckpointRecord::None,
             administrator: AdministratorAccess::Pending,
             current_phase: if run_base {
                 ApplyPhase::Base
@@ -487,6 +492,7 @@ impl ApplyScreen {
     }
 
     fn push_line(&mut self, line: ApplyLine) {
+        checkpoint::observe(&mut self.checkpoint, &line.text);
         followup::record_log_line(&mut self.follow_ups, &line.text);
         if line.stream == Stream::System {
             if line.text == "administrator access confirmed"
@@ -1125,6 +1131,56 @@ mod tests {
             screen.banner().as_deref(),
             Some("Stopped at: Administrator access")
         );
+    }
+
+    #[test]
+    fn checkpoint_survives_the_log_cap_and_keeps_the_first_accounts() {
+        use crate::checkpoint::{Record, Sentinel};
+
+        let mut screen = screen();
+        let sentinel = format!(
+            "{}{{\"check\":\"google-accounts\",\"accounts\":[\"user@example.com\"]}}",
+            crate::checkpoint::PREFIX
+        );
+        screen.push_line(ApplyLine {
+            seq: 1,
+            stream: Stream::Stdout,
+            text: sentinel.clone(),
+        });
+        screen.push_line(ApplyLine {
+            seq: 2,
+            stream: Stream::Stdout,
+            text: format!(
+                "{}{{\"check\":\"google-accounts\",\"accounts\":[\"other@example.com\"]}}",
+                crate::checkpoint::PREFIX
+            ),
+        });
+        for index in 0..APPLY_LOG_CAP {
+            screen.push_line(ApplyLine {
+                seq: index as u64 + 3,
+                stream: Stream::Stdout,
+                text: format!("package output {index}"),
+            });
+        }
+        assert!(
+            !screen
+                .lines
+                .iter()
+                .any(|line| line.text.contains(crate::checkpoint::PREFIX)),
+            "the capped log dropped the sentinel"
+        );
+        assert_eq!(
+            screen.checkpoint,
+            Record::Ready(Sentinel {
+                accounts: vec!["user@example.com".into()],
+            })
+        );
+        screen.push_line(ApplyLine {
+            seq: 9_000,
+            stream: Stream::Stderr,
+            text: format!("{}not-json", crate::checkpoint::PREFIX),
+        });
+        assert!(matches!(screen.checkpoint, Record::Error(_)));
     }
 
     #[test]
