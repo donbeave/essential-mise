@@ -1,36 +1,36 @@
 //! One checkpoint line from an apply log.
 //!
-//! A config hook prints `essential-mise-checkpoint: {"script":"bin/<name>.ts"}`
-//! and exits 0. The console keeps that script, confined to the config
-//! directory, and decides later whether the apply is finished. This module
-//! does not spawn a process and does not pass the script to a shell.
+//! A config hook prints
+//! `essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}`
+//! and exits 0. The console keeps those accounts. This module does not spawn
+//! a process, does not open a database, and does not pass the line to a shell.
 
-use std::path::{Path, PathBuf};
+use std::collections::HashSet;
 
 /// Text that starts a checkpoint line, including the trailing space.
 pub(crate) const PREFIX: &str = "essential-mise-checkpoint: ";
 
-/// What `push_line` has seen so far.
+/// What `observe` has seen so far.
 ///
-/// The first well-formed script stays. A later well-formed line does not
+/// The first well-formed line stays. A later well-formed line does not
 /// replace it. Any malformed checkpoint line becomes [`Record::Error`] and
-/// stays there, so a bad line cannot be skipped.
+/// stays there, even when a good line was seen earlier.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) enum Record {
     /// No checkpoint line yet.
     #[default]
     None,
-    /// The first script that parsed.
+    /// The first accounts list that parsed.
     Ready(Sentinel),
     /// A checkpoint line that did not parse. Still blocks.
     Error(String),
 }
 
-/// A script path that matched the checkpoint rule.
+/// Accounts from a well-formed checkpoint line. Already ASCII-lowercased.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Sentinel {
-    /// Relative path, `bin/<name>.ts`.
-    pub(crate) script: String,
+    /// One to sixteen addresses, in line order, with no duplicates.
+    pub(crate) accounts: Vec<String>,
 }
 
 /// Fold one apply-log line into `record`.
@@ -64,94 +64,150 @@ fn parse_body(body: &str) -> Result<Sentinel, String> {
     let serde_json::Value::Object(map) = value else {
         return Err("checkpoint line is not a JSON object".to_string());
     };
-    if map.len() != 1 || !map.contains_key("script") {
-        return Err("checkpoint line must contain only script".to_string());
+    if map.len() != 2 || !map.contains_key("check") || !map.contains_key("accounts") {
+        return Err("checkpoint line must contain only check and accounts".to_string());
     }
-    let Some(script) = map.get("script").and_then(serde_json::Value::as_str) else {
-        return Err("checkpoint script is not a string".to_string());
+    let Some(check) = map.get("check").and_then(serde_json::Value::as_str) else {
+        return Err("checkpoint check is not a string".to_string());
     };
-    if !script_name_ok(script) {
-        return Err(format!("checkpoint script is not under bin/: {script}"));
+    if check != "google-accounts" {
+        return Err("checkpoint check is not google-accounts".to_string());
     }
-    Ok(Sentinel {
-        script: script.to_string(),
-    })
+    let Some(list) = map.get("accounts").and_then(serde_json::Value::as_array) else {
+        return Err("checkpoint accounts is not an array".to_string());
+    };
+    if list.is_empty() || list.len() > 16 {
+        return Err("checkpoint accounts must list 1 to 16 addresses".to_string());
+    }
+    let mut accounts = Vec::with_capacity(list.len());
+    let mut seen = HashSet::with_capacity(list.len());
+    for item in list {
+        let Some(raw) = item.as_str() else {
+            return Err("checkpoint account is not a string".to_string());
+        };
+        let address = ascii_lower(raw);
+        if !address_ok(&address) {
+            return Err(format!("checkpoint account is not an email address: {raw}"));
+        }
+        if !seen.insert(address.clone()) {
+            return Err(format!("checkpoint account is duplicated: {address}"));
+        }
+        accounts.push(address);
+    }
+    Ok(Sentinel { accounts })
 }
 
-/// `^bin/[A-Za-z0-9._-]+\.ts$`
-fn script_name_ok(script: &str) -> bool {
-    let Some(name) = script
-        .strip_prefix("bin/")
-        .and_then(|rest| rest.strip_suffix(".ts"))
-    else {
+fn ascii_lower(value: &str) -> String {
+    value.chars().map(|c| c.to_ascii_lowercase()).collect()
+}
+
+/// `^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$` on an already lowercased string.
+fn address_ok(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let Some(at) = bytes.iter().position(|byte| *byte == b'@') else {
         return false;
     };
+    if at == 0 {
+        return false;
+    }
+    let local = &bytes[..at];
+    let domain = &bytes[at + 1..];
+    if local.is_empty()
+        || domain.is_empty()
+        || !local.iter().copied().all(local_byte)
+        || domain.contains(&b'@')
+    {
+        return false;
+    }
+    let Some(dot) = domain.iter().rposition(|byte| *byte == b'.') else {
+        return false;
+    };
+    let name = &domain[..dot];
+    let tld = &domain[dot + 1..];
     !name.is_empty()
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+        && tld.len() >= 2
+        && name.iter().copied().all(domain_byte)
+        && tld.iter().copied().all(|byte| byte.is_ascii_lowercase())
 }
 
-/// Resolve `script` under `config_dir`.
-///
-/// The path is canonicalized. A path that leaves the config directory,
-/// including through a symlink, is refused. A missing script is an error.
-/// Nothing is executed.
-#[allow(dead_code)] // the checkpoint screen calls this; this commit only records
-pub(crate) fn resolve_script(config_dir: &Path, script: &str) -> Result<PathBuf, String> {
-    if !script_name_ok(script) {
-        return Err(format!("checkpoint script is not under bin/: {script}"));
-    }
-    let config = config_dir
-        .canonicalize()
-        .map_err(|err| format!("config directory: {err}"))?;
-    let candidate = config.join(script);
-    let resolved = candidate
-        .canonicalize()
-        .map_err(|err| format!("script: {err}"))?;
-    if resolved == config || !resolved.starts_with(&config) {
-        return Err("script escapes the config directory".to_string());
-    }
-    if !resolved.is_file() {
-        return Err("script is missing".to_string());
-    }
-    Ok(resolved)
+fn local_byte(byte: u8) -> bool {
+    byte.is_ascii_lowercase()
+        || byte.is_ascii_digit()
+        || matches!(byte, b'.' | b'_' | b'%' | b'+' | b'-')
+}
+
+fn domain_byte(byte: u8) -> bool {
+    byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'-')
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn line(script: &str) -> String {
-        format!("{PREFIX}{{\"script\":\"{script}\"}}")
+    fn line(accounts: &str) -> String {
+        format!(r#"{PREFIX}{{"check":"google-accounts","accounts":[{accounts}]}}"#)
+    }
+
+    fn one(address: &str) -> String {
+        line(&format!("\"{address}\""))
     }
 
     #[test]
-    fn parses_one_script_object() {
-        let sentinel = parse_line(&line("bin/example.ts"))
+    fn parses_accounts_and_ignores_key_order() {
+        let sentinel = parse_line(&one("User@Example.com"))
             .expect("checkpoint")
             .expect("ok");
-        assert_eq!(sentinel.script, "bin/example.ts");
+        assert_eq!(sentinel.accounts, vec!["user@example.com".to_string()]);
+
+        let swapped = format!(
+            r#"{PREFIX}{{"accounts":["a@example.com","b@example.com"],"check":"google-accounts"}}"#
+        );
+        let sentinel = parse_line(&swapped).expect("checkpoint").expect("ok");
+        assert_eq!(
+            sentinel.accounts,
+            vec!["a@example.com".to_string(), "b@example.com".to_string()]
+        );
     }
 
     #[test]
     fn ignores_a_line_without_the_prefix() {
         assert!(parse_line("phase 1: base").is_none());
-        assert!(parse_line("essential-mise-checkpoint:{\"script\":\"bin/example.ts\"}").is_none());
+        assert!(
+            parse_line(
+                "essential-mise-checkpoint:{\"check\":\"google-accounts\",\"accounts\":[\"user@example.com\"]}"
+            )
+            .is_none()
+        );
     }
 
     #[test]
-    fn rejects_extra_keys_bad_json_and_a_script_outside_bin() {
+    fn rejects_a_malformed_checkpoint_line() {
+        let mut many = Vec::new();
+        for index in 0..17 {
+            many.push(format!("\"user{index}@example.com\""));
+        }
         let cases = [
-            format!("{PREFIX}{{\"script\":\"bin/example.ts\",\"ok\":true}}"),
+            one("not-an-email"),
+            line("\"user@example.com\",\"user@example.com\""),
+            line("\"User@Example.com\",\"user@example.com\""),
+            format!("{PREFIX}{{\"check\":\"google-accounts\",\"accounts\":[]}}"),
+            format!(
+                "{PREFIX}{{\"check\":\"google-accounts\",\"accounts\":[{}]}}",
+                many.join(",")
+            ),
+            format!("{PREFIX}{{\"check\":\"google-accounts\",\"accounts\":\"user@example.com\"}}"),
+            format!(
+                "{PREFIX}{{\"check\":\"google-accounts\",\"accounts\":[\"user@example.com\"],\"script\":\"bin/example.ts\"}}"
+            ),
+            format!(r#"{PREFIX}{{"script":"bin/example.ts"}}"#),
+            format!(r#"{PREFIX}{{"check":"other","accounts":["user@example.com"]}}"#),
+            format!(r#"{PREFIX}{{"accounts":["user@example.com"]}}"#),
             format!("{PREFIX}not-json"),
             format!("{PREFIX}[]"),
-            format!("{PREFIX}{{\"script\":1}}"),
-            line("bin/../example.ts"),
-            line("/tmp/example.ts"),
-            line("bin/example.js"),
-            line("bin/.ts"),
-            format!("{PREFIX}{{\"script\":\"bin/example.ts\"}} trailing"),
+            format!("{PREFIX}{{\"check\":\"google-accounts\",\"accounts\":[1]}}"),
+            format!(
+                "{PREFIX}{{\"check\":\"google-accounts\",\"accounts\":[\"user@example.com\"]}} trailing"
+            ),
         ];
         for case in cases {
             let err = parse_line(&case).expect("prefix").expect_err(&case);
@@ -160,73 +216,25 @@ mod tests {
     }
 
     #[test]
-    fn first_script_wins_and_a_bad_line_still_blocks() {
+    fn first_line_wins_and_a_bad_line_still_blocks() {
         let mut record = Record::None;
-        observe(&mut record, &line("bin/example.ts"));
-        observe(&mut record, &line("bin/other.ts"));
+        observe(&mut record, &one("user@example.com"));
+        observe(&mut record, &one("other@example.com"));
         assert_eq!(
             record,
             Record::Ready(Sentinel {
-                script: "bin/example.ts".into(),
+                accounts: vec!["user@example.com".into()],
             })
         );
         observe(&mut record, &format!("{PREFIX}{{}}"));
         assert!(matches!(record, Record::Error(_)));
         let error = record.clone();
-        observe(&mut record, &line("bin/example.ts"));
+        observe(&mut record, &one("user@example.com"));
         assert_eq!(record, error);
 
         let mut only_bad = Record::None;
         observe(&mut only_bad, &format!("{PREFIX}{{}}"));
-        observe(&mut only_bad, &line("bin/example.ts"));
+        observe(&mut only_bad, &one("user@example.com"));
         assert!(matches!(only_bad, Record::Error(_)));
-    }
-
-    #[test]
-    fn resolve_stays_inside_the_config_directory() {
-        let root = tempfile::tempdir().expect("temp");
-        let config = root.path().join("config");
-        std::fs::create_dir_all(config.join("bin")).expect("bin");
-        std::fs::write(config.join("bin/example.ts"), "// example\n").expect("script");
-        let resolved = resolve_script(&config, "bin/example.ts").expect("inside");
-        let config = config.canonicalize().expect("config");
-        assert!(resolved.starts_with(&config));
-        assert!(resolved.ends_with("bin/example.ts"));
-        assert!(resolved.is_file());
-    }
-
-    #[test]
-    fn resolve_allows_a_symlink_that_stays_inside() {
-        let root = tempfile::tempdir().expect("temp");
-        let config = root.path().join("config");
-        std::fs::create_dir_all(config.join("bin")).expect("bin");
-        std::fs::write(config.join("bin/real.ts"), "// example\n").expect("script");
-        std::os::unix::fs::symlink("real.ts", config.join("bin/example.ts")).expect("symlink");
-        let resolved = resolve_script(&config, "bin/example.ts").expect("inside symlink");
-        assert!(resolved.ends_with("bin/real.ts"));
-        assert!(resolved.starts_with(config.canonicalize().expect("config")));
-    }
-
-    #[test]
-    fn resolve_refuses_a_symlink_that_leaves_the_config_directory() {
-        let root = tempfile::tempdir().expect("temp");
-        let config = root.path().join("config");
-        let outside = root.path().join("outside.ts");
-        std::fs::create_dir_all(config.join("bin")).expect("bin");
-        std::fs::write(&outside, "// outside\n").expect("outside");
-        std::os::unix::fs::symlink(&outside, config.join("bin/example.ts")).expect("symlink");
-        let err = resolve_script(&config, "bin/example.ts").expect_err("escape");
-        assert!(err.contains("escapes"), "{err}");
-    }
-
-    #[test]
-    fn resolve_refuses_a_missing_script_and_a_bad_name() {
-        let root = tempfile::tempdir().expect("temp");
-        let config = root.path().join("config");
-        std::fs::create_dir_all(config.join("bin")).expect("bin");
-        let missing = resolve_script(&config, "bin/example.ts").expect_err("missing");
-        assert!(missing.contains("script"), "{missing}");
-        let bad = resolve_script(&config, "bin/../example.ts").expect_err("regex");
-        assert!(bad.contains("bin/"), "{bad}");
     }
 }
