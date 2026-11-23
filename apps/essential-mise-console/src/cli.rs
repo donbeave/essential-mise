@@ -62,7 +62,7 @@ pub struct Cli {
     pub command: Option<Commands>,
 }
 
-/// All nine subcommands.
+/// All ten subcommands.
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum Commands {
     /// List environments with descriptions.
@@ -153,6 +153,40 @@ pub enum Commands {
         /// Screen to open on.
         screen: Option<TuiScreen>,
     },
+    /// Check Google Mail and Calendar, or open the accounts pane.
+    GoogleAccounts {
+        /// `check`, `guide`, or `open`.
+        #[command(subcommand)]
+        command: GoogleAccountsCommand,
+    },
+}
+
+/// `google-accounts` actions.
+#[derive(Debug, Clone, clap::Subcommand)]
+pub enum GoogleAccountsCommand {
+    /// Read the Accounts database and print the report.
+    Check {
+        /// Accept the JSON report. The report is always JSON.
+        #[arg(long)]
+        json: bool,
+        /// Comma-separated email addresses.
+        #[arg(long)]
+        accounts: Option<String>,
+        /// Accounts database. Defaults to ~/Library/Accounts/Accounts4.sqlite.
+        #[arg(long)]
+        db: Option<PathBuf>,
+    },
+    /// Wait on the terminal until Mail and Calendar are on.
+    Guide {
+        /// Comma-separated email addresses.
+        #[arg(long)]
+        accounts: Option<String>,
+        /// Accounts database. Defaults to ~/Library/Accounts/Accounts4.sqlite.
+        #[arg(long)]
+        db: Option<PathBuf>,
+    },
+    /// Open the Internet Accounts pane in System Settings.
+    Open,
 }
 
 /// TUI screens, in journey order.
@@ -253,6 +287,62 @@ pub fn run(backend: std::sync::Arc<dyn Backend>, cli: &Cli, out: &mut dyn std::i
             }
         }
         Some(Commands::Tui { screen }) => run_tui(backend, cli, *screen, out),
+        Some(Commands::GoogleAccounts { command }) => run_google_accounts(command, out),
+    }
+}
+
+fn run_google_accounts(command: &GoogleAccountsCommand, out: &mut dyn std::io::Write) -> u8 {
+    use crate::google_accounts;
+    match command {
+        GoogleAccountsCommand::Check {
+            json: _,
+            accounts,
+            db,
+        } => {
+            let Some(accounts) = accounts_arg(accounts) else {
+                return EXIT_ERROR;
+            };
+            let path = db.clone().unwrap_or_else(google_accounts::default_db_path);
+            let report = google_accounts::check(&path, &accounts);
+            match serde_json::to_string(&report) {
+                Ok(json) => {
+                    let _ = writeln!(out, "{json}");
+                    EXIT_OK
+                }
+                Err(err) => {
+                    eprintln!("google-accounts: {err}");
+                    EXIT_ERROR
+                }
+            }
+        }
+        GoogleAccountsCommand::Guide { accounts, db } => {
+            let Some(accounts) = accounts_arg(accounts) else {
+                return EXIT_ERROR;
+            };
+            let path = db.clone().unwrap_or_else(google_accounts::default_db_path);
+            google_accounts::guide_from_tty(&path, &accounts)
+        }
+        GoogleAccountsCommand::Open => match google_accounts::open_accounts_pane() {
+            Ok(()) => EXIT_OK,
+            Err(err) => {
+                eprintln!("{err}");
+                EXIT_ERROR
+            }
+        },
+    }
+}
+
+fn accounts_arg(accounts: &Option<String>) -> Option<Vec<String>> {
+    let Some(value) = accounts else {
+        eprintln!("google-accounts: --accounts needs a list");
+        return None;
+    };
+    match crate::google_accounts::parse_accounts(value) {
+        Ok(accounts) => Some(accounts),
+        Err(err) => {
+            eprintln!("{err}");
+            None
+        }
     }
 }
 
@@ -499,9 +589,7 @@ fn run_apply(
     }
     match outcome {
         ApplyOutcome::Success if dry_run => EXIT_OK,
-        ApplyOutcome::Success => {
-            checkpoint_after_success(&resolve_config_dir(cli.config_dir.as_deref()), &lines, out)
-        }
+        ApplyOutcome::Success => checkpoint_after_success(&lines, out),
         ApplyOutcome::Failed {
             phase: ApplyPhase::Packages,
             ..
@@ -514,11 +602,7 @@ fn run_apply(
 /// After mise exits 0, a checkpoint line is the same gate as the TUI screen.
 /// Dry-run does not call this. No sentinel stays 0. A malformed line is exit 3
 /// and does not spawn. A check that is not exactly satisfied is exit 3, not 1.
-fn checkpoint_after_success(
-    config_dir: &Path,
-    lines: &[String],
-    out: &mut dyn std::io::Write,
-) -> u8 {
+fn checkpoint_after_success(lines: &[String], out: &mut dyn std::io::Write) -> u8 {
     use crate::checkpoint::{self, Plan};
     let mut record = checkpoint::Record::None;
     for line in lines {
@@ -528,7 +612,10 @@ fn checkpoint_after_success(
         Plan::Clear => checkpoint::decide(&record, None),
         Plan::Blocked(_) => checkpoint::decide(&record, None),
         Plan::Run(sentinel) => {
-            let result = checkpoint::run_check(config_dir, &sentinel.script);
+            let result = checkpoint::run_check(
+                &crate::google_accounts::default_db_path(),
+                &sentinel.accounts,
+            );
             checkpoint::decide(&record, Some(result))
         }
     };

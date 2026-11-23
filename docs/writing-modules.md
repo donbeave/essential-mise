@@ -24,10 +24,10 @@ A module is one file in your config repository named `config.<name>.toml`. It de
 A hook that must finish before the console treats the apply as done, without failing the apply, prints one stdout line and exits 0:
 
 ```text
-essential-mise-checkpoint: {"script":"bin/<name>.ts"}
+essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}
 ```
 
-`<name>` matches `[A-Za-z0-9._-]+`. The object has no other keys. The console runs that script itself after a successful apply. It does not pass the line to a shell. The script has to stay inside the config repository, including when `bin/<name>.ts` is a symlink. A line with the same prefix that is not this object still stops the console from moving on.
+The object has exactly the keys `check` and `accounts`. `check` is the string `google-accounts`. `accounts` is one to sixteen email addresses. The console checks Google Mail and Calendar for those addresses itself. It does not run a script and it does not pass the line to a shell. A line with the same prefix that is not this object still stops the console from moving on.
 
 The console apply sets `EMC_APPLY=1` on the mise child. A hook can print the line and exit 0 when that variable is set, instead of reading the terminal. Setup does not set it.
 

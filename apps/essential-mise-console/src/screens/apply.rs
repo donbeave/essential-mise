@@ -1138,12 +1138,12 @@ mod tests {
     }
 
     #[test]
-    fn checkpoint_survives_the_log_cap_and_keeps_the_first_script() {
+    fn checkpoint_survives_the_log_cap_and_keeps_the_first_accounts() {
         use crate::checkpoint::{Record, Sentinel};
 
         let mut screen = screen();
         let sentinel = format!(
-            "{}{{\"script\":\"bin/example.ts\"}}",
+            "{}{{\"check\":\"google-accounts\",\"accounts\":[\"user@example.com\"]}}",
             crate::checkpoint::PREFIX
         );
         screen.push_line(ApplyLine {
@@ -1155,7 +1155,7 @@ mod tests {
             seq: 2,
             stream: Stream::Stdout,
             text: format!(
-                "{}{{\"script\":\"bin/other.ts\"}}",
+                "{}{{\"check\":\"google-accounts\",\"accounts\":[\"other@example.com\"]}}",
                 crate::checkpoint::PREFIX
             ),
         });
@@ -1176,7 +1176,7 @@ mod tests {
         assert_eq!(
             screen.checkpoint,
             Record::Ready(Sentinel {
-                script: "bin/example.ts".into(),
+                accounts: vec!["user@example.com".into()],
             })
         );
         screen.push_line(ApplyLine {

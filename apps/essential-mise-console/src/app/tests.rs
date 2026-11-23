@@ -1348,7 +1348,9 @@ fn settle_after_apply(app: &mut App) {
 #[test]
 fn a_satisfied_checkpoint_skips_to_result_and_a_missing_one_does_too() {
     with_checkpoint_mock("ok", || {
-        let mut app = sentinel_app(r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#);
+        let mut app = sentinel_app(
+            r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#,
+        );
         settle_after_apply(&mut app);
         assert_eq!(app.screen_name(), "result");
     });
@@ -1362,7 +1364,9 @@ fn a_satisfied_checkpoint_skips_to_result_and_a_missing_one_does_too() {
 #[test]
 fn gaps_checkpoint_stays_on_step_3_and_quit_exits_3() {
     with_checkpoint_mock("gaps", || {
-        let mut app = sentinel_app(r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#);
+        let mut app = sentinel_app(
+            r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#,
+        );
         settle_after_apply(&mut app);
         assert_eq!(app.screen_name(), "checkpoint");
         let screen = render(&mut app, 100, 30);
@@ -1397,7 +1401,9 @@ fn gaps_checkpoint_stays_on_step_3_and_quit_exits_3() {
 #[test]
 fn schema_checkpoint_hides_open_and_a_tiny_window_still_exits_3() {
     with_checkpoint_mock("schema", || {
-        let mut app = sentinel_app(r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#);
+        let mut app = sentinel_app(
+            r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#,
+        );
         settle_after_apply(&mut app);
         let screen = render(&mut app, 100, 30);
         assert!(screen.contains("not in the shape"), "{screen}");

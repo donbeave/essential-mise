@@ -13,6 +13,8 @@ pub mod checkpoint;
 pub mod cli;
 /// Typed follow-ups after an apply: relaunch hints, skipped hooks, new shell.
 pub mod followup;
+/// Google Mail and Calendar check against the local Accounts database.
+pub mod google_accounts;
 /// Config repository lint (`lint` subcommand).
 pub mod lint;
 /// `#:` header comments in config files: the engine/config contract.

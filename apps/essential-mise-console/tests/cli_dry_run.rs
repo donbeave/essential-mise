@@ -155,10 +155,9 @@ fn apply_with_no_sentinel_stays_ok_and_a_satisfied_check_stays_ok() {
         );
         assert_eq!(code, EXIT_OK);
     });
-    let backend = std::sync::Arc::new(
-        MockBackend::new()
-            .with_log_lines(&[r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#]),
-    );
+    let backend = std::sync::Arc::new(MockBackend::new().with_log_lines(&[
+        r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#,
+    ]));
     with_checkpoint_mock(Some("ok"), || {
         let (code, out) = run_with(
             backend,
@@ -170,7 +169,8 @@ fn apply_with_no_sentinel_stays_ok_and_a_satisfied_check_stays_ok() {
 
 #[test]
 fn apply_checkpoint_exits_3_for_gaps_a_bad_line_and_a_missing_mock() {
-    let sentinel = r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#;
+    let sentinel =
+        r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#;
     let backend = std::sync::Arc::new(MockBackend::new().with_log_lines(&[sentinel]));
     with_checkpoint_mock(Some("gaps"), || {
         let (code, out) = run_with(
@@ -210,10 +210,9 @@ fn apply_checkpoint_exits_3_for_gaps_a_bad_line_and_a_missing_mock() {
 
 #[test]
 fn apply_dry_run_does_not_run_the_checkpoint() {
-    let backend = std::sync::Arc::new(
-        MockBackend::new()
-            .with_log_lines(&[r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#]),
-    );
+    let backend = std::sync::Arc::new(MockBackend::new().with_log_lines(&[
+        r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#,
+    ]));
     with_checkpoint_mock(Some("gaps"), || {
         let (code, out) = run_with(
             backend,
@@ -228,7 +227,8 @@ fn apply_dry_run_does_not_run_the_checkpoint() {
             ],
         );
         assert_eq!(code, EXIT_OK, "{out}");
-        assert!(!out.contains("user@example.com"), "{out}");
+        assert!(!out.contains("is not an Internet Account"), "{out}");
+        assert!(!out.contains("not in the shape"), "{out}");
     });
 }
 

@@ -118,11 +118,17 @@ pinned `tuiscotti accept` command, never by hand.
 
 ## Config checkpoint
 
-A hook can print one `essential-mise-checkpoint:` line and exit 0. After a successful apply the console runs that script's `check --json` off the UI thread, before Done. The screen is skipped only when the report has `ok` true and `status` `"ok"`. Anything else stays on step 3 and shows the report title and lines, or the worker error. `Enter` and the primary click check again. `o` runs `open`, and only when `status` is `gaps`. `q`, `Esc`, and `Ctrl+C` ask first, then exit 3. The lines are printed after the console closes. Confirming the dialog's `Esc`, or a click outside it, stays on the screen.
+A hook can print one line and exit 0:
+
+```text
+essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}
+```
+
+The object has exactly the keys `check` and `accounts`. `check` is `google-accounts`. `accounts` is one to sixteen email addresses. After a successful apply the console checks those accounts itself, off the UI thread, before Done. It does not start bun and it does not pass the line to a shell. The screen is skipped only when the report has `ok` true and `status` `"ok"`. Anything else stays on step 3 and shows the report title and lines, or the worker error. `Enter` and the primary click check again. `o` opens System Settings, and only when `status` is `gaps`. `q`, `Esc`, and `Ctrl+C` ask first, then exit 3. The lines are printed after the console closes. Confirming the dialog's `Esc`, or a click outside it, stays on the screen.
 
 `tui result` still opens Done directly. That is not a finished setup.
 
-`EMC_MOCK_CHECKPOINT=ok` skips to Done. `gaps` stays and offers `o`, with a line about `user@example.com`. `schema` stays and hides `o`. When `EMC_MOCK=1`, a headless `apply` uses the same mock and does not start bun. Headless `apply` with no checkpoint line still exits 0. A checkpoint that is not exactly satisfied exits 3 after mise has already exited 0. A malformed checkpoint line exits 3 and does not start the check. `--dry-run` does not parse the line and does not check.
+`EMC_MOCK_CHECKPOINT=ok` skips to Done. `gaps` stays and offers `o`, with a line about `user@example.com`. `schema` stays and hides `o`. When `EMC_MOCK=1` and `EMC_MOCK_CHECKPOINT` is unset, the check is an error and does not open the database. Headless `apply` with no checkpoint line still exits 0. A checkpoint that is not exactly satisfied exits 3 after mise has already exited 0. A malformed checkpoint line exits 3 and does not open the database. `--dry-run` does not parse the line and does not check.
 
 ## Follow-ups (out of scope for this change)
 

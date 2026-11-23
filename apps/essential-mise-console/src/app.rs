@@ -443,7 +443,7 @@ impl App {
     }
 
     fn enter_checkpoint(&mut self, record: crate::checkpoint::Record) {
-        let mut state = CheckpointScreen::new(self.config_dir.clone(), record);
+        let mut state = CheckpointScreen::new(crate::google_accounts::default_db_path(), record);
         state.start();
         self.check = None;
         self.set_screen(Screen::Checkpoint(Box::new(CheckpointOwner::new(state))));

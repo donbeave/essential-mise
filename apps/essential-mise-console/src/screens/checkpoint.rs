@@ -41,8 +41,8 @@ enum PhaseState {
 
 /// Checkpoint state. The owner paints it and owns the confirm dialog.
 pub(crate) struct CheckpointScreen {
-    config_dir: PathBuf,
-    script: Option<String>,
+    db: PathBuf,
+    accounts: Option<Vec<String>>,
     phase: PhaseState,
     worker: Option<CheckpointHandle>,
     open_error: Option<String>,
@@ -51,9 +51,9 @@ pub(crate) struct CheckpointScreen {
 }
 
 impl CheckpointScreen {
-    pub(crate) fn new(config_dir: PathBuf, record: Record) -> Self {
-        let (script, phase) = match record {
-            Record::Ready(sentinel) => (Some(sentinel.script), PhaseState::Checking),
+    pub(crate) fn new(db: PathBuf, record: Record) -> Self {
+        let (accounts, phase) = match record {
+            Record::Ready(sentinel) => (Some(sentinel.accounts), PhaseState::Checking),
             Record::Error(text) => (None, PhaseState::Failed(text)),
             Record::None => (
                 None,
@@ -61,8 +61,8 @@ impl CheckpointScreen {
             ),
         };
         Self {
-            config_dir,
-            script,
+            db,
+            accounts,
             phase,
             worker: None,
             open_error: None,
@@ -71,7 +71,7 @@ impl CheckpointScreen {
         }
     }
 
-    /// Start the first check. A malformed sentinel has no script, so this
+    /// Start the first check. A malformed sentinel has no accounts, so this
     /// does not spawn. A second call while a worker is running is ignored.
     pub(crate) fn start(&mut self) {
         self.check_again();
@@ -81,7 +81,7 @@ impl CheckpointScreen {
         if self.worker.is_some() {
             return;
         }
-        let Some(script) = self.script.clone() else {
+        let Some(accounts) = self.accounts.clone() else {
             return;
         };
         #[cfg(test)]
@@ -90,8 +90,8 @@ impl CheckpointScreen {
         }
         self.open_error = None;
         self.worker = Some(checkpoint::spawn_job(
-            self.config_dir.clone(),
-            script,
+            self.db.clone(),
+            accounts,
             JobKind::Check,
         ));
     }
@@ -100,13 +100,13 @@ impl CheckpointScreen {
         if self.worker.is_some() || !self.can_open() {
             return;
         }
-        let Some(script) = self.script.clone() else {
+        let Some(accounts) = self.accounts.clone() else {
             return;
         };
         self.open_error = None;
         self.worker = Some(checkpoint::spawn_job(
-            self.config_dir.clone(),
-            script,
+            self.db.clone(),
+            accounts,
             JobKind::Open,
         ));
     }
@@ -392,9 +392,9 @@ mod tests {
 
     fn gaps_owner() -> CheckpointOwner {
         let mut owner = CheckpointOwner::new(CheckpointScreen::new(
-            PathBuf::from("/tmp/emc-checkpoint"),
+            PathBuf::from("/tmp/emc-checkpoint-missing"),
             Record::Ready(Sentinel {
-                script: "bin/example.ts".into(),
+                accounts: vec!["user@example.com".into()],
             }),
         ));
         let report = parse_report(
@@ -450,7 +450,7 @@ mod tests {
         let mut owner = CheckpointOwner::new(CheckpointScreen::new(
             PathBuf::from("/tmp/emc-checkpoint-missing"),
             Record::Ready(Sentinel {
-                script: "bin/example.ts".into(),
+                accounts: vec!["user@example.com".into()],
             }),
         ));
         owner.state.start();
