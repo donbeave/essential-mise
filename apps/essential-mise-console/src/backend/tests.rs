@@ -43,11 +43,48 @@ fn stream_child_sets_emc_apply_only_on_the_child() {
         &mut emit,
         &mut log,
         &current,
+        true,
     )
     .expect("printenv");
     assert_eq!(status, None, "printenv exits 0 when EMC_APPLY is set");
     assert_eq!(lines, vec!["1".to_string()]);
     assert_eq!(std::env::var("EMC_APPLY").ok(), before);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn stream_child_leaves_emc_apply_unset_for_setup() {
+    let dir = test_dir("emc-apply-unset");
+    let log_path = dir.join("apply.log");
+    let log_file = std::fs::File::create(&log_path).expect("log");
+    let mut log = std::io::BufWriter::new(log_file);
+    let current = Arc::new(Mutex::new(None));
+    let mut lines = Vec::new();
+    let before = std::env::var("EMC_APPLY").ok();
+    let mut emit = |_stream: Stream, text: String, _log: &mut std::io::BufWriter<std::fs::File>| {
+        lines.push(text);
+    };
+    let status = stream_child(
+        Path::new("/usr/bin/printenv"),
+        &["EMC_APPLY".to_string()],
+        &dir,
+        &mut emit,
+        &mut log,
+        &current,
+        false,
+    )
+    .expect("printenv");
+    assert_eq!(std::env::var("EMC_APPLY").ok(), before);
+    match before {
+        Some(value) => {
+            assert_eq!(status, None);
+            assert_eq!(lines, vec![value]);
+        }
+        None => {
+            assert_eq!(status, Some(1));
+            assert!(lines.is_empty());
+        }
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
 

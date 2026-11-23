@@ -843,7 +843,7 @@ fn run_phases(
                 diagnostic.observe(stream, &text);
                 emit(stream, text, log);
             };
-        match stream_child(mise_bin, &argv, config_dir, &mut send, log, current) {
+        match stream_child(mise_bin, &argv, config_dir, &mut send, log, current, true) {
             Ok(Some(code)) => {
                 return ApplyOutcome::Failed {
                     code: Some(code),
@@ -893,9 +893,9 @@ fn display_argv(mise_bin: &Path, argv: &[String]) -> String {
 /// (cli) both stream through here. `program`/`args` are spawned verbatim;
 /// `ceiling` sets `MISE_CEILING_PATHS` (harmless for non-mise children).
 ///
-/// `EMC_APPLY=1` is set on this child only. A config hook uses it to print a
-/// checkpoint sentinel instead of reading the terminal. Setup stage 6 builds
-/// its own `Command` and does not set the variable.
+/// `emc_apply` sets `EMC_APPLY=1` on this child only. Apply passes true so a
+/// config hook prints a checkpoint sentinel instead of reading the terminal.
+/// Setup passes false. The parent process is left unchanged.
 pub(crate) fn stream_child(
     program: &Path,
     args: &[String],
@@ -903,13 +903,18 @@ pub(crate) fn stream_child(
     emit: &mut impl FnMut(Stream, String, &mut std::io::BufWriter<std::fs::File>),
     log: &mut std::io::BufWriter<std::fs::File>,
     current: &Arc<Mutex<Option<Child>>>,
+    emc_apply: bool,
 ) -> Result<Option<i32>, String> {
-    let mut child = Command::new(program)
+    let mut command = Command::new(program);
+    command
         .args(args)
         .env("MISE_CEILING_PATHS", ceiling)
-        .env("EMC_APPLY", "1")
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    if emc_apply {
+        command.env("EMC_APPLY", "1");
+    }
+    let mut child = command
         .spawn()
         .map_err(|e| format!("failed to spawn mise: {e}"))?;
 

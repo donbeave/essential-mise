@@ -424,6 +424,7 @@ fn execute_setup_plan(
                 &mut emit,
                 &mut log,
                 &current,
+                false,
             ) {
                 Ok(None) => Ok(()),
                 Ok(code) => Err(format!("{program} exited {}", code.unwrap_or(-1))),
