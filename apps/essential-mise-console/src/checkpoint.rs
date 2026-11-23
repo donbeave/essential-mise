@@ -1,11 +1,13 @@
-//! One checkpoint line from an apply log.
+//! One checkpoint line from an apply log, and the check that follows it.
 //!
 //! A config hook prints
 //! `essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}`
-//! and exits 0. The console keeps those accounts. This module does not spawn
-//! a process, does not open a database, and does not pass the line to a shell.
+//! and exits 0. After a successful apply the console checks those accounts
+//! in-process. Nothing is passed to a shell.
 
 use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc::{Receiver, TryRecvError, channel};
 
 /// Text that starts a checkpoint line, including the trailing space.
 pub(crate) const PREFIX: &str = "essential-mise-checkpoint: ";
@@ -85,10 +87,9 @@ fn parse_body(body: &str) -> Result<Sentinel, String> {
         let Some(raw) = item.as_str() else {
             return Err("checkpoint account is not a string".to_string());
         };
-        let address = ascii_lower(raw);
-        if !address_ok(&address) {
+        let Some(address) = crate::google_accounts::normalize_address(raw) else {
             return Err(format!("checkpoint account is not an email address: {raw}"));
-        }
+        };
         if !seen.insert(address.clone()) {
             return Err(format!("checkpoint account is duplicated: {address}"));
         }
@@ -97,47 +98,299 @@ fn parse_body(body: &str) -> Result<Sentinel, String> {
     Ok(Sentinel { accounts })
 }
 
-fn ascii_lower(value: &str) -> String {
-    value.chars().map(|c| c.to_ascii_lowercase()).collect()
+/// Sentence used when a parsed report is not satisfied and `lines` is empty.
+pub(crate) const EMPTY_REPORT: &str = "The accounts check did not say what is wrong.";
+
+#[cfg(test)]
+const STATUSES: &[&str] = &["ok", "gaps", "schema-mismatch", "unreadable"];
+
+/// The checker's report, reduced to what the console shows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Report {
+    /// The checker's `ok` flag. Satisfied only together with `status == "ok"`.
+    pub(crate) ok: bool,
+    /// `ok`, `gaps`, `schema-mismatch`, or `unreadable`.
+    pub(crate) status: String,
+    /// Shown above the lines.
+    pub(crate) title: String,
+    /// The sentences the person reads.
+    pub(crate) lines: Vec<String>,
 }
 
-/// `^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$` on an already lowercased string.
-fn address_ok(value: &str) -> bool {
-    let bytes = value.as_bytes();
-    let Some(at) = bytes.iter().position(|byte| *byte == b'@') else {
-        return false;
-    };
-    if at == 0 {
-        return false;
+impl Report {
+    /// Exactly satisfied: both fields, not either one alone.
+    pub(crate) fn satisfied(&self) -> bool {
+        self.ok && self.status == "ok"
     }
-    let local = &bytes[..at];
-    let domain = &bytes[at + 1..];
-    if local.is_empty()
-        || domain.is_empty()
-        || !local.iter().copied().all(local_byte)
-        || domain.contains(&b'@')
-    {
-        return false;
+
+    /// The database was scored and at least one account is not ok.
+    pub(crate) fn gaps(&self) -> bool {
+        self.status == "gaps"
     }
-    let Some(dot) = domain.iter().rposition(|byte| *byte == b'.') else {
-        return false;
+}
+
+impl From<&crate::google_accounts::Report> for Report {
+    fn from(report: &crate::google_accounts::Report) -> Self {
+        Self {
+            ok: report.ok,
+            status: status_name(report.status).to_string(),
+            title: report.title.clone(),
+            lines: report.lines.clone(),
+        }
+    }
+}
+
+fn status_name(status: crate::google_accounts::ReportStatus) -> &'static str {
+    match status {
+        crate::google_accounts::ReportStatus::Ok => "ok",
+        crate::google_accounts::ReportStatus::Gaps => "gaps",
+        crate::google_accounts::ReportStatus::SchemaMismatch => "schema-mismatch",
+        crate::google_accounts::ReportStatus::Unreadable => "unreadable",
+    }
+}
+
+/// What to do with a recorded checkpoint before any process starts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Plan {
+    /// No sentinel. Exit 0.
+    Clear,
+    /// A malformed line. Exit 3 with this text, and do not open the database.
+    Blocked(String),
+    /// Check these accounts.
+    Run(Sentinel),
+}
+
+/// Classify a record. A malformed line does not open the database.
+pub(crate) fn plan(record: &Record) -> Plan {
+    match record {
+        Record::None => Plan::Clear,
+        Record::Error(text) => Plan::Blocked(text.clone()),
+        Record::Ready(sentinel) => Plan::Run(sentinel.clone()),
+    }
+}
+
+/// Exit after a successful apply.
+///
+/// `check` is `None` when no check ran. `spawn` is true only when a check was
+/// required; a malformed record keeps it false.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ExitDecision {
+    /// Process exit code.
+    pub(crate) code: u8,
+    /// Whether the accounts check is part of reaching this decision.
+    pub(crate) spawn: bool,
+    /// Lines to print. Empty on success.
+    pub(crate) lines: Vec<String>,
+}
+
+/// The pure exit decision. `check` is the result of the accounts check, if it ran.
+pub(crate) fn decide(record: &Record, check: Option<Result<Report, String>>) -> ExitDecision {
+    match record {
+        Record::None => ExitDecision {
+            code: 0,
+            spawn: false,
+            lines: Vec::new(),
+        },
+        Record::Error(text) => ExitDecision {
+            code: 3,
+            spawn: false,
+            lines: vec![text.clone()],
+        },
+        Record::Ready(_) => match check {
+            Some(Ok(report)) if report.satisfied() => ExitDecision {
+                code: 0,
+                spawn: true,
+                lines: Vec::new(),
+            },
+            Some(Ok(report)) => ExitDecision {
+                code: 3,
+                spawn: true,
+                lines: shown_lines(&report),
+            },
+            Some(Err(text)) => ExitDecision {
+                code: 3,
+                spawn: true,
+                lines: vec![text],
+            },
+            None => ExitDecision {
+                code: 3,
+                spawn: true,
+                lines: vec!["the accounts check did not run".to_string()],
+            },
+        },
+    }
+}
+
+/// Lines the person reads. An empty unsatisfied report gets one fixed sentence.
+pub(crate) fn shown_lines(report: &Report) -> Vec<String> {
+    if report.lines.is_empty() && !report.satisfied() {
+        vec![EMPTY_REPORT.to_string()]
+    } else {
+        report.lines.clone()
+    }
+}
+
+/// Parse a checker report reduced to the fields the screen shows.
+#[cfg(test)]
+pub(crate) fn parse_report(stdout: &str) -> Result<Report, String> {
+    let value: serde_json::Value = serde_json::from_str(stdout.trim())
+        .map_err(|_| "the accounts check did not return a report".to_string())?;
+    let Some(map) = value.as_object() else {
+        return Err("the accounts check did not return a report".to_string());
     };
-    let name = &domain[..dot];
-    let tld = &domain[dot + 1..];
-    !name.is_empty()
-        && tld.len() >= 2
-        && name.iter().copied().all(domain_byte)
-        && tld.iter().copied().all(|byte| byte.is_ascii_lowercase())
+    let Some(ok) = map.get("ok").and_then(serde_json::Value::as_bool) else {
+        return Err("the accounts check did not return a report".to_string());
+    };
+    let Some(status) = map.get("status").and_then(serde_json::Value::as_str) else {
+        return Err("the accounts check did not return a report".to_string());
+    };
+    if !STATUSES.contains(&status) {
+        return Err(format!("unknown status: {status}"));
+    }
+    let Some(title) = map.get("title").and_then(serde_json::Value::as_str) else {
+        return Err("the accounts check did not return a report".to_string());
+    };
+    let Some(raw_lines) = map.get("lines").and_then(serde_json::Value::as_array) else {
+        return Err("the accounts check did not return a report".to_string());
+    };
+    let mut lines = Vec::with_capacity(raw_lines.len());
+    for line in raw_lines {
+        let Some(text) = line.as_str() else {
+            return Err("the accounts check did not return a report".to_string());
+        };
+        lines.push(text.to_string());
+    }
+    Ok(Report {
+        ok,
+        status: status.to_string(),
+        title: title.to_string(),
+        lines,
+    })
 }
 
-fn local_byte(byte: u8) -> bool {
-    byte.is_ascii_lowercase()
-        || byte.is_ascii_digit()
-        || matches!(byte, b'.' | b'_' | b'%' | b'+' | b'-')
+/// Which fixed action to run off the UI thread.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum JobKind {
+    /// Score the accounts database.
+    Check,
+    /// Open the Internet Accounts pane.
+    Open,
 }
 
-fn domain_byte(byte: u8) -> bool {
-    byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'-')
+/// What the worker thread delivers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum JobOutput {
+    /// A check result. `Err` is a worker failure, not a schema report.
+    Report(Result<Report, String>),
+    /// An open result. Failure stays on the screen.
+    Opened(Result<(), String>),
+}
+
+/// A check or open running off the UI thread.
+pub(crate) struct CheckpointHandle {
+    rx: Receiver<JobOutput>,
+}
+
+impl CheckpointHandle {
+    /// The result, once the worker has finished. Never blocks.
+    pub(crate) fn poll(&self) -> Option<JobOutput> {
+        match self.rx.try_recv() {
+            Ok(result) => Some(result),
+            Err(TryRecvError::Empty) => None,
+            Err(TryRecvError::Disconnected) => Some(JobOutput::Report(Err(
+                "the accounts check stopped unexpectedly".to_string(),
+            ))),
+        }
+    }
+}
+
+/// Start `check` or `open` on a worker thread.
+pub(crate) fn spawn_job(db: PathBuf, accounts: Vec<String>, kind: JobKind) -> CheckpointHandle {
+    let (tx, rx) = channel();
+    let spawned = std::thread::Builder::new()
+        .name("emc-checkpoint".to_string())
+        .spawn({
+            let tx = tx.clone();
+            move || {
+                let _ = tx.send(run_job(&db, &accounts, kind));
+            }
+        });
+    if let Err(err) = spawned {
+        let message = format!("could not start the accounts check: {err}");
+        let output = match kind {
+            JobKind::Check => JobOutput::Report(Err(message)),
+            JobKind::Open => JobOutput::Opened(Err(message)),
+        };
+        let _ = tx.send(output);
+    }
+    CheckpointHandle { rx }
+}
+
+/// Run the accounts check on this thread. Headless apply uses this. It does
+/// not open a screen or read a terminal.
+pub(crate) fn run_check(db: &Path, accounts: &[String]) -> Result<Report, String> {
+    match run_job(db, accounts, JobKind::Check) {
+        JobOutput::Report(result) => result,
+        JobOutput::Opened(_) => Err("the accounts check did not return a report".to_string()),
+    }
+}
+
+fn run_job(db: &Path, accounts: &[String], kind: JobKind) -> JobOutput {
+    if let Some(mocked) = mocked_report() {
+        return match kind {
+            JobKind::Check => JobOutput::Report(mocked),
+            JobKind::Open => JobOutput::Opened(Ok(())),
+        };
+    }
+    if std::env::var("EMC_MOCK").ok().as_deref() == Some("1") {
+        let message = "EMC_MOCK=1 did not set EMC_MOCK_CHECKPOINT".to_string();
+        return match kind {
+            JobKind::Check => JobOutput::Report(Err(message)),
+            JobKind::Open => JobOutput::Opened(Err(message)),
+        };
+    }
+    match kind {
+        JobKind::Check => JobOutput::Report(Ok(Report::from(&crate::google_accounts::check(
+            db, accounts,
+        )))),
+        JobKind::Open => JobOutput::Opened(crate::google_accounts::open_accounts_pane()),
+    }
+}
+
+/// `EMC_MOCK_CHECKPOINT=ok|gaps|schema`, without opening sqlite.
+fn mocked_report() -> Option<Result<Report, String>> {
+    let value = std::env::var("EMC_MOCK_CHECKPOINT").ok()?;
+    Some(match value.as_str() {
+        "ok" => Ok(example_report(true, "ok", Vec::new())),
+        "gaps" => Ok(example_report(
+            false,
+            "gaps",
+            vec![
+                "user@example.com is not an Internet Account on this Mac. Add it and choose Google. Turn Mail and Calendar on."
+                    .to_string(),
+            ],
+        )),
+        "schema" => Ok(example_report(
+            false,
+            "schema-mismatch",
+            vec![
+                "The Accounts database is not in the shape this check understands (example). Nothing was treated as missing. System Settings was not opened."
+                    .to_string(),
+            ],
+        )),
+        other => Err(format!(
+            "EMC_MOCK_CHECKPOINT={other} is not ok, gaps, or schema"
+        )),
+    })
+}
+
+fn example_report(ok: bool, status: &str, lines: Vec<String>) -> Report {
+    Report {
+        ok,
+        status: status.to_string(),
+        title: "Google accounts".to_string(),
+        lines,
+    }
 }
 
 #[cfg(test)]
@@ -236,5 +489,80 @@ mod tests {
         observe(&mut only_bad, &format!("{PREFIX}{{}}"));
         observe(&mut only_bad, &one("user@example.com"));
         assert!(matches!(only_bad, Record::Error(_)));
+    }
+
+    fn ready() -> Record {
+        Record::Ready(Sentinel {
+            accounts: vec!["user@example.com".into()],
+        })
+    }
+
+    fn report(ok: bool, status: &str, lines: &[&str]) -> Report {
+        Report {
+            ok,
+            status: status.to_string(),
+            title: "Google accounts".to_string(),
+            lines: lines.iter().map(|line| (*line).to_string()).collect(),
+        }
+    }
+
+    #[test]
+    fn exit_decision_checks_only_a_well_formed_sentinel() {
+        let clear = decide(&Record::None, None);
+        assert_eq!(clear.code, 0);
+        assert!(!clear.spawn);
+
+        let blocked = decide(&Record::Error("bad checkpoint".into()), None);
+        assert_eq!(blocked.code, 3);
+        assert!(!blocked.spawn);
+        assert_eq!(blocked.lines, vec!["bad checkpoint".to_string()]);
+        assert!(matches!(
+            plan(&Record::Error("bad checkpoint".into())),
+            Plan::Blocked(_)
+        ));
+
+        let ok = decide(&ready(), Some(Ok(report(true, "ok", &[]))));
+        assert_eq!(ok.code, 0);
+        assert!(ok.spawn);
+        assert!(ok.lines.is_empty());
+
+        let gaps = decide(
+            &ready(),
+            Some(Ok(report(false, "gaps", &["user@example.com is missing"]))),
+        );
+        assert_eq!(gaps.code, 3);
+        assert_eq!(gaps.lines, vec!["user@example.com is missing".to_string()]);
+
+        let schema = decide(
+            &ready(),
+            Some(Ok(report(false, "schema-mismatch", &["shape"]))),
+        );
+        assert_eq!(schema.code, 3);
+        assert_eq!(schema.lines, vec!["shape".to_string()]);
+
+        let failed = decide(&ready(), Some(Err("the accounts check stopped".into())));
+        assert_eq!(failed.code, 3);
+        assert_eq!(failed.lines, vec!["the accounts check stopped".to_string()]);
+
+        let status_without_ok = decide(&ready(), Some(Ok(report(false, "ok", &[]))));
+        assert_eq!(status_without_ok.code, 3);
+        assert_eq!(status_without_ok.lines, vec![EMPTY_REPORT.to_string()]);
+
+        let ok_with_gaps = decide(
+            &ready(),
+            Some(Ok(report(true, "gaps", &["user@example.com is missing"]))),
+        );
+        assert_eq!(ok_with_gaps.code, 3);
+        assert_eq!(
+            ok_with_gaps.lines,
+            vec!["user@example.com is missing".to_string()]
+        );
+    }
+
+    #[test]
+    fn unknown_status_is_not_a_report() {
+        let raw = r#"{"ok":false,"status":"later","title":"Google accounts","lines":[]}"#;
+        let err = parse_report(raw).expect_err("unknown");
+        assert!(err.contains("unknown status"), "{err}");
     }
 }

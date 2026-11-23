@@ -6,6 +6,8 @@
 
 /// S3 Apply: live two-phase apply with progress, cancel, and rerun.
 pub mod apply;
+/// Checkpoint after a successful apply, before Result.
+pub mod checkpoint;
 /// PageHeader/StatusBar/HintBar wiring (all screens).
 pub mod chrome;
 /// Live-substring filter with hidden-rows-keep-state (S1+S2).

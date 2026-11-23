@@ -27,7 +27,7 @@ A hook that must finish before the console treats the apply as done, without fai
 essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}
 ```
 
-The object has exactly the keys `check` and `accounts`. `check` is the string `google-accounts`. `accounts` is one to sixteen email addresses. The console keeps that list. It does not pass the line to a shell. A line with the same prefix that is not this object still stops the console from moving on.
+The object has exactly the keys `check` and `accounts`. `check` is the string `google-accounts`. `accounts` is one to sixteen email addresses. The console checks Google Mail and Calendar for those addresses itself. It does not run a script and it does not pass the line to a shell. A line with the same prefix that is not this object still stops the console from moving on.
 
 The console apply sets `EMC_APPLY=1` on the mise child. A hook can print the line and exit 0 when that variable is set, instead of reading the terminal. Setup does not set it.
 

@@ -1315,6 +1315,131 @@ fn the_tiny_terminal_floor_says_what_size_is_needed() {
     );
 }
 
+fn sentinel_app(line: &str) -> App {
+    mock_app_with(
+        MockBackend::new()
+            .with_origin("brew", "jq", &["alpha"])
+            .with_log_lines(&[line]),
+    )
+}
+
+fn with_checkpoint_mock(value: &str, body: impl FnOnce()) {
+    // The variable is read by the checkpoint worker. Set it before that worker
+    // starts, and clear it only after the worker has finished.
+    let previous = std::env::var("EMC_MOCK_CHECKPOINT").ok();
+    unsafe { std::env::set_var("EMC_MOCK_CHECKPOINT", value) };
+    body();
+    match previous {
+        Some(value) => unsafe { std::env::set_var("EMC_MOCK_CHECKPOINT", value) },
+        None => unsafe { std::env::remove_var("EMC_MOCK_CHECKPOINT") },
+    }
+}
+
+fn settle_after_apply(app: &mut App) {
+    start_apply(app);
+    finish_apply(app);
+    wait_until(app, "checkpoint settled", |app| match &app.screen {
+        Screen::Checkpoint(owner) => !owner.state.checking(),
+        Screen::Result(_) => true,
+        _ => false,
+    });
+}
+
+#[test]
+fn a_satisfied_checkpoint_skips_to_result_and_a_missing_one_does_too() {
+    with_checkpoint_mock("ok", || {
+        let mut app = sentinel_app(
+            r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#,
+        );
+        settle_after_apply(&mut app);
+        assert_eq!(app.screen_name(), "result");
+    });
+    with_checkpoint_mock("gaps", || {
+        let mut app = mock_app();
+        to_result(&mut app);
+        assert_eq!(app.screen_name(), "result", "the mock is not a sentinel");
+    });
+}
+
+#[test]
+fn gaps_checkpoint_stays_on_step_3_and_quit_exits_3() {
+    with_checkpoint_mock("gaps", || {
+        let mut app = sentinel_app(
+            r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#,
+        );
+        settle_after_apply(&mut app);
+        assert_eq!(app.screen_name(), "checkpoint");
+        let screen = render(&mut app, 100, 30);
+        assert!(screen.contains("Step 3 of 4 · Accounts"), "{screen}");
+        assert!(screen.contains("user@example.com"), "{screen}");
+        assert!(screen.contains("Enter  Check again"), "{screen}");
+        assert!(screen.contains("open the accounts pane"), "{screen}");
+        let checks = match &app.screen {
+            Screen::Checkpoint(owner) => owner.state.checks(),
+            _ => panic!("checkpoint"),
+        };
+        click_id(&mut app, crate::screens::paint::PRIMARY);
+        let checks_after = match &app.screen {
+            Screen::Checkpoint(owner) => owner.state.checks(),
+            _ => panic!("stays"),
+        };
+        assert_eq!(checks_after, checks + 1);
+        app.handle_key(&key(KeyCode::Esc));
+        assert!(!app.quit());
+        app.handle_key(&key(KeyCode::Esc));
+        assert_eq!(app.screen_name(), "checkpoint");
+        assert!(!app.quit(), "dialog Esc stays");
+        app.handle_key(&char_key('q'));
+        app.handle_key(&key(KeyCode::Right));
+        app.handle_key(&key(KeyCode::Enter));
+        assert!(app.quit());
+        assert_eq!(app.exit_code(), Some(3));
+        assert!(app.exit_summary().join("\n").contains("user@example.com"));
+    });
+}
+
+#[test]
+fn schema_checkpoint_hides_open_and_a_tiny_window_still_exits_3() {
+    with_checkpoint_mock("schema", || {
+        let mut app = sentinel_app(
+            r#"essential-mise-checkpoint: {"check":"google-accounts","accounts":["user@example.com"]}"#,
+        );
+        settle_after_apply(&mut app);
+        let screen = render(&mut app, 100, 30);
+        assert!(screen.contains("not in the shape"), "{screen}");
+        assert!(!screen.contains("open the accounts pane"), "{screen}");
+        app.handle_key(&char_key('?'));
+        let help = render(&mut app, 100, 30);
+        assert!(help.contains("Keys on this screen"), "{help}");
+        assert!(help.contains("check again"), "{help}");
+        assert!(help.contains("go back or close"), "{help}");
+        app.handle_key(&key(KeyCode::Esc));
+        app.shell.too_small = true;
+        app.handle_key(&char_key('q'));
+        assert_eq!(app.exit_code(), Some(3));
+        assert!(app.exit_summary().join("\n").contains("not in the shape"));
+    });
+}
+
+#[test]
+fn a_malformed_checkpoint_blocks_without_a_check() {
+    let mut app = sentinel_app("essential-mise-checkpoint: not-json");
+    settle_after_apply(&mut app);
+    assert_eq!(app.screen_name(), "checkpoint");
+    let checks = match &app.screen {
+        Screen::Checkpoint(owner) => owner.state.checks(),
+        _ => panic!("checkpoint"),
+    };
+    assert_eq!(checks, 0, "a bad line does not spawn");
+    let screen = render(&mut app, 100, 30);
+    assert!(screen.contains("not a JSON object"), "{screen}");
+    assert!(!screen.contains("open the accounts pane"), "{screen}");
+    app.handle_key(&char_key('q'));
+    app.handle_key(&key(KeyCode::Right));
+    app.handle_key(&key(KeyCode::Enter));
+    assert_eq!(app.exit_code(), Some(3));
+}
+
 /// Developer aid: `cargo nextest run --run-ignored only dump_all_screens
 /// --no-capture` prints every screen at both sizes.
 #[test]

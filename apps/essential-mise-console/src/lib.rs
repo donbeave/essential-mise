@@ -7,12 +7,14 @@ pub mod app;
 pub mod backend;
 /// Status checks off the UI thread.
 pub mod check;
-/// Config checkpoint sentinel recorded from an apply log. Nothing is spawned.
+/// Config checkpoint sentinel, and the check that runs after a successful apply.
 pub mod checkpoint;
 /// Clap command tree (spec §2 verbatim) plus exit-code contract.
 pub mod cli;
 /// Typed follow-ups after an apply: relaunch hints, skipped hooks, new shell.
 pub mod followup;
+/// Google Mail and Calendar check against the local Accounts database.
+pub mod google_accounts;
 /// Config repository lint (`lint` subcommand).
 pub mod lint;
 /// `#:` header comments in config files: the engine/config contract.

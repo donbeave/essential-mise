@@ -96,8 +96,6 @@ pub struct ApplyScreen {
     lines: VecDeque<ApplyLine>,
     dropped: u64,
     follow_ups: Vec<FollowUp>,
-    // Read after a successful apply. This commit only records it.
-    #[allow(dead_code)]
     checkpoint: CheckpointRecord,
     administrator: AdministratorAccess,
     current_phase: ApplyPhase,
@@ -489,6 +487,12 @@ impl ApplyScreen {
     /// Copy the rerun command through the shell clipboard (OSC52).
     pub fn copy_rerun(&self, clipboard: &Clipboard) -> Option<termrock::shell::clipboard::Copied> {
         self.rerun.as_deref().map(|r| clipboard.copy(r))
+    }
+
+    /// Hand the checkpoint to the next screen. A new apply builds a fresh
+    /// [`ApplyScreen`], so this does not survive `prepare_apply`.
+    pub(crate) fn take_checkpoint(&mut self) -> CheckpointRecord {
+        std::mem::take(&mut self.checkpoint)
     }
 
     fn push_line(&mut self, line: ApplyLine) {
