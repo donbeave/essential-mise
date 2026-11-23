@@ -19,7 +19,8 @@ pub const EXIT_OK: u8 = 0;
 pub const EXIT_ERROR: u8 = 1;
 /// Exit 3: partial apply (phase 1 ok, phase 2 failed). 2 is taken by plan
 /// would-change, so partial apply must not reuse it. For the console: changes
-/// are still pending when you leave.
+/// are still pending when you leave, or a config checkpoint is not exactly
+/// satisfied. The mise child has already exited 0 in that last case.
 pub const EXIT_PARTIAL: u8 = 3;
 
 /// `essential-mise-console`: module multi-select, package checklist,
@@ -489,13 +490,18 @@ fn run_apply(
         }
     };
     let outcome = handle.join();
+    let mut lines = Vec::new();
     while let Some(m) = rx.try_recv() {
         if let Some(line) = m.downcast_ref::<ApplyLine>() {
             let _ = writeln!(out, "{}", line.text);
+            lines.push(line.text.clone());
         }
     }
     match outcome {
-        ApplyOutcome::Success => EXIT_OK,
+        ApplyOutcome::Success if dry_run => EXIT_OK,
+        ApplyOutcome::Success => {
+            checkpoint_after_success(&resolve_config_dir(cli.config_dir.as_deref()), &lines, out)
+        }
         ApplyOutcome::Failed {
             phase: ApplyPhase::Packages,
             ..
@@ -503,6 +509,33 @@ fn run_apply(
         ApplyOutcome::Failed { .. } => EXIT_ERROR,
         ApplyOutcome::Cancelled => EXIT_ERROR,
     }
+}
+
+/// After mise exits 0, a checkpoint line is the same gate as the TUI screen.
+/// Dry-run does not call this. No sentinel stays 0. A malformed line is exit 3
+/// and does not spawn. A check that is not exactly satisfied is exit 3, not 1.
+fn checkpoint_after_success(
+    config_dir: &Path,
+    lines: &[String],
+    out: &mut dyn std::io::Write,
+) -> u8 {
+    use crate::checkpoint::{self, Plan};
+    let mut record = checkpoint::Record::None;
+    for line in lines {
+        checkpoint::observe(&mut record, line);
+    }
+    let decision = match checkpoint::plan(&record) {
+        Plan::Clear => checkpoint::decide(&record, None),
+        Plan::Blocked(_) => checkpoint::decide(&record, None),
+        Plan::Run(sentinel) => {
+            let result = checkpoint::run_check(config_dir, &sentinel.script);
+            checkpoint::decide(&record, Some(result))
+        }
+    };
+    for line in &decision.lines {
+        let _ = writeln!(out, "{line}");
+    }
+    decision.code
 }
 
 /// Confirm a mutating apply on stderr/stdin. Anything but `y`/`yes` aborts.

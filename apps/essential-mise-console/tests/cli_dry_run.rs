@@ -126,6 +126,112 @@ fn plan_detailed_exitcode_clean_fixture_is_zero() {
     assert_eq!(code, EXIT_OK, "all-noop fixture is clean");
 }
 
+fn with_checkpoint_mock(value: Option<&str>, body: impl FnOnce()) {
+    let previous = std::env::var("EMC_MOCK_CHECKPOINT").ok();
+    let previous_mock = std::env::var("EMC_MOCK").ok();
+    unsafe { std::env::set_var("EMC_MOCK", "1") };
+    match value {
+        Some(value) => unsafe { std::env::set_var("EMC_MOCK_CHECKPOINT", value) },
+        None => unsafe { std::env::remove_var("EMC_MOCK_CHECKPOINT") },
+    }
+    body();
+    match previous {
+        Some(value) => unsafe { std::env::set_var("EMC_MOCK_CHECKPOINT", value) },
+        None => unsafe { std::env::remove_var("EMC_MOCK_CHECKPOINT") },
+    }
+    match previous_mock {
+        Some(value) => unsafe { std::env::set_var("EMC_MOCK", value) },
+        None => unsafe { std::env::remove_var("EMC_MOCK") },
+    }
+}
+
+#[test]
+fn apply_with_no_sentinel_stays_ok_and_a_satisfied_check_stays_ok() {
+    let backend = std::sync::Arc::new(MockBackend::new());
+    with_checkpoint_mock(Some("gaps"), || {
+        let (code, _) = run_with(
+            backend.clone(),
+            &["emc", "-E", "terminal", "-y", "apply", "brew:jq"],
+        );
+        assert_eq!(code, EXIT_OK);
+    });
+    let backend = std::sync::Arc::new(
+        MockBackend::new()
+            .with_log_lines(&[r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#]),
+    );
+    with_checkpoint_mock(Some("ok"), || {
+        let (code, out) = run_with(
+            backend,
+            &["emc", "-E", "terminal", "-y", "apply", "brew:jq"],
+        );
+        assert_eq!(code, EXIT_OK, "{out}");
+    });
+}
+
+#[test]
+fn apply_checkpoint_exits_3_for_gaps_a_bad_line_and_a_missing_mock() {
+    let sentinel = r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#;
+    let backend = std::sync::Arc::new(MockBackend::new().with_log_lines(&[sentinel]));
+    with_checkpoint_mock(Some("gaps"), || {
+        let (code, out) = run_with(
+            backend.clone(),
+            &["emc", "-E", "terminal", "-y", "apply", "brew:jq"],
+        );
+        assert_eq!(code, EXIT_PARTIAL, "{out}");
+        assert!(out.contains("user@example.com"), "{out}");
+    });
+    with_checkpoint_mock(Some("schema"), || {
+        let (code, out) = run_with(
+            backend.clone(),
+            &["emc", "-E", "terminal", "-y", "apply", "brew:jq"],
+        );
+        assert_eq!(code, EXIT_PARTIAL, "{out}");
+        assert!(out.contains("not in the shape"), "{out}");
+    });
+    with_checkpoint_mock(None, || {
+        let (code, out) = run_with(
+            backend,
+            &["emc", "-E", "terminal", "-y", "apply", "brew:jq"],
+        );
+        assert_eq!(code, EXIT_PARTIAL, "{out}");
+        assert!(out.contains("EMC_MOCK_CHECKPOINT"), "{out}");
+    });
+    let backend = std::sync::Arc::new(
+        MockBackend::new().with_log_lines(&["essential-mise-checkpoint: not-json"]),
+    );
+    let (code, out) = run_with(
+        backend,
+        &["emc", "-E", "terminal", "-y", "apply", "brew:jq"],
+    );
+    assert_eq!(code, EXIT_PARTIAL, "{out}");
+    assert!(out.contains("not a JSON object"), "{out}");
+    assert!(!out.contains("EMC_MOCK_CHECKPOINT"), "{out}");
+}
+
+#[test]
+fn apply_dry_run_does_not_run_the_checkpoint() {
+    let backend = std::sync::Arc::new(
+        MockBackend::new()
+            .with_log_lines(&[r#"essential-mise-checkpoint: {"script":"bin/example.ts"}"#]),
+    );
+    with_checkpoint_mock(Some("gaps"), || {
+        let (code, out) = run_with(
+            backend,
+            &[
+                "emc",
+                "-E",
+                "terminal",
+                "-y",
+                "apply",
+                "--dry-run",
+                "brew:jq",
+            ],
+        );
+        assert_eq!(code, EXIT_OK, "{out}");
+        assert!(!out.contains("user@example.com"), "{out}");
+    });
+}
+
 #[test]
 fn apply_failure_exit_codes_zero_one_three() {
     for (phase, expected) in [

@@ -12,7 +12,7 @@ Four steps, named by verbs. The header reads `Step n of 4 · <name>`.
 | --- | --- | --- |
 | 1 | Choose modules | All modules start selected. Deselect any to leave out of this run. |
 | 2 | Review and confirm | See what will change, choose Install or Skip this time per package, then apply. |
-| 3 | Applying | Prompts for administrator access in the terminal, then runs the apply. Try again prompts if access has expired. |
+| 3 | Applying | Prompts for administrator access in the terminal, then runs the apply. Try again prompts if access has expired. A config checkpoint holds this step until its check is exactly satisfied. It is not a fifth step. |
 | 4 | Done, or Needs attention | Says whether the Mac matches, and what to do next. |
 
 There are no `S1` to `S4` codes in the interface.
@@ -91,7 +91,7 @@ this run. Both paths preserve the completed modules and settings step.
 | Code | Meaning |
 | --- | --- |
 | 0 | Nothing differs, or you left before any work (steps 1 and 2) |
-| 3 | Changes are still pending when you leave |
+| 3 | Changes are still pending when you leave, or you leave a config checkpoint that is not exactly satisfied |
 | 1 | The check failed, the apply stopped, or you cancelled (Ctrl+C) |
 
 On exit the console prints the outcome, each pending change, the follow-up
@@ -111,10 +111,18 @@ terminal, so they outlive the alternate screen.
 
 `EMC_MOCK=1` runs the console over `MockBackend`. Further switches, all test-only:
 `EMC_MOCK_FAIL=packages|base`, `EMC_MOCK_DELAY_MS`, `EMC_MOCK_STATUS=differs|differs-then-clean`,
-`EMC_MOCK_FOLLOW_UPS=1`, and `EMC_REVIEW_ARM_MS` (how long a freshly opened Review
+`EMC_MOCK_FOLLOW_UPS=1`, `EMC_MOCK_CHECKPOINT=ok|gaps|schema`, and `EMC_REVIEW_ARM_MS` (how long a freshly opened Review
 screen ignores Enter; default 400). Visual baselines live in
 `apps/essential-mise-console/tests/functional/baselines` and are approved with the
 pinned `tuiscotti accept` command, never by hand.
+
+## Config checkpoint
+
+A hook can print one `essential-mise-checkpoint:` line and exit 0. After a successful apply the console runs that script's `check --json` off the UI thread, before Done. The screen is skipped only when the report has `ok` true and `status` `"ok"`. Anything else stays on step 3 and shows the report title and lines, or the worker error. `Enter` and the primary click check again. `o` runs `open`, and only when `status` is `gaps`. `q`, `Esc`, and `Ctrl+C` ask first, then exit 3. The lines are printed after the console closes. Confirming the dialog's `Esc`, or a click outside it, stays on the screen.
+
+`tui result` still opens Done directly. That is not a finished setup.
+
+`EMC_MOCK_CHECKPOINT=ok` skips to Done. `gaps` stays and offers `o`, with a line about `user@example.com`. `schema` stays and hides `o`. When `EMC_MOCK=1`, a headless `apply` uses the same mock and does not start bun. Headless `apply` with no checkpoint line still exits 0. A checkpoint that is not exactly satisfied exits 3 after mise has already exited 0. A malformed checkpoint line exits 3 and does not start the check. `--dry-run` does not parse the line and does not check.
 
 ## Follow-ups (out of scope for this change)
 

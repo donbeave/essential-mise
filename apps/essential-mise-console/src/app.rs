@@ -13,6 +13,7 @@ use std::time::Duration;
 use crate::backend::{ApplyRequest, Backend, BackendError, ResId};
 use crate::check::{self, CheckHandle};
 use crate::screens::apply::{ApplyAction, ApplyOwner, ApplyScreen};
+use crate::screens::checkpoint::{CheckpointAction, CheckpointOwner, CheckpointScreen};
 use crate::screens::modules::{ModuleAction, ModuleInfo, ModulesOwner, ModulesState};
 use crate::screens::packages::{
     DEFAULT_ARM_DELAY, PackageAction, PackagesOwner, PackagesState, package_rows,
@@ -36,6 +37,7 @@ pub(crate) enum Screen {
     Modules(Box<ModulesOwner>),
     Packages(PackagesOwner),
     Apply(Box<ApplyOwner>),
+    Checkpoint(Box<CheckpointOwner>),
     Result(Box<ResultOwner>),
 }
 
@@ -47,7 +49,10 @@ struct PackageRecovery {
 impl Screen {
     /// Whether a text box has the keyboard.
     fn typing(&self) -> bool {
-        matches!(self, Self::Modules(owner) if owner.typing())
+        match self {
+            Self::Modules(owner) => owner.typing(),
+            Self::Packages(_) | Self::Apply(_) | Self::Checkpoint(_) | Self::Result(_) => false,
+        }
     }
 
     /// The keys that work on this screen right now, for the help overlay.
@@ -56,6 +61,7 @@ impl Screen {
             Self::Modules(owner) => owner.hints(),
             Self::Packages(owner) => owner.hints(),
             Self::Apply(owner) => owner.hints(),
+            Self::Checkpoint(owner) => owner.hints(),
             Self::Result(owner) => owner.state.hints(),
         }
     }
@@ -65,6 +71,7 @@ impl Screen {
             Self::Modules(owner) => Some(owner.primary_focus()),
             Self::Packages(owner) => Some(owner.primary_focus()),
             Self::Apply(owner) => Some(owner.primary_focus()),
+            Self::Checkpoint(owner) => Some(owner.primary_focus()),
             Self::Result(owner) => Some(owner.primary_focus()),
         }
     }
@@ -74,6 +81,7 @@ impl Screen {
             Self::Modules(_) => PageKey::of("emc.modules"),
             Self::Packages(_) => PageKey::of("emc.packages"),
             Self::Apply(_) => PageKey::of("emc.apply"),
+            Self::Checkpoint(_) => PageKey::of("emc.checkpoint"),
             Self::Result(_) => PageKey::of("emc.result"),
         }
     }
@@ -159,6 +167,7 @@ impl App {
             Screen::Modules(_) => "modules",
             Screen::Packages(_) => "packages",
             Screen::Apply(_) => "apply",
+            Screen::Checkpoint(_) => "checkpoint",
             Screen::Result(_) => "result",
         }
     }
@@ -169,12 +178,13 @@ impl App {
         match &self.screen {
             Screen::Result(owner) => owner.state.exit_lines(),
             Screen::Apply(owner) => owner.state.exit_summary(),
+            Screen::Checkpoint(owner) => owner.state.exit_lines(),
             Screen::Packages(_) => self
                 .package_recovery
                 .as_ref()
                 .map(|recovery| recovery.exit_summary.clone())
                 .unwrap_or_default(),
-            _ => Vec::new(),
+            Screen::Modules(_) => Vec::new(),
         }
     }
 
@@ -185,6 +195,7 @@ impl App {
             Screen::Packages(_) if self.package_recovery.is_some() => 1,
             Screen::Modules(_) | Screen::Packages(_) => 0,
             Screen::Apply(_) => 1,
+            Screen::Checkpoint(_) => crate::cli::EXIT_PARTIAL,
             Screen::Result(owner) => owner.state.exit_code(),
         }
     }
@@ -246,6 +257,10 @@ impl App {
                 let response = owner.key(key, &mut self.shell.focus, &clipboard);
                 self.apply_response(response)
             }
+            Screen::Checkpoint(owner) => {
+                let response = owner.key(key, &mut self.shell.focus);
+                self.checkpoint_response(response)
+            }
             Screen::Result(owner) => {
                 let response = owner.key(key, &clipboard);
                 self.result_response(response)
@@ -276,7 +291,7 @@ impl App {
             Screen::Modules(owner) => owner.paste(text, &self.shell.focus),
             Screen::Packages(_) => Outcome::Ignored,
             Screen::Apply(owner) => owner.paste(text),
-            Screen::Result(_) => Outcome::Ignored,
+            Screen::Checkpoint(_) | Screen::Result(_) => Outcome::Ignored,
         }
     }
 
@@ -357,6 +372,17 @@ impl App {
         })
     }
 
+    fn checkpoint_response(&mut self, response: Response<CheckpointAction>) -> Outcome {
+        let (out, actions) = response.into_parts();
+        actions.into_iter().fold(out, |_out, action| match action {
+            CheckpointAction::Quit => {
+                self.exit_code = Some(crate::cli::EXIT_PARTIAL);
+                self.shell.quit = true;
+                Outcome::Changed
+            }
+        })
+    }
+
     /// Drain the S3 worker channel into the screen (no-op elsewhere).
     pub fn pump(&mut self) {
         let mut events = Vec::new();
@@ -368,33 +394,75 @@ impl App {
         }
         let _ = self.poll_apply();
         let _ = self.poll_check();
+        let _ = self.poll_checkpoint();
     }
 
     fn feed_external(&mut self, external: &External) -> bool {
         match &mut self.screen {
             Screen::Apply(owner) => owner.on_external(external),
-            _ => false,
+            Screen::Modules(_)
+            | Screen::Packages(_)
+            | Screen::Checkpoint(_)
+            | Screen::Result(_) => false,
         }
     }
 
-    /// Success moves on to the Result screen by itself; a failure or a stop
-    /// stays on the Applying screen with its banner.
+    /// Success moves on by itself. A recorded checkpoint is checked before
+    /// Result. A failure or a stop stays on the Applying screen.
     fn poll_apply(&mut self) -> Outcome {
-        let Screen::Apply(owner) = &mut self.screen else {
-            return Outcome::Ignored;
-        };
-        let (update, outcome) = owner.poll_worker();
-        if let Some(outcome) = outcome {
-            for item in owner.state.take_follow_ups() {
-                if !self.apply_follow_ups.contains(&item) {
-                    self.apply_follow_ups.push(item);
+        let (update, record) = {
+            let Screen::Apply(owner) = &mut self.screen else {
+                return Outcome::Ignored;
+            };
+            let (update, outcome) = owner.poll_worker();
+            let mut record = None;
+            if let Some(outcome) = outcome {
+                for item in owner.state.take_follow_ups() {
+                    if !self.apply_follow_ups.contains(&item) {
+                        self.apply_follow_ups.push(item);
+                    }
+                }
+                if outcome == crate::backend::ApplyOutcome::Success {
+                    record = Some(owner.state.take_checkpoint());
                 }
             }
-            if outcome == crate::backend::ApplyOutcome::Success {
+            (update, record)
+        };
+        if let Some(record) = record {
+            if matches!(
+                crate::checkpoint::plan(&record),
+                crate::checkpoint::Plan::Clear
+            ) {
                 self.enter_result();
+            } else {
+                self.enter_checkpoint(record);
             }
+            return Outcome::Changed;
         }
         update
+    }
+
+    fn enter_checkpoint(&mut self, record: crate::checkpoint::Record) {
+        let mut state = CheckpointScreen::new(self.config_dir.clone(), record);
+        state.start();
+        self.check = None;
+        self.set_screen(Screen::Checkpoint(Box::new(CheckpointOwner::new(state))));
+    }
+
+    fn poll_checkpoint(&mut self) -> Outcome {
+        let satisfied = {
+            let Screen::Checkpoint(owner) = &mut self.screen else {
+                return Outcome::Ignored;
+            };
+            let Some(output) = owner.state.poll() else {
+                return Outcome::Ignored;
+            };
+            owner.state.finish_job(output)
+        };
+        if satisfied {
+            self.enter_result();
+        }
+        Outcome::Changed
     }
 
     fn retry_apply(&mut self) {
@@ -665,7 +733,8 @@ impl App {
     fn on_tick(&mut self) -> Outcome {
         let mut out = PointerRouter::tick(self)
             .or(self.poll_apply())
-            .or(self.poll_check());
+            .or(self.poll_check())
+            .or(self.poll_checkpoint());
         let now = self.clock.now_ms();
         if self.shell.pointer.expire_flash(now) {
             out = Outcome::Changed;
@@ -675,6 +744,7 @@ impl App {
         }
         let animating = self.shell.pointer.has_flash()
             || matches!(&self.screen, Screen::Apply(owner) if owner.state.started() && owner.state.outcome().is_none())
+            || matches!(&self.screen, Screen::Checkpoint(owner) if owner.state.checking())
             || matches!(&self.screen, Screen::Result(owner) if owner.state.is_checking())
             || matches!(&self.screen, Screen::Packages(owner) if owner.state.is_checking());
         if animating {
@@ -748,6 +818,7 @@ impl ShellApp for App {
             Screen::Modules(owner) => owner.draw(area, buf, ctx),
             Screen::Packages(owner) => owner.draw(area, buf, ctx),
             Screen::Apply(owner) => owner.draw(area, buf, ctx),
+            Screen::Checkpoint(owner) => owner.draw(area, buf, ctx),
             Screen::Result(owner) => owner.draw(area, buf, ctx),
         }
         if let Some(help) = self.help.top_mut() {
@@ -771,13 +842,14 @@ impl ShellApp for App {
         match &mut self.screen {
             Screen::Modules(owner) => owner.blur(change),
             Screen::Packages(_) => Outcome::Ignored,
-            Screen::Apply(_) => Outcome::Ignored,
-            Screen::Result(_) => Outcome::Ignored,
+            Screen::Apply(_) | Screen::Checkpoint(_) | Screen::Result(_) => Outcome::Ignored,
         }
     }
 
     fn layer_open(&self) -> bool {
-        !self.help.is_empty() || matches!(&self.screen, Screen::Apply(owner) if owner.layer_open())
+        !self.help.is_empty()
+            || matches!(&self.screen, Screen::Apply(owner) if owner.layer_open())
+            || matches!(&self.screen, Screen::Checkpoint(owner) if owner.layer_open())
     }
 
     fn page_under_layer(&self) -> bool {
@@ -795,7 +867,10 @@ impl ShellApp for App {
     fn external(&self) -> Option<&ExternalReceiver> {
         match &self.screen {
             Screen::Apply(owner) => owner.state.receiver(),
-            _ => None,
+            Screen::Modules(_)
+            | Screen::Packages(_)
+            | Screen::Checkpoint(_)
+            | Screen::Result(_) => None,
         }
     }
 }
@@ -853,6 +928,10 @@ impl PointerHost for App {
                 let response = owner.pointer(ev, &mut self.shell.focus, &clipboard);
                 self.apply_response(response).into()
             }
+            Screen::Checkpoint(owner) => {
+                let response = owner.pointer(ev, &mut self.shell.focus);
+                self.checkpoint_response(response).into()
+            }
             Screen::Result(_) => {
                 let _ = ev;
                 Response::ignored()
@@ -871,7 +950,15 @@ impl PointerHost for App {
                 let response = owner.outside(&mut self.shell.focus, &clipboard);
                 self.apply_response(response).into()
             }
-            _ => Response::changed(),
+            Screen::Checkpoint(owner) if owner.layer_open() => {
+                let response = owner.outside(&mut self.shell.focus);
+                self.checkpoint_response(response).into()
+            }
+            Screen::Modules(_)
+            | Screen::Packages(_)
+            | Screen::Apply(_)
+            | Screen::Checkpoint(_)
+            | Screen::Result(_) => Response::changed(),
         }
     }
 }
