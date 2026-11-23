@@ -908,6 +908,25 @@ mod tests {
     }
 
     #[test]
+    fn stage_6_does_not_set_emc_apply() {
+        let src = include_str!("setup.rs");
+        let start = src
+            .find("no base modules to apply")
+            .expect("stage 6 marker");
+        let rest = &src[start..];
+        let end = rest.find("base modules failed").expect("stage 6 command");
+        let stage6 = &rest[..end];
+        assert!(
+            !stage6.contains(".env(\"EMC_APPLY\""),
+            "stage 6 must not set EMC_APPLY"
+        );
+        assert!(
+            !stage6.contains("stream_child"),
+            "stage 6 must not go through stream_child"
+        );
+    }
+
+    #[test]
     fn github_https_access_stage_probes_then_falls_back_to_gh() {
         let plan = setup_plan(&cfg(Some("OWNER/REPO")));
         let probe =

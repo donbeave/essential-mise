@@ -892,6 +892,10 @@ fn display_argv(mise_bin: &Path, argv: &[String]) -> String {
 /// Shared worker pattern: `mise` apply phases (backend) and `setup` stages
 /// (cli) both stream through here. `program`/`args` are spawned verbatim;
 /// `ceiling` sets `MISE_CEILING_PATHS` (harmless for non-mise children).
+///
+/// `EMC_APPLY=1` is set on this child only. A config hook uses it to print a
+/// checkpoint sentinel instead of reading the terminal. Setup stage 6 builds
+/// its own `Command` and does not set the variable.
 pub(crate) fn stream_child(
     program: &Path,
     args: &[String],
@@ -903,6 +907,7 @@ pub(crate) fn stream_child(
     let mut child = Command::new(program)
         .args(args)
         .env("MISE_CEILING_PATHS", ceiling)
+        .env("EMC_APPLY", "1")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
